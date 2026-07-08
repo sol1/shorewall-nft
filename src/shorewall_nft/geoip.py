@@ -16,13 +16,16 @@ import re
 import subprocess
 import urllib.request
 
+from .emit import table_for
+
 URL_V4 = "https://www.ipdeny.com/ipblocks/data/aggregated/{cc}-aggregated.zone"
 URL_V6 = "https://www.ipdeny.com/ipv6/ipaddresses/aggregated/{cc}-aggregated.zone"
 
 
-def discover_sets(nft):
-    """The geoip sets in the live table, as (setname, cc, family)."""
-    out = subprocess.run([nft, "list", "sets", "inet", "shorewall"],
+def discover_sets(nft, family):
+    """The geoip sets in this family's live table, as (setname, cc,
+    family)."""
+    out = subprocess.run([nft, "list", "sets", *table_for(family).split()],
                          capture_output=True, text=True)
     if out.returncode != 0:
         return []
@@ -72,35 +75,36 @@ def fetch(cc, family, source_dir=None, timeout=30):
     return cidrs
 
 
-def _load_set(nft, setname, cidrs, geodir):
+def _load_set(nft, table, setname, cidrs, geodir):
     """Flush and refill a set from the live table, then write a reload
     file so the wrapper can repopulate it on a restart without the
     network. Elements are added in chunks to stay under the arg limit."""
-    subprocess.run([nft, "flush", "set", "inet", "shorewall", setname],
-                   check=True)
+    tbl = table.split()
+    subprocess.run([nft, "flush", "set", *tbl, setname], check=True)
     lines = []
     for i in range(0, len(cidrs), 500):
         chunk = ", ".join(cidrs[i:i + 500])
-        subprocess.run([nft, "add", "element", "inet", "shorewall", setname,
+        subprocess.run([nft, "add", "element", *tbl, setname,
                         "{ " + chunk + " }"], check=True)
-        lines.append(f"add element inet shorewall {setname} {{ {chunk} }}")
+        lines.append(f"add element {table} {setname} {{ {chunk} }}")
     os.makedirs(geodir, exist_ok=True)
     with open(os.path.join(geodir, f"{setname}.nft"), "w") as f:
         f.write("\n".join(lines) + "\n")
 
 
-def update(nft, geodir, source_dir=None, only=None):
-    """Refresh every geoip set in the live table. Returns a list of
-    (setname, count, error) tuples, one per set."""
+def update(nft, geodir, family, source_dir=None, only=None):
+    """Refresh every geoip set in this family's live table. Returns a
+    list of (setname, count, error) tuples, one per set."""
+    table = table_for(family)
     results = []
-    for setname, cc, family in discover_sets(nft):
+    for setname, cc, setfam in discover_sets(nft, family):
         if only and cc not in only:
             continue
         try:
-            cidrs = fetch(cc, family, source_dir)
+            cidrs = fetch(cc, setfam, source_dir)
             if not cidrs:
                 raise ValueError("no valid CIDRs")
-            _load_set(nft, setname, cidrs, geodir)
+            _load_set(nft, table, setname, cidrs, geodir)
             results.append((setname, len(cidrs), None))
         except Exception as e:              # noqa: BLE001 report per set
             results.append((setname, 0, str(e)))

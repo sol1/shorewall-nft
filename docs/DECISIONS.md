@@ -45,6 +45,22 @@ coexistence contract every modern nftables consumer follows.
 One inet table serves IPv4 and IPv6. Upstream compiles twice, once per family.
 We compile once. Family-specific rules sit side by side in the same chains.
 
+## 2026-07-08: Separate family tables, not one inet table
+
+The one-inet-table idea above was wrong for a box running both shorewall and
+shorewall6. Both commands compiled to `table inet shorewall`, the same table
+key, so each load deleted the other's rules and whichever started last won. An
+inet table also filters both protocols, so a v4 config's `policy drop` silently
+dropped all IPv6.
+
+shorewall now emits `table ip shorewall` and shorewall6 emits `table ip6
+shorewall`. Different keys, so they never collide and both stay loaded. An ip
+table sees only IPv4 and an ip6 table only IPv6, so neither touches the other's
+protocol. This matches classic Shorewall, where shorewall drove iptables and
+shorewall6 drove ip6tables. The "compile once" claim never held: the two
+products always compiled separately. The never-flush, delete-and-recreate-our-
+own-table contract is unchanged.
+
 ## 2026-07-03: Baseline is nft 1.0.6 / kernel 6.1
 
 Debian 12 ships nft 1.0.6 on kernel 6.1. Everything we need works there,

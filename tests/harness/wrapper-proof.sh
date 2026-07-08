@@ -37,7 +37,7 @@ ip link set eth1 up
 fail=0
 
 "$OUT/firewall" start
-nft list table inet shorewall | grep -q "chain net2fw" \
+nft list table ip shorewall | grep -q "chain net2fw" \
     && echo "PASS start loads ruleset" \
     || { echo "FAIL start ruleset"; fail=1; }
 [ -f /run/init-ran ] && echo "PASS init extension ran" \
@@ -61,10 +61,10 @@ ip -4 route show | grep -q "10.0.2.50" \
     && echo "PASS status" || { echo "FAIL status"; fail=1; }
 
 "$OUT/firewall" stop
-if nft list table inet shorewall | grep -q "chain net2fw"; then
+if nft list table ip shorewall | grep -q "chain net2fw"; then
     echo "FAIL stop left start ruleset"; fail=1
 else
-    nft list table inet shorewall | grep -q 'iifname "eth1" accept' \
+    nft list table ip shorewall | grep -q 'iifname "eth1" accept' \
         && echo "PASS stop loads stopped ruleset" \
         || { echo "FAIL stopped ruleset content"; fail=1; }
 fi
@@ -76,7 +76,7 @@ ip -4 neigh show proxy | grep -q "10.0.2.50" \
     || echo "PASS proxyarp cleared on stop"
 
 "$OUT/firewall" clear
-if nft list table inet shorewall >/dev/null 2>&1; then
+if nft list table ip shorewall >/dev/null 2>&1; then
     echo "FAIL clear left the table"; fail=1
 else
     echo "PASS clear removes table"

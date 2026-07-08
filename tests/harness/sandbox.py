@@ -388,8 +388,9 @@ def main():
     nodes = build(case)
     load_ruleset(args.load)
     # Seed geoip country sets, standing in for `shorewall geoip-update`.
+    fam = "ip6" if case.get("family", 4) == 6 else "ip"
     for cc, cidrs in case.get("geoip", {}).items():
-        ns("fw", "nft", "add", "element", "inet", "shorewall",
+        ns("fw", "nft", "add", "element", fam, "shorewall",
            f"geoip_{cc}", "{ " + ", ".join(cidrs) + " }")
     procs = start_listeners(case)
     try:

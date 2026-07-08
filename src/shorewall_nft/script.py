@@ -131,19 +131,24 @@ def _routing(cfg):
                       f"table {p.number}")
             up.append(f"        ip -4 route replace default via ${var} "
                       f"dev {p.interface} table {p.number}")
-            up.append("    else")
-            # No gateway found: a point-to-point interface (WireGuard, ppp)
-            # routes via the device with no via.
+            up.append(f'    elif [ -n "$(ip -o link show {p.interface} up '
+                      "2>/dev/null)\" ]; then")
+            # Up but no gateway: a point-to-point interface (WireGuard, ppp)
+            # routes via the device. A down interface falls through and is
+            # skipped, so it does not error or break the balanced default.
             up.append(f"        ip -4 route replace default dev "
                       f"{p.interface} table {p.number}")
             up.append("    fi")
             gw = f"${var}"
         else:
-            up.append(f"    ip -4 route replace {gw} dev {p.interface}")
-            up.append(f"    ip -4 route replace {gw} dev {p.interface} "
+            up.append(f'    if [ -n "$(ip -o link show {p.interface} up '
+                      "2>/dev/null)\" ]; then")
+            up.append(f"        ip -4 route replace {gw} dev {p.interface}")
+            up.append(f"        ip -4 route replace {gw} dev {p.interface} "
                       f"table {p.number}")
-            up.append(f"    ip -4 route replace default via {gw} "
+            up.append(f"        ip -4 route replace default via {gw} "
                       f"dev {p.interface} table {p.number}")
+            up.append("    fi")
         if not p.loose:
             up.append(f"    for addr in $(ip -4 -o addr show dev "
                       f"{p.interface} | awk '{{print $4}}' | cut -d/ -f1); do")
@@ -196,8 +201,15 @@ def _routing(cfg):
         # resolved. A detected gateway that came back empty is skipped.
         up.append('    NEXTHOPS=""')
         for gw, iface, weight in nexthops:
-            up.append(f'    [ -n "{gw}" ] && NEXTHOPS="$NEXTHOPS nexthop '
-                      f'via {gw} dev {iface} weight {weight}"')
+            # Only balance across providers whose gateway resolved and whose
+            # interface is up. Including a down interface makes the whole
+            # multipath route fail with "Device for nexthop is not up".
+            up.append(f'    if [ -n "{gw}" ] && '
+                      f'[ -n "$(ip -o link show {iface} up 2>/dev/null)" ]; '
+                      "then")
+            up.append(f'        NEXTHOPS="$NEXTHOPS nexthop via {gw} '
+                      f'dev {iface} weight {weight}"')
+            up.append("    fi")
         up.append('    if [ -n "$NEXTHOPS" ]; then')
         up.append("    ip -4 route replace default scope global table 250 "
                   "$NEXTHOPS")
@@ -504,15 +516,15 @@ case "$1" in
         run_stopped
         ;;
     clear)
-        nft destroy table inet shorewall 2>/dev/null \\
-            || nft delete table inet shorewall 2>/dev/null || :
+        nft destroy table {table} 2>/dev/null \\
+            || nft delete table {table} 2>/dev/null || :
         clear_routing
         clear_tc
         clear_proxyarp
         run_clear
         ;;
     status)
-        nft list table inet shorewall
+        nft list table {table}
         ;;
     *)
         echo "usage: $0 {{start|reload|restart|stop|clear|status}}" >&2
@@ -577,14 +589,17 @@ def _extensions(cfg):
 
 def render_script(cfg, ruleset, stop_ruleset):
     from . import chunk
+    from .emit import table_for
+    table = table_for(cfg.family)
     sysctls = "\n".join(f"    sysctl -qw {s}" for s in _sysctls(cfg)) or "    :"
     routing_up, routing_down = _routing(cfg)
     # Simple shaping (tcinterfaces) and classful shaping (tcdevices)
     # are alternatives; a config uses one.
     tc_up, tc_down = _simple_tc(cfg) if cfg.tcinterfaces else _tc(cfg)
     proxyarp_up, proxyarp_down = _proxyarp(cfg)
-    skeleton, chunks = chunk.split(ruleset)
+    skeleton, chunks = chunk.split(ruleset, table)
     return TEMPLATE.format(confdir=cfg.confdir, sysctls=sysctls,
+                           table=table,
                            extensions=_extensions(cfg),
                            routing_up=routing_up,
                            routing_down=routing_down,

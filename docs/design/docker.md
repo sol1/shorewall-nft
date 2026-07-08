@@ -87,9 +87,9 @@ The consequence is the whole design:
   is the one case that needs an agreed mark and a prerouting priority
   below Docker's.
 
-Because shorewall-nft already owns `table inet shorewall` and never
-flushes another table, Docker's table survives a shorewall-nft reload
-untouched. The entire upstream save and restore machinery is deleted,
+Because shorewall-nft already owns its own table (`ip shorewall`) and
+never flushes another table, Docker's table survives a shorewall-nft
+reload untouched. The entire upstream save and restore machinery is deleted,
 not ported. There is nothing to snapshot.
 
 ## The one thing that would break Docker, and the fix

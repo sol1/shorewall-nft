@@ -79,7 +79,7 @@ def _element_statements(table, name, elements, out):
         out.add(f"add element {table} {name} {{ " + ", ".join(batch) + " }")
 
 
-def split(text, table="inet shorewall"):
+def split(text, table="ip shorewall"):
     """Return (skeleton_text, [chunk_text, ...]).
 
     Parses our own emitter output, which is regular: one statement per

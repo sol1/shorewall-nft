@@ -39,7 +39,7 @@ sw status >/dev/null && bad "status before start should be nonzero" \
     || ok "status reports stopped before start"
 
 sw start >/dev/null && ok start || bad start
-nft list table inet shorewall | grep -q "chain net2fw" \
+nft list table ip shorewall | grep -q "chain net2fw" \
     && ok "start loaded ruleset" || bad "start ruleset"
 
 sw status >/dev/null && ok "status running" || bad "status running"
@@ -53,19 +53,19 @@ sw show zones | grep -q "fw (firewall)" && ok "show zones" \
 sw save >/dev/null && ok save || bad save
 
 sw stop >/dev/null && ok stop || bad stop
-if nft list table inet shorewall | grep -q "chain net2fw"; then
+if nft list table ip shorewall | grep -q "chain net2fw"; then
     bad "stop should replace the start ruleset"
 else
-    nft list table inet shorewall | grep -q 'iifname "eth1" accept' \
+    nft list table ip shorewall | grep -q 'iifname "eth1" accept' \
         && ok "stop is the safe state" || bad "stop safe state"
 fi
 
 sw clear >/dev/null && ok clear || bad clear
-nft list table inet shorewall >/dev/null 2>&1 \
+nft list table ip shorewall >/dev/null 2>&1 \
     && bad "clear left the table" || ok "clear opened the firewall"
 
 sw restore >/dev/null && ok restore || bad restore
-nft list table inet shorewall | grep -q "chain net2fw" \
+nft list table ip shorewall | grep -q "chain net2fw" \
     && ok "restore reloaded saved ruleset" || bad "restore ruleset"
 
 cp -r "$SWNFT_CONFDIR" "$WORK/broken"
@@ -73,7 +73,7 @@ echo 'BOGUS_ACTION net $FW tcp 99' >> "$WORK/broken/rules"
 if sw try "$WORK/broken" >/dev/null 2>&1; then
     bad "try accepted a broken config"
 else
-    nft list table inet shorewall | grep -q "chain net2fw" \
+    nft list table ip shorewall | grep -q "chain net2fw" \
         && ok "try reverted to the running config" || bad "try revert"
 fi
 

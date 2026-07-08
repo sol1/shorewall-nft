@@ -43,9 +43,10 @@ do to live packets.
   sysctl work. The ruleset is applied atomically with `nft -f`.
 - Compile-time checking uses `nft -c -f`. The kernel validates the whole ruleset
   before anything is touched.
-- All rules live in `table inet shorewall`. One dual-stack ruleset serves both
-  shorewall and shorewall6 configurations. The ruleset never flushes tables owned
-  by other software.
+- Each family has its own table: `ip shorewall` for shorewall, `ip6 shorewall`
+  for shorewall6. They never collide, so a box can run both at once, and neither
+  filters the other's protocol. The ruleset never flushes tables owned by other
+  software.
 - Baseline: nftables 1.0.2 or later, as shipped by Ubuntu 22.04 and Debian 12.
   CI runs the suite against nftables 1.0.2.
 

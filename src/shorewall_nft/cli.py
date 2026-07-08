@@ -16,6 +16,7 @@ import time
 
 from . import __version__, capabilities
 from .compile import compile_config
+from .emit import table_for
 from .errors import ConfigError
 
 
@@ -82,7 +83,7 @@ def _apply(confdir, family, vardir, keep_previous=True):
     return rc
 
 
-def _revert(vardir):
+def _revert(vardir, family):
     prev = _script_path(vardir) + ".prev"
     if os.path.exists(prev):
         rc = _run_script(prev, "start")
@@ -90,7 +91,7 @@ def _revert(vardir):
             shutil.copy2(prev, _script_path(vardir))
             _state(vardir, "Started")
         return rc
-    subprocess.run([_nft(), "destroy", "table", "inet", "shorewall"],
+    subprocess.run([_nft(), "destroy", "table", *table_for(family).split()],
                    capture_output=True)
     _state(vardir, "Cleared")
     return 0
@@ -132,7 +133,7 @@ def _fatal(message):
     sys.exit(2)
 
 
-def _confirm_or_revert(vardir, timeout=60):
+def _confirm_or_revert(vardir, family, timeout=60):
     print("Do you want to accept the new firewall configuration? [y/n] ",
           end="", flush=True)
     ready, _, _ = select.select([sys.stdin], [], [], timeout)
@@ -141,7 +142,7 @@ def _confirm_or_revert(vardir, timeout=60):
         print("New configuration has been accepted")
         return 0
     print("New configuration reverted")
-    return _revert(vardir)
+    return _revert(vardir, family)
 
 
 # Verbs ------------------------------------------------------------------
@@ -217,7 +218,7 @@ def cmd_clear(args, family):
     if os.path.exists(script):
         rc = _run_script(script, "clear")
     else:
-        subprocess.run([_nft(), "destroy", "table", "inet", "shorewall"],
+        subprocess.run([_nft(), "destroy", "table", *table_for(family).split()],
                        capture_output=True)
         rc = 0
     if rc == 0:
@@ -241,7 +242,7 @@ def cmd_try(args, family):
         rc = 1
     if rc != 0:
         print("Restoring the previous configuration", file=sys.stderr)
-        _revert(vardir)
+        _revert(vardir, family)
         return rc
     if timeout:
         print(f"New configuration active, reverting in {timeout}s "
@@ -252,7 +253,7 @@ def cmd_try(args, family):
             print("\nNew configuration accepted")
             return 0
         print("Timeout reached, reverting")
-        return _revert(vardir)
+        return _revert(vardir, family)
     return 0
 
 
@@ -260,9 +261,9 @@ def cmd_safe_start(args, family):
     vardir = _vardir(family)
     rc = cmd_start(args, family)
     if rc != 0:
-        _revert(vardir)
+        _revert(vardir, family)
         return rc
-    return _confirm_or_revert(vardir)
+    return _confirm_or_revert(vardir, family)
 
 
 def cmd_restart(args, family):
@@ -273,11 +274,11 @@ def cmd_safe_restart(args, family):
     return cmd_safe_start(args, family)
 
 
-def _rule_counts():
+def _rule_counts(family):
     """Total and nat rule counts from the live table, or None if it is
     not loaded."""
     import json
-    r = subprocess.run([_nft(), "-j", "list", "table", "inet", "shorewall"],
+    r = subprocess.run([_nft(), "-j", "list", "table", *table_for(family).split()],
                        capture_output=True, text=True)
     if r.returncode != 0:
         return None
@@ -321,7 +322,7 @@ def cmd_status(args, family):
     print(f"State:Started {when} from {_confdir(family)}/ "
           f"({artifact} compiled {compiled} by shorewall-nft {__version__})")
 
-    counts = _rule_counts()
+    counts = _rule_counts(family)
     if counts is None:
         print("\nWarning: the state says started but the ruleset is not "
               "loaded.", file=sys.stderr)
@@ -334,8 +335,8 @@ def cmd_status(args, family):
 def cmd_show(args, family):
     what = args[0] if args else "filter"
     if what in ("filter", "nat", "mangle", "raw", "rules"):
-        return subprocess.run([_nft(), "list", "table", "inet",
-                               "shorewall"]).returncode
+        return subprocess.run([_nft(), "list", "table",
+                               *table_for(family).split()]).returncode
     if what == "capabilities":
         for name, value in sorted(capabilities.CAPABILITIES.items()):
             print(f"   {name}: {'Yes' if value else 'Not available'}")
@@ -526,15 +527,47 @@ def cmd_migrate(args, family):
     # reliable way to bring the firewall up.
     print("Starting shorewall-nft.")
     rc = cmd_start([], family)
-    loaded = subprocess.run([_nft(), "list", "table", "inet", "shorewall"],
+    loaded = subprocess.run([_nft(), "list", "table", *table_for(family).split()],
                             capture_output=True).returncode == 0
     if rc == 0 and loaded:
+        # The previous Shorewall left its iptables ruleset in the kernel.
+        # Our nft table is loaded and protecting the box now, so tear the
+        # old ruleset down, otherwise both firewalls filter at once.
+        if _clear_legacy_iptables():
+            print("Cleared the previous Shorewall's iptables ruleset.")
         print("shorewall-nft is running and enabled at boot. "
               "Verify with 'shorewall status'.")
         return 0
     print("shorewall-nft is enabled but the ruleset did not load. "
           "Run 'shorewall start' and check the output.", file=sys.stderr)
     return 1
+
+
+def _clear_legacy_iptables():
+    """Tear down a classic Shorewall iptables ruleset left in the kernel.
+    Set the built-in policies to ACCEPT, flush every chain and delete the
+    non-built-in chains, for IPv4 and IPv6. Mirrors what `shorewall clear`
+    did. Returns True if there was a ruleset to clear."""
+    import shutil
+    cleared = False
+    for cmd in ("iptables", "ip6tables"):
+        path = shutil.which(cmd) or f"/usr/sbin/{cmd}"
+        if not os.path.exists(path):
+            continue
+        # A non-empty ruleset has more than the bare built-in chains.
+        listing = subprocess.run([path, "-S"], capture_output=True, text=True)
+        if listing.returncode == 0 and any(
+                not ln.startswith("-P ") and ln.strip()
+                for ln in listing.stdout.splitlines()):
+            cleared = True
+        for table in ("raw", "mangle", "nat", "filter"):
+            for chain in ("PREROUTING", "INPUT", "FORWARD", "OUTPUT",
+                          "POSTROUTING"):
+                subprocess.run([path, "-t", table, "-P", chain, "ACCEPT"],
+                               capture_output=True)
+            subprocess.run([path, "-t", table, "-F"], capture_output=True)
+            subprocess.run([path, "-t", table, "-X"], capture_output=True)
+    return cleared
 
 
 def _sysd(*args):
@@ -565,7 +598,7 @@ def cmd_geoip_update(args, family):
         else:
             only.append(a.lower())
     geodir = os.path.join(_vardir(family), "geoip")
-    results = geoip.update(_nft(), geodir, source_dir, only or None)
+    results = geoip.update(_nft(), geodir, family, source_dir, only or None)
     if not results:
         print("shorewall-nft: no geoip sets in the running firewall")
         return 0

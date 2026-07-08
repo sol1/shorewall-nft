@@ -5,15 +5,17 @@ to the configuration. This is the nftables counterpart to Shorewall's
 Anatomy and Internals guides, which describe iptables chain generation
 that does not apply here.
 
-## One table, owned, never flushed
+## Family tables, owned, never flushed
 
-Everything lives in `table inet shorewall`. The `inet` family carries
-both IPv4 and IPv6. The compiler emits `destroy table inet shorewall`
-then recreates it, so a reload replaces only our table. It never runs
-`flush ruleset` and never touches a table owned by anything else, which
-is how it coexists with Docker, libvirt, or a hand-written table. The
-whole ruleset loads in one `nft -f` transaction, so it applies
-completely or not at all.
+shorewall's rules live in `table ip shorewall` and shorewall6's in
+`table ip6 shorewall`. Separate family tables never collide, so a box
+can run both at once, and an ip table sees only IPv4 while an ip6 table
+sees only IPv6, so neither filters the other's protocol. The compiler
+declares its table then deletes and recreates it, so a reload replaces
+only our own table. It never runs `flush ruleset` and never touches a
+table owned by anything else, which is how it coexists with Docker,
+libvirt, or a hand-written table. The whole ruleset loads in one
+`nft -f` transaction, so it applies completely or not at all.
 
 ## Base chains and hook priorities
 

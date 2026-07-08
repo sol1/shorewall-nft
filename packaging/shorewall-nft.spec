@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.0.2
+Version:        0.0.3
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -69,6 +69,13 @@ DESTDIR=%{buildroot} packaging/install.sh packaging/shorewallrc.redhat
 %systemd_postun shorewall-geoip-update.timer
 
 %changelog
+* Wed Jul 08 2026 Dave Kempe <dave@sol1.com.au> - 0.0.3-1
+- Separate family tables: shorewall uses ip shorewall and shorewall6
+  uses ip6 shorewall, so both run at once without clobbering each other
+  and neither drops the other's protocol.
+- migrate tears down the previous Shorewall iptables ruleset.
+- Multi-ISP: skip provider interfaces that are down, and route a "-"
+  gateway via the device.
 * Wed Jul 08 2026 Dave Kempe <dave@sol1.com.au> - 0.0.2-1
 - Conflict with, obsolete and provide shorewall6 and shorewall-core so
   install replaces the whole Shorewall family cleanly.

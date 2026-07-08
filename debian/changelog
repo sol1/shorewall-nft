@@ -1,3 +1,16 @@
+shorewall-nft (0.0.3) unstable; urgency=medium
+
+  * Separate family tables. shorewall now uses table ip shorewall and
+    shorewall6 uses table ip6 shorewall, so a box can run both at once
+    without one deleting the other's rules, and a v4 ruleset no longer
+    drops all IPv6.
+  * migrate tears down the previous Shorewall iptables ruleset, so the
+    old and new firewalls do not both filter at once.
+  * Multi-ISP: balanced providers skip interfaces that are down instead
+    of failing the whole route, and a "-" gateway routes via the device.
+
+ -- Dave Kempe <dave@sol1.com.au>  Wed, 08 Jul 2026 12:00:00 +0000
+
 shorewall-nft (0.0.2) unstable; urgency=medium
 
   * Conflict with, replace and provide shorewall6 and shorewall-core in
