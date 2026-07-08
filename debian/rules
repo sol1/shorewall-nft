@@ -15,8 +15,11 @@ override_dh_auto_install:
 # Ship the service present but disabled and not started. The admin runs
 # shorewall migrate or shorewall start when ready.
 override_dh_installsystemd:
-	dh_installsystemd --no-enable --no-start shorewall.service
-	dh_installsystemd --no-enable --no-start shorewall-geoip-update.timer
+	# The units are installed into the buildroot by install.sh, not from
+	# debian/. Naming them makes older debhelper error when it does not
+	# find a matching debian/*.service, so let it auto-process what is
+	# present. --no-enable --no-start keeps the package inert.
+	dh_installsystemd --no-enable --no-start
 
 override_dh_auto_test:
 	# The differential suite needs network namespaces; run it out of the

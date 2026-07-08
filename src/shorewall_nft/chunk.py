@@ -87,7 +87,7 @@ def split(text, table="inet shorewall"):
     elements written as an `elements = {` block of comma-separated
     lines.
     """
-    skeleton = [f"destroy table {table}", f"table {table} {{"]
+    skeleton = [f"table {table}", f"delete table {table}", f"table {table} {{"]
     elements_out = _Chunker()
     rules_out = _Chunker()
 
@@ -99,7 +99,9 @@ def split(text, table="inet shorewall"):
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
-        if line.startswith("destroy table"):
+        if line.startswith("delete table") or (
+                line.startswith("table ") and not line.endswith("{")):
+            # The declare and delete that atomically replace our table.
             continue
         if line.startswith("table ") and line.endswith("{"):
             continue
