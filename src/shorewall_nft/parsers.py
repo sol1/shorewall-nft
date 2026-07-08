@@ -225,9 +225,10 @@ def _split_nat_flags(spec):
     return ":".join(kept), ",".join(flags)
 
 
-def _split_dnat_dest(spec, line):
-    """Parse a DNAT DEST of zone[:address[:port]][:flag], tolerating a
-    bracketed IPv6 address. Returns (zone, address, port, flags)."""
+def _split_dnat_dest(spec, line, family=4):
+    """Parse a DNAT DEST of zone[:address[:port]][:flag]. The IPv6
+    address may be bracketed, or bare when no port follows. Returns
+    (zone, address, port, flags)."""
     zone, _, rest = spec.partition(":")
     if not rest:
         return zone, "", "", ""
@@ -236,6 +237,10 @@ def _split_dnat_dest(spec, line):
         port, flags = _split_nat_flags(tail.lstrip(":"))
         return zone, addr, port, flags
     rest, flags = _split_nat_flags(rest)
+    if family == 6:
+        # A bare IPv6 address carries its own colons, so the whole of
+        # rest is the address. An inline port needs the bracketed form.
+        return zone, rest, "", flags
     bits = [b for b in rest.split(":") if b]
     if len(bits) == 0:
         return zone, "", "", flags
@@ -353,8 +358,8 @@ def parse_rules(path, variables, fw_zone, family=4):
             continue
 
         if name == "DNAT":
-            dest_zone, to_addr, to_port, flags = _split_dnat_dest(cols[2],
-                                                                  line)
+            dest_zone, to_addr, to_port, flags = _split_dnat_dest(
+                cols[2], line, family)
             origdest = cols[6] if len(cols) > 6 and cols[6] != "-" else ""
             if not (proto and dport) and not origdest:
                 raise line.error("DNAT needs PROTO and DPORT, or ORIGDEST")
@@ -405,6 +410,43 @@ def parse_rules(path, variables, fw_zone, family=4):
                         inline=inline, inline_full=param is None,
                         origin=origin))
             continue
+
+        # A service macro applied as a nat action, DNS/REDIRECT and the
+        # like. The macro supplies the protocol and ports to match; DEST
+        # is the redirect port or the DNAT target.
+        if param in ("REDIRECT", "DNAT") and macros.exists(name, family):
+            for source, s_addr in zones_of(cols[1]):
+                for mr in macros.expand(name, "ACCEPT", variables, family):
+                    if not mr.proto:
+                        continue
+                    if param == "REDIRECT":
+                        to_port, flags = _split_nat_flags(cols[2])
+                        if to_port in ("-", ""):
+                            to_port = mr.dport
+                        if not to_port.isdigit():
+                            raise line.error(
+                                "REDIRECT destination must be a port number")
+                        dnat.append(DnatRule(
+                            source=source, proto=mr.proto, dport=mr.dport,
+                            to_addr="", to_port=to_port, saddr=s_addr,
+                            origin=origin))
+                        accept_dest, accept_daddr = fw_zone, ""
+                    else:
+                        dz, to_addr, to_port, flags = _split_dnat_dest(
+                            cols[2], line, family)
+                        dnat.append(DnatRule(
+                            source=source, proto=mr.proto, dport=mr.dport,
+                            to_addr=to_addr, to_port=to_port, saddr=s_addr,
+                            origin=origin))
+                        accept_dest, accept_daddr = dz, to_addr
+                    if not no_accept:
+                        rules.append(Rule(
+                            action="ACCEPT", source=source, dest=accept_dest,
+                            proto=mr.proto, dport=to_port or mr.dport,
+                            saddr=s_addr, daddr=accept_daddr,
+                            loglevel=loglevel, logtag=logtag, origin=origin))
+            continue
+
         for source, saddr in zones_of(cols[1]):
             for dest, daddr in zones_of(cols[2]):
                 expanded = _expand_action(line, m.group("name"), param,

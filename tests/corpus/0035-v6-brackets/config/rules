@@ -1,0 +1,2 @@
+?SECTION NEW
+ACCEPT	net:$trusted	$FW	tcp	22

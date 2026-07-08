@@ -1,3 +1,12 @@
+shorewall-nft (0.0.2) unstable; urgency=medium
+
+  * Conflict with, replace and provide shorewall6 and shorewall-core in
+    addition to shorewall, so installing over a distribution Shorewall
+    (whose /usr/sbin/shorewall lives in shorewall-core) does not fail on
+    a file overwrite.
+
+ -- Dave Kempe <dave@sol1.com.au>  Wed, 08 Jul 2026 00:00:00 +0000
+
 shorewall-nft (0.0.1) unstable; urgency=medium
 
   * Initial packaging. Shorewall-compatible firewall compiler for

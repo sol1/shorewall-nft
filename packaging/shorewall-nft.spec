@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.0.1
+Version:        0.0.2
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -11,8 +11,14 @@ BuildArch:      noarch
 Requires:       python3 >= 3.7
 Requires:       nftables
 Provides:       shorewall = %{version}-%{release}
+Provides:       shorewall6 = %{version}-%{release}
+Provides:       shorewall-core = %{version}-%{release}
 Obsoletes:      shorewall < 5.2.9
+Obsoletes:      shorewall6 < 5.2.9
+Obsoletes:      shorewall-core < 5.2.9
 Conflicts:      shorewall
+Conflicts:      shorewall6
+Conflicts:      shorewall-core
 
 %{?systemd_requires}
 BuildRequires:  systemd-rpm-macros
@@ -63,5 +69,8 @@ DESTDIR=%{buildroot} packaging/install.sh packaging/shorewallrc.redhat
 %systemd_postun shorewall-geoip-update.timer
 
 %changelog
-* Mon Jul 07 2026 Dave Kempe <dave@sol1.com.au> - 0.0.1-1
+* Wed Jul 08 2026 Dave Kempe <dave@sol1.com.au> - 0.0.2-1
+- Conflict with, obsolete and provide shorewall6 and shorewall-core so
+  install replaces the whole Shorewall family cleanly.
+* Tue Jul 07 2026 Dave Kempe <dave@sol1.com.au> - 0.0.1-1
 - Initial packaging.

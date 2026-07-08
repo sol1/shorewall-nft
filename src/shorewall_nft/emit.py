@@ -104,6 +104,15 @@ def _split_action_list(spec):
     return out
 
 
+def _unbracket(addr):
+    """Shorewall6 wraps an IPv6 address in brackets so its colons do not
+    clash with the zone, interface and port separators. nft wants it
+    bare in a match, so strip a fully bracketed token."""
+    if addr.startswith("[") and addr.endswith("]"):
+        return addr[1:-1]
+    return addr
+
+
 def _addr_set(spec):
     """Render an address list. A leading ! negates the whole match,
     upstream's exclusion syntax."""
@@ -111,7 +120,7 @@ def _addr_set(spec):
     if spec.startswith("!"):
         negate = "!= "
         spec = spec[1:]
-    parts = [p for p in spec.split(",") if p]
+    parts = [_unbracket(p) for p in spec.split(",") if p]
     if len(parts) > 1:
         return negate + "{ " + ", ".join(parts) + " }"
     return negate + parts[0]
@@ -161,6 +170,7 @@ def _match_addr(spec, side, ipkw, sets):
         macs = [p[1:].replace("-", ":").lower() for p in parts]
         body = macs[0] if len(macs) == 1 else "{ " + ", ".join(macs) + " }"
         return f"ether saddr {negate}{body}"
+    parts = [_unbracket(p) for p in parts]
     for p in parts:
         _validate_addr(p)
     body = parts[0] if len(parts) == 1 else "{ " + ", ".join(parts) + " }"
@@ -173,8 +183,8 @@ _ADDR_OK = re.compile(r"^[0-9a-fA-F:.]+(/\d+)?(-[0-9a-fA-F:.]+)?$")
 def _validate_addr(part):
     """Reject address tokens that would emit invalid nft. These are the
     forms upstream supports that we do not yet: the &interface runtime
-    address, a bare interface name in an address column, and bracketed
-    IPv6. Geoip country codes are handled before this by _match_addr."""
+    address and a bare interface name in an address column. Geoip country
+    codes and bracketed IPv6 are handled before this by _match_addr."""
     if part.startswith("&"):
         raise ConfigError(f"&interface address ({part}) not supported yet")
     if part.startswith("[") or part.endswith("]"):
@@ -1318,11 +1328,13 @@ class Emitter:
             for d in self.cfg.dnat:
                 flags = f" {d.flags}" if d.flags else ""
                 if d.to_addr:
+                    addr = _unbracket(d.to_addr)
                     if self.cfg.family == 6:
-                        to = f"[{d.to_addr}]:{d.to_port}" if d.to_port \
-                            else d.to_addr
+                        # nft brackets an IPv6 dnat target only when a port
+                        # follows.
+                        to = f"[{addr}]:{d.to_port}" if d.to_port else addr
                     else:
-                        to = d.to_addr + (f":{d.to_port}" if d.to_port else "")
+                        to = addr + (f":{d.to_port}" if d.to_port else "")
                     action = f"dnat {ipkw} to {to}{flags}"
                 else:
                     action = f"redirect to :{d.to_port}{flags}"
@@ -1379,7 +1391,7 @@ class Emitter:
                     verdict += f" to :{s.to_addr}"
                 verdict += flags
             else:
-                verdict = f"snat {ipkw} to {s.to_addr}{flags}"
+                verdict = f"snat {ipkw} to {_unbracket(s.to_addr)}{flags}"
             comment = f' comment "{s.origin}"' if s.origin else ""
             self.out(" ".join(m) + f" {verdict}{comment}", 2)
         self.out("}", 1)

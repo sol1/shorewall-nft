@@ -273,17 +273,62 @@ def cmd_safe_restart(args, family):
     return cmd_safe_start(args, family)
 
 
+def _rule_counts():
+    """Total and nat rule counts from the live table, or None if it is
+    not loaded."""
+    import json
+    r = subprocess.run([_nft(), "-j", "list", "table", "inet", "shorewall"],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        return None
+    try:
+        items = json.loads(r.stdout).get("nftables", [])
+    except json.JSONDecodeError:
+        return None
+    nat_chains = {o["chain"]["name"] for o in items
+                  if "chain" in o and o["chain"].get("type") == "nat"}
+    rules = [o["rule"] for o in items if "rule" in o]
+    nat = sum(1 for ru in rules if ru.get("chain") in nat_chains)
+    return len(rules), nat
+
+
 def cmd_status(args, family):
+    import socket
     vardir = _vardir(family)
-    state = _state(vardir)
     product = "Shorewall6" if family == 6 else "Shorewall"
-    if state == "Started":
-        print(f"{product} is running")
-        print(f"State:{state}")
-        return 0
-    print(f"{product} is stopped")
-    print(f"State:{state}")
-    return 3
+    now = time.strftime("%a %d %b %Y %H:%M:%S %Z")
+    print(f"{product}-nft {__version__} Status at {socket.gethostname()} "
+          f"- {now}\n")
+    try:
+        with open(os.path.join(vardir, "state")) as f:
+            raw = f.read().strip()
+    except OSError:
+        raw = "Cleared"
+    state = raw.split()[0] if raw else "Cleared"
+
+    if state != "Started":
+        print(f"{product} is stopped")
+        print(f"State:{raw}")
+        return 3
+
+    print(f"{product} is running")
+    when = raw[len("Started"):].strip().strip("()")
+    artifact = _script_path(vardir)
+    compiled = ""
+    if os.path.exists(artifact):
+        compiled = time.strftime("%a %d %b %Y %H:%M:%S %Z",
+                                 time.localtime(os.path.getmtime(artifact)))
+    print(f"State:Started {when} from {_confdir(family)}/ "
+          f"({artifact} compiled {compiled} by shorewall-nft {__version__})")
+
+    counts = _rule_counts()
+    if counts is None:
+        print("\nWarning: the state says started but the ruleset is not "
+              "loaded.", file=sys.stderr)
+    else:
+        total, nat = counts
+        print(f"\n{total} filter rules, {nat} nat rules")
+    return 0
 
 
 def cmd_show(args, family):
@@ -462,18 +507,34 @@ def cmd_migrate(args, family):
         print("These would not carry over. Remove or replace them first.")
         return 1
 
-    print("\nReady to hand over. This enables shorewall-nft and loads its")
-    print("ruleset, taking over from the previous Shorewall.")
+    print("\nReady to hand over. This enables shorewall-nft at boot and")
+    print("starts it now, loading its ruleset and taking over from the")
+    print("previous Shorewall.")
     if not assume_yes:
         print("Proceed? [y/n] ", end="", flush=True)
         if sys.stdin.readline().strip().lower() not in ("y", "yes"):
             print("No changes made.")
             return 0
 
+    # Enable for boot. daemon-reload first, since the unit may have just
+    # been installed.
+    _sysd("daemon-reload")
     _sysd("enable", "shorewall.service")
-    _sysd("start", "shorewall.service")
-    print("shorewall-nft is now the firewall. Verify with 'shorewall status'.")
-    return 0
+    # Start now by loading the ruleset directly rather than through
+    # systemctl. A leftover /etc/init.d/shorewall from the old package can
+    # make systemd resolve a stale SysV unit, so a direct start is the
+    # reliable way to bring the firewall up.
+    print("Starting shorewall-nft.")
+    rc = cmd_start([], family)
+    loaded = subprocess.run([_nft(), "list", "table", "inet", "shorewall"],
+                            capture_output=True).returncode == 0
+    if rc == 0 and loaded:
+        print("shorewall-nft is running and enabled at boot. "
+              "Verify with 'shorewall status'.")
+        return 0
+    print("shorewall-nft is enabled but the ruleset did not load. "
+          "Run 'shorewall start' and check the output.", file=sys.stderr)
+    return 1
 
 
 def _sysd(*args):

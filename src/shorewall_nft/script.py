@@ -105,41 +105,45 @@ def _routing(cfg):
         up.append(f"    ip -4 route flush table {p.number} 2>/dev/null || :")
         gw = p.gateway
         fwmark_pref = 10000 + i
-        if p.gateway in ("detect", ""):
-            # A findgw extension script overrides detection; otherwise
-            # detect from the interface's default route or on-link
-            # routes, as upstream does at runtime.
-            var = f"GW{i}"
-            up.append(f"    {var}=$(run_findgw {p.interface})")
-            up.append(f'    [ -n "${var}" ] || {var}=$(ip -4 route list '
-                      f"dev {p.interface} "
-                      "2>/dev/null | sed -n 's/^default via "
-                      "\\([0-9.]*\\).*/\\1/p' | head -1)")
-            up.append(f'    [ -n "${var}" ] || {var}=$(ip -4 route list '
-                      f"dev {p.interface} 2>/dev/null | sed -n "
-                      "'s/.* via \\([0-9.]*\\).*/\\1/p' | head -1)")
-            up.append(f'    if [ -z "${var}" ]; then')
-            up.append(f'        echo "$0: cannot detect gateway for '
-                      f'{p.name} on {p.interface}" >&2')
-            up.append("    else")
-            gw = f"${var}"
-            indent = "    "
-        else:
-            indent = ""
+        detecting = p.gateway in ("detect", "")
+        # The fwmark rule does not depend on the gateway.
         if p.mark:
-            up.append(f"    {indent}ip -4 rule del fwmark {p.mark:#x}/0xff "
+            up.append(f"    ip -4 rule del fwmark {p.mark:#x}/0xff "
                       "2>/dev/null || :")
-            up.append(f"    {indent}ip -4 rule add fwmark {p.mark:#x}/0xff "
+            up.append(f"    ip -4 rule add fwmark {p.mark:#x}/0xff "
                       f"pref {fwmark_pref} table {p.number}")
             down.append(f"    ip -4 rule del fwmark {p.mark:#x}/0xff "
                         "2>/dev/null || :")
-        up.append(f"    {indent}ip -4 route replace {gw} dev {p.interface}")
-        up.append(f"    {indent}ip -4 route replace {gw} dev {p.interface} "
-                  f"table {p.number}")
-        up.append(f"    {indent}ip -4 route replace default via {gw} "
-                  f"dev {p.interface} table {p.number}")
-        if p.gateway in ("detect", ""):
+        if detecting:
+            # A findgw extension script overrides detection; otherwise
+            # detect from the interface's default route or on-link routes.
+            var = f"GW{i}"
+            up.append(f"    {var}=$(run_findgw {p.interface})")
+            up.append(f'    [ -n "${var}" ] || {var}=$(ip -4 route list '
+                      f"dev {p.interface} 2>/dev/null | sed -n "
+                      "'s/^default via \\([0-9.]*\\).*/\\1/p' | head -1)")
+            up.append(f'    [ -n "${var}" ] || {var}=$(ip -4 route list '
+                      f"dev {p.interface} 2>/dev/null | sed -n "
+                      "'s/.* via \\([0-9.]*\\).*/\\1/p' | head -1)")
+            up.append(f'    if [ -n "${var}" ]; then')
+            up.append(f"        ip -4 route replace ${var} dev {p.interface}")
+            up.append(f"        ip -4 route replace ${var} dev {p.interface} "
+                      f"table {p.number}")
+            up.append(f"        ip -4 route replace default via ${var} "
+                      f"dev {p.interface} table {p.number}")
+            up.append("    else")
+            # No gateway found: a point-to-point interface (WireGuard, ppp)
+            # routes via the device with no via.
+            up.append(f"        ip -4 route replace default dev "
+                      f"{p.interface} table {p.number}")
             up.append("    fi")
+            gw = f"${var}"
+        else:
+            up.append(f"    ip -4 route replace {gw} dev {p.interface}")
+            up.append(f"    ip -4 route replace {gw} dev {p.interface} "
+                      f"table {p.number}")
+            up.append(f"    ip -4 route replace default via {gw} "
+                      f"dev {p.interface} table {p.number}")
         if not p.loose:
             up.append(f"    for addr in $(ip -4 -o addr show dev "
                       f"{p.interface} | awk '{{print $4}}' | cut -d/ -f1); do")

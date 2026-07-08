@@ -130,7 +130,7 @@ covers everything the stock Shorewall sample configurations and a selection of
 45 production configurations from the Sol1 Managed Firewall fleet use. See
 docs/coverage.md for the file-by-file state.
 
-The tests are differential. 33 corpus cases compile the same configuration
+The tests are differential. 36 corpus cases compile the same configuration
 with both upstream Shorewall 5.2.8 and shorewall-nft, load each into twin
 network-namespace topologies, and probe live packets against both. Parity means
 identical packet verdicts from both engines. The cases that cannot diff against

@@ -1,0 +1,3 @@
+?SECTION NEW
+ACCEPT	net:$trusted	$FW	tcp	22
+DNAT	net:$trusted	loc:$icinga	tcp	5665	-	$icingadnat

@@ -1,0 +1,40 @@
+description = "Bare (unbracketed) IPv6 addressing, as some shorewall6 configs write it. A bare v6 source list gates SSH, and a DNAT dest and origdest are bare v6 addresses. Diffed against upstream shorewall6, which also accepts the bare form."
+family = 6
+
+[[links]]
+node_a = "server"
+dev_a = "s0"
+addr_a = "fd00:2::2/64"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "fd00:2::1/64"
+
+[[links]]
+node_a = "client"
+dev_a = "c0"
+addr_a = "fd00:1::2/64"
+node_b = "fw"
+dev_b = "eth1"
+addr_b = "fd00:1::1/64"
+
+[routes]
+server = "fd00:2::1"
+client = "fd00:1::1"
+
+[[probes]]
+id = "bare-v6-source-reaches-ssh"
+from = "server"
+to = "fw"
+addr = "fd00:2::1"
+proto = "tcp"
+port = 22
+expect = "allow"
+
+[[probes]]
+id = "ssh-from-elsewhere-not-matched"
+from = "client"
+to = "fw"
+addr = "fd00:1::1"
+proto = "tcp"
+port = 22
+expect = "reject"

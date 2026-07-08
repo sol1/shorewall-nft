@@ -1,0 +1,40 @@
+description = "Bracketed IPv6 addressing. Shorewall6 wraps v6 addresses in brackets; here a bracketed subnet in params gates SSH to the firewall. Diffed against upstream shorewall6."
+family = 6
+
+[[links]]
+node_a = "server"
+dev_a = "s0"
+addr_a = "fd00:2::2/64"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "fd00:2::1/64"
+
+[[links]]
+node_a = "client"
+dev_a = "c0"
+addr_a = "fd00:1::2/64"
+node_b = "fw"
+dev_b = "eth1"
+addr_b = "fd00:1::1/64"
+
+[routes]
+server = "fd00:2::1"
+client = "fd00:1::1"
+
+[[probes]]
+id = "trusted-v6-subnet-reaches-ssh"
+from = "server"
+to = "fw"
+addr = "fd00:2::1"
+proto = "tcp"
+port = 22
+expect = "allow"
+
+[[probes]]
+id = "other-port-dropped"
+from = "server"
+to = "fw"
+addr = "fd00:2::1"
+proto = "tcp"
+port = 80
+expect = "drop"
