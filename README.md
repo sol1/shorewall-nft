@@ -1,5 +1,10 @@
 # Shorewall-nft
 
+[![CI](https://github.com/sol1/shorewall-nft/actions/workflows/ci.yml/badge.svg)](https://github.com/sol1/shorewall-nft/actions/workflows/ci.yml)
+[![Packages](https://github.com/sol1/shorewall-nft/actions/workflows/packages.yml/badge.svg)](https://github.com/sol1/shorewall-nft/actions/workflows/packages.yml)
+[![Release](https://img.shields.io/github/v/release/sol1/shorewall-nft)](https://github.com/sol1/shorewall-nft/releases/latest)
+[![License: GPL v2](https://img.shields.io/badge/License-GPLv2-blue.svg)](LICENSE)
+
 Shorewall-nft is a reimplementation of the Shorewall firewall compiler. It generates
 nftables rulesets instead of iptables-restore input. It reads your existing
 /etc/shorewall configuration. The goal is that no configuration changes are required
@@ -41,7 +46,8 @@ do to live packets.
 - All rules live in `table inet shorewall`. One dual-stack ruleset serves both
   shorewall and shorewall6 configurations. The ruleset never flushes tables owned
   by other software.
-- Baseline: nftables 1.0.6 and kernel 6.1 (Debian 12) or later.
+- Baseline: nftables 1.0.2 or later, as shipped by Ubuntu 22.04 and Debian 12.
+  CI runs the suite against nftables 1.0.2.
 
 ## Compatibility
 

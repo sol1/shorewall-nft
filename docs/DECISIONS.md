@@ -53,6 +53,15 @@ netmap (5.8) and meta time (5.4). The stretch floor is nft 1.0.2 / kernel 5.14
 (Ubuntu 22.04, RHEL 9) if demand appears. Guard the `destroy table` command,
 which needs nft 1.0.8 and kernel 6.3. Use create-or-flush on older systems.
 
+## 2026-07-08: Baseline lowered to nft 1.0.2 (Ubuntu 22.04)
+
+The stretch floor became the baseline. `destroy table` is replaced with
+declare-then-delete, which loads on nft 1.0.2, and the Docker coexistence
+accept is emitted as one rule per bridge to avoid the 1.0.2 byteorder bug on
+an anonymous set of interface globs. CI runs the full suite against nft 1.0.2
+as shipped by Ubuntu 22.04. Ubuntu 20.04 (nft 0.9.3) is out of scope; it still
+runs classic Shorewall until its kernel loses the xtables modules.
+
 ## 2026-07-03: Zone dispatch uses verdict maps
 
 Upstream generates a chain per zone pair and a linear cascade of interface
