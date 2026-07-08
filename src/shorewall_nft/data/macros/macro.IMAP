@@ -1,0 +1,10 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.IMAP
+#
+# This macro handles plaintext and STARTTLS IMAP traffic.
+# For SSL (TLS) IMAP, see macro.IMAPS.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	143

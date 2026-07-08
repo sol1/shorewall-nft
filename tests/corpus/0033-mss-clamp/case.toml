@@ -1,0 +1,46 @@
+description = "MSS clamping. eth0 has mss=1400. A forwarded SYN carrying MSS 1460 leaves on eth0 clamped to 1400; a SYN already at 1200 is left alone. Diffed against upstream's TCPMSS."
+family = 4
+
+[[links]]
+node_a = "server"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+[[links]]
+node_a = "client"
+dev_a = "c0"
+addr_a = "10.0.1.2/24"
+node_b = "fw"
+dev_b = "eth1"
+addr_b = "10.0.1.1/24"
+
+[routes]
+server = "10.0.2.1"
+client = "10.0.1.1"
+
+[[probes]]
+id = "syn-mss-1460-clamped-to-1400"
+proto = "rawtcp"
+from = "client"
+to = "server"
+addr = "10.0.2.2"
+port = 80
+source = "10.0.1.2"
+mss = 1460
+expect = "arrived"
+detail = "mss=1400"
+
+[[probes]]
+id = "syn-mss-1200-left-alone"
+proto = "rawtcp"
+from = "client"
+to = "server"
+addr = "10.0.2.2"
+port = 81
+source = "10.0.1.2"
+mss = 1200
+expect = "arrived"
+detail = "mss=1200"

@@ -1,0 +1,41 @@
+description = "Rate limit and mark columns honored, not silently dropped. Single connections are under the limit and pass; the ruleset matches upstream (parity), proving RATE/MARK are compiled rather than discarded."
+family = 4
+
+[[links]]
+node_a = "server"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+[[links]]
+node_a = "client"
+dev_a = "c0"
+addr_a = "10.0.1.2/24"
+node_b = "fw"
+dev_b = "eth1"
+addr_b = "10.0.1.1/24"
+
+[routes]
+server = "10.0.2.1"
+client = "10.0.1.1"
+
+[[probes]]
+id = "rate-limited-port-under-limit-allows"
+from = "server"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 8000
+expect = "allow"
+
+[[probes]]
+id = "loc-to-net-works"
+from = "client"
+to = "server"
+addr = "10.0.2.2"
+proto = "tcp"
+port = 80
+expect = "allow"
+peer = "10.0.2.1"

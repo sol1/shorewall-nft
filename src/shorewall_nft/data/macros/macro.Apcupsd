@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.Apcupsd
+#
+# This macro handles apcupsd traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	3551

@@ -1,0 +1,14 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.TFTP
+#
+# This macro handles Trivial File Transfer Protocol (TFTP)
+# Because TFTP lacks all security you should not enable it over Internet.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+?if ( __CT_TARGET && ! $AUTOHELPERS && __TFTP_HELPER )
+ PARAM	-	-	udp	69 { helper=tftp }
+?else
+ PARAM	-	-	udp	69
+?endif

@@ -1,0 +1,8 @@
+#
+# Shorewall --/usr/share/shorewall/macro.TorControl
+#
+# Macro for handling Tor Controller Applications traffic
+#
+##############################################################################################################################################################
+#ACTION		SOURCE		DEST		PROTO	DPORT	SPORT	ORIGDEST	RATE	USER	MARK	CONNLIMIT	TIME	HEADERS	SWITCH	HELPER
+PARAM		-		-		tcp	9051	

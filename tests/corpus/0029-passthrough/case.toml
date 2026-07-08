@@ -1,0 +1,67 @@
+description = "Raw nft passthrough. Inline matches after ;; gate the verdict: net to loc tcp 6000 is accepted only from source port 5000. A free-form INLINE rule opens tcp 7777 with the verdict written in the passthrough. Ours-only: the passthrough is nft, which upstream's iptables backend cannot compile."
+family = 4
+no_upstream = true
+
+[[links]]
+node_a = "sender"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+[[links]]
+node_a = "target"
+dev_a = "t0"
+addr_a = "10.0.1.2/24"
+node_b = "fw"
+dev_b = "eth1"
+addr_b = "10.0.1.1/24"
+
+[routes]
+sender = "10.0.2.1"
+target = "10.0.1.1"
+
+[[probes]]
+id = "inline-match-satisfied-sport-5000"
+proto = "rawtcp"
+from = "sender"
+to = "target"
+addr = "10.0.1.2"
+port = 6000
+source = "10.0.2.2"
+sport = 5000
+expect = "arrived"
+
+[[probes]]
+id = "inline-match-fails-wrong-sport"
+proto = "rawtcp"
+from = "sender"
+to = "target"
+addr = "10.0.1.2"
+port = 6000
+source = "10.0.2.2"
+sport = 5001
+expect = "drop"
+
+[[probes]]
+id = "free-form-inline-opens-7777"
+proto = "rawtcp"
+from = "sender"
+to = "target"
+addr = "10.0.1.2"
+port = 7777
+source = "10.0.2.2"
+sport = 5000
+expect = "arrived"
+
+[[probes]]
+id = "unopened-port-dropped"
+proto = "rawtcp"
+from = "sender"
+to = "target"
+addr = "10.0.1.2"
+port = 7778
+source = "10.0.2.2"
+sport = 5000
+expect = "drop"

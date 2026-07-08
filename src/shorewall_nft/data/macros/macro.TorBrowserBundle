@@ -1,0 +1,8 @@
+#
+# Shorewall --/usr/share/shorewall/macro.TorBrowserBundle
+#
+# Macro for handling Tor Onion Network traffic provided by Tor Browser Bundle
+#
+##############################################################################################################################################################
+#ACTION		SOURCE		DEST		PROTO	DPORT	SPORT	ORIGDEST	RATE	USER	MARK	CONNLIMIT	TIME	HEADERS	SWITCH	HELPER
+PARAM		-		-		tcp	9150

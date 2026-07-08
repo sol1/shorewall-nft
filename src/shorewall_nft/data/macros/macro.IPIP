@@ -1,0 +1,10 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.IPIP
+#
+# This macro (bidirectional) handles IPIP capsulation traffic
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	94	# IPIP
+PARAM	DEST	SOURCE	94	# IPIP

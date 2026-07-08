@@ -1,0 +1,51 @@
+description = "maclist MAC verification. eth1 approves MAC 02:00:00:00:01:01, so that host reaches net. eth2 has the maclist option but no approving entry, so its host falls to MACLIST_DISPOSITION (REJECT) and is blocked. Diffed against upstream."
+family = 4
+
+[[links]]
+node_a = "server"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+[[links]]
+node_a = "good"
+dev_a = "g0"
+addr_a = "10.0.1.2/24"
+mac_a = "02:00:00:00:01:01"
+node_b = "fw"
+dev_b = "eth1"
+addr_b = "10.0.1.1/24"
+
+[[links]]
+node_a = "other"
+dev_a = "o0"
+addr_a = "10.0.3.2/24"
+node_b = "fw"
+dev_b = "eth2"
+addr_b = "10.0.3.1/24"
+
+[routes]
+server = "10.0.2.1"
+good = "10.0.1.1"
+other = "10.0.3.1"
+
+[[probes]]
+id = "approved-mac-reaches-net"
+from = "good"
+to = "server"
+addr = "10.0.2.2"
+proto = "tcp"
+port = 80
+expect = "allow"
+peer = "10.0.1.2"
+
+[[probes]]
+id = "maclist-iface-no-entry-blocked"
+from = "other"
+to = "server"
+addr = "10.0.2.2"
+proto = "tcp"
+port = 80
+expect = "reject"

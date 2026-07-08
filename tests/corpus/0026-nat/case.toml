@@ -1,0 +1,46 @@
+description = "One-to-one nat: external 10.0.2.50 maps to internal 10.0.1.2. net reaching 10.0.2.50 is DNAT'd to the loc host; the loc host's replies are SNAT'd back to 10.0.2.50."
+family = 4
+
+[[links]]
+node_a = "server"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+[[links]]
+node_a = "client"
+dev_a = "c0"
+addr_a = "10.0.1.2/24"
+node_b = "fw"
+dev_b = "eth1"
+addr_b = "10.0.1.1/24"
+
+[extra_addrs]
+fw = ["10.0.2.50/24@eth0"]
+
+[routes]
+server = "10.0.2.1"
+client = "10.0.1.1"
+
+[[probes]]
+id = "net-to-external-dnats-to-internal"
+from = "server"
+to = "client"
+addr = "10.0.2.50"
+proto = "tcp"
+port = 22
+listen_port = 22
+expect = "allow"
+peer = "10.0.2.2"
+
+[[probes]]
+id = "loc-to-net-still-masqueraded"
+from = "client"
+to = "server"
+addr = "10.0.2.2"
+proto = "tcp"
+port = 80
+expect = "allow"
+peer = "10.0.2.50"

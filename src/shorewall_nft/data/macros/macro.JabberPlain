@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.JabberPlain
+#
+# This macro is deprecated - use of macro.Jabber instead is recommended.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+Jabber

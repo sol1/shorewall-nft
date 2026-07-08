@@ -1,0 +1,14 @@
+#
+# Shorewall6 -- /usr/share/shorewall6/macro.mDNSbi
+#
+# This macro handles bidirectional multicast DNS traffic.
+#
+###############################################################################
+#ACTION SOURCE  DEST                    PROTO   DPORT   SPORT
+
+PARAM   -       [ff02::fb]              udp     5353
+PARAM   -       -                       udp     1024:   5353
+PARAM   -       [ff02::fb]              2
+PARAM   DEST    SOURCE:[ff02::fb]       udp     5353
+PARAM   DEST    SOURCE                  udp     1024:   5353
+PARAM   DEST    SOURCE:[ff02::fb]       2

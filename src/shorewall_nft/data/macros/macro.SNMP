@@ -1,0 +1,14 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.SNMP
+#
+# This macro handles SNMP traffic.
+# Note: To allow SNMP Traps, use the SNMPTrap macro.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+?if ( __CT_TARGET && ! $AUTOHELPERS && __SNMP_HELPER )
+ PARAM	-	-  	udp     161 { helper=snmp }
+?else
+ PARAM	-	-	udp	161
+?endif

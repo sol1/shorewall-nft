@@ -1,0 +1,12 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.SMTP
+#
+# This macro handles SMTP (email) traffic.
+# For deprecated SMTP encrypted over SSL (TLS), use macro.SMTPS.
+# Note that STARTTLS can be used over the standard STMP port, so the use of
+# this macro doesn't necessarily imply the use of an insecure connection.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	25

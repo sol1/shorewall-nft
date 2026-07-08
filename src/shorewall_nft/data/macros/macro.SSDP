@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.SSDP
+#
+# This macro handles SSDP (used by DLNA/UPnP) client traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	udp	1900

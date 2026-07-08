@@ -1,0 +1,9 @@
+# Install paths for Fedora and RHEL. Used by the spec through
+# packaging/install.sh with DESTDIR set to the rpm buildroot.
+PYTHON=/usr/bin/python3
+SBINDIR=/usr/sbin
+SHAREDIR=/usr/share/shorewall-nft
+CONFDIR=/etc
+VARDIR=/var/lib/shorewall-nft
+SERVICEDIR=/usr/lib/systemd/system
+MANDIR=/usr/share/man

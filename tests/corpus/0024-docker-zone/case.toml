@@ -1,0 +1,50 @@
+description = "Docker zone declared explicitly on the br-+ wildcard. A container on a br-* network is in the dock zone: dock->net is accepted, net->dock dropped. A non-matching bridge is not in the zone. No automatic inclusion; the admin wrote br-+."
+family = 4
+no_upstream = true
+
+[[links]]
+node_a = "server"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+[[links]]
+node_a = "container"
+dev_a = "c0"
+addr_a = "10.88.0.2/24"
+node_b = "fw"
+dev_b = "br-abc123def456"
+addr_b = "10.88.0.1/24"
+
+[[links]]
+node_a = "other"
+dev_a = "o0"
+addr_a = "10.77.0.2/24"
+node_b = "fw"
+dev_b = "virbr0"
+addr_b = "10.77.0.1/24"
+
+[routes]
+server = "10.0.2.1"
+container = "10.88.0.1"
+other = "10.77.0.1"
+
+[[probes]]
+id = "container-br-to-net-allowed"
+from = "container"
+to = "server"
+addr = "10.0.2.2"
+proto = "tcp"
+port = 80
+expect = "allow"
+
+[[probes]]
+id = "non-docker-bridge-not-in-zone-dropped"
+from = "other"
+to = "server"
+addr = "10.0.2.2"
+proto = "tcp"
+port = 80
+expect = "drop"

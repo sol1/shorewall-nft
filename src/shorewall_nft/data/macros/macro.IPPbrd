@@ -1,0 +1,11 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.IPPbrd
+#
+# This macro handles Internet Printing Protocol (IPP) broadcasts.
+# If you also need to handle TCP 631 connections in the opposite
+# direction, use the IPPserver Macro
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	udp	631

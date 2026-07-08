@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.MySQL
+#
+# This macro handles connections to the MySQL server.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	3306

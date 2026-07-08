@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.IPFS-API
+#
+# This macro handles IPFS API port (commands for the IPFS daemon).
+#
+###############################################################################
+#ACTION SOURCE  DEST    PROTO   DPORT   SPORT   ORIGDEST        RATE   USER
+
+PARAM   -       -       tcp     5001

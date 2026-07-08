@@ -1,0 +1,24 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.Amanda
+#
+# This macro handles connections required by the AMANDA backup system
+# to back up remote nodes.  It does not provide the ability to restore
+# files from those nodes.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+?if ( __CT_TARGET && ! $AUTOHELPERS && __AMANDA_HELPER )
+ PARAM	-	-	udp	10080 { helper=amanda }
+?else
+ PARAM	-	-	udp	10080
+?endif
+
+PARAM	-	-	tcp	10080
+#
+# You may also need this rule.  With AMANDA 2.4.4 on Linux kernel 2.6,
+# it should not be necessary to use this.  The ip_conntrack_amanda
+# kernel module should be loaded (via /etc/shorewall/modules) on all
+# systems which need to pass AMANDA traffic through netfilter.
+#PARAM	-	-	tcp	50000:50100
+#

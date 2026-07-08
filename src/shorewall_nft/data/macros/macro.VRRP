@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.VRRP
+#
+# This macro handles Virtual Router Redundancy Protocol (VRRP) traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST		PROTO	DPORT	SPORT	ORIGDEST	RATE
+
+PARAM	SOURCE	DEST:224.0.0.18	vrrp

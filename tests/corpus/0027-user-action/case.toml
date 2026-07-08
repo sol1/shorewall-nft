@@ -1,0 +1,49 @@
+description = "User-defined action: MyServices, declared in the actions file and defined in action.MyServices, accepts tcp 8080 and 8443. A rule invokes it net to fw."
+family = 4
+
+[[links]]
+node_a = "server"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+[[links]]
+node_a = "client"
+dev_a = "c0"
+addr_a = "10.0.1.2/24"
+node_b = "fw"
+dev_b = "eth1"
+addr_b = "10.0.1.1/24"
+
+[routes]
+server = "10.0.2.1"
+client = "10.0.1.1"
+
+[[probes]]
+id = "net-to-fw-8080-via-action"
+from = "server"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 8080
+expect = "allow"
+
+[[probes]]
+id = "net-to-fw-8443-via-action"
+from = "server"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 8443
+expect = "allow"
+
+[[probes]]
+id = "net-to-fw-9000-not-in-action"
+from = "server"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 9000
+expect = "drop"

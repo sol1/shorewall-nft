@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.IPFS-gateway
+#
+# This macro handles the IPFS gateway to HTTP.
+#
+###############################################################################
+#ACTION SOURCE  DEST    PROTO   DPORT   SPORT   ORIGDEST        RATE   USER
+
+PARAM   -       -       tcp     8080

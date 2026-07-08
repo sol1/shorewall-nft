@@ -1,0 +1,77 @@
+description = "Tunnels file: openvpn udp, openvpnserver tcp 443, gre. Gateway-restricted accepts both directions."
+family = 4
+
+[[links]]
+node_a = "server"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+[[links]]
+node_a = "client"
+dev_a = "c0"
+addr_a = "10.0.1.2/24"
+node_b = "fw"
+dev_b = "eth1"
+addr_b = "10.0.1.1/24"
+
+[routes]
+server = "10.0.2.1"
+client = "10.0.1.1"
+
+[[probes]]
+id = "gateway-to-fw-udp1194"
+from = "server"
+to = "fw"
+addr = "10.0.2.1"
+proto = "udp"
+port = 1194
+expect = "allow"
+
+[[probes]]
+id = "gateway-to-fw-udp1195"
+from = "server"
+to = "fw"
+addr = "10.0.2.1"
+proto = "udp"
+port = 1195
+expect = "drop"
+
+[[probes]]
+id = "gateway-to-fw-tcp443"
+from = "server"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 443
+expect = "allow"
+
+[[probes]]
+id = "fw-to-gateway-udp1194"
+from = "fw"
+to = "server"
+addr = "10.0.2.2"
+proto = "udp"
+port = 1194
+expect = "allow"
+
+[[probes]]
+id = "fw-to-gateway-udp1196"
+from = "fw"
+to = "server"
+addr = "10.0.2.2"
+proto = "udp"
+port = 1196
+expect = "reject"
+
+[[probes]]
+id = "client-to-server-tcp80"
+from = "client"
+to = "server"
+addr = "10.0.2.2"
+proto = "tcp"
+port = 80
+expect = "allow"
+peer = "10.0.2.1"

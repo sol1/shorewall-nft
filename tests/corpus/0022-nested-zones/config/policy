@@ -1,0 +1,4 @@
+loc	net	ACCEPT
+admin	all	CONTINUE
+net	all	DROP	info
+all	all	REJECT	info

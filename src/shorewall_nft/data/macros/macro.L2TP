@@ -1,0 +1,11 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.L2TP
+#
+# This macro (bidirectional) handles Layer 2 Tunneling Protocol traffic.
+# (RFC 2661)
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	udp	1701	# L2TP
+PARAM	DEST	SOURCE	udp	1701	# L2TP

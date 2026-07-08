@@ -1,0 +1,2 @@
+net	all	DROP
+all	all	REJECT

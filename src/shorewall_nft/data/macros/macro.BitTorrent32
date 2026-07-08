@@ -1,0 +1,13 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.BitTorrent32
+#
+# This macro handles BitTorrent traffic for BitTorrent 3.2 and later.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	6881:6999
+#
+# It may also be necessary to allow UDP traffic:
+#
+PARAM	-	-	udp	6881

@@ -1,0 +1,11 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.Web
+#
+# This macro handles WWW traffic (secure and insecure).
+# You should use macro.HTTP and macro.HTTPS instead.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+HTTP
+HTTPS

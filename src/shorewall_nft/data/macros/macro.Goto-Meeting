@@ -1,0 +1,11 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.Goto-Meeting
+#
+# This macro handles Citrix/Goto Meeting.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM      -    -       tcp     8200    # Goto Meeting only needed outbound
+HTTP
+HTTPS

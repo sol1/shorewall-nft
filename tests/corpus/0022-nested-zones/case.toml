@@ -1,0 +1,62 @@
+description = "Nested zone: admin is a sub-zone of loc (10.0.1.0/28). admin->fw is CONTINUE, so an admin host gets admin's SSH accept and then falls through to loc's rules. A plain loc host gets only loc's rules."
+family = 4
+
+[[links]]
+node_a = "server"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+[[links]]
+node_a = "client"
+dev_a = "c0"
+addr_a = "10.0.1.2/24"
+node_b = "fw"
+dev_b = "eth1"
+addr_b = "10.0.1.1/24"
+
+[extra_addrs]
+client = ["10.0.1.5/24@c0", "10.0.1.20/24@c0"]
+
+[routes]
+server = "10.0.2.1"
+client = "10.0.1.1"
+
+[[probes]]
+id = "admin-host-ssh-to-fw"
+from = "client"
+to = "fw"
+addr = "10.0.1.1"
+proto = "tcp"
+port = 22
+source = "10.0.1.5"
+expect = "allow"
+
+[[probes]]
+id = "admin-host-ping-to-fw-via-continue"
+from = "client"
+to = "fw"
+addr = "10.0.1.1"
+proto = "icmp"
+expect = "allow"
+
+[[probes]]
+id = "plain-loc-host-ssh-to-fw-rejected"
+from = "client"
+to = "fw"
+addr = "10.0.1.1"
+proto = "tcp"
+port = 22
+source = "10.0.1.20"
+expect = "reject"
+
+[[probes]]
+id = "plain-loc-host-ping-to-fw"
+from = "client"
+to = "fw"
+addr = "10.0.1.1"
+proto = "icmp"
+source = "10.0.1.20"
+expect = "allow"

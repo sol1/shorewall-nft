@@ -1,0 +1,9 @@
+#
+# Shorewall --/usr/share/shorewall/macro.BitcoinZMQ
+#
+# Macro for handling Bitcoin ZMQ traffic
+# See https://github.com/bitcoin/bitcoin/blob/master/doc/zmq.md
+#
+##############################################################################################################################################################
+#ACTION		SOURCE		DEST		PROTO	DPORT	SPORT	ORIGDEST	RATE	USER	MARK	CONNLIMIT	TIME	HEADERS	SWITCH	HELPER
+PARAM		-		-		tcp	28332

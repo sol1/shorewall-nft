@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.Rsync
+#
+# This macro handles connections to the rsync server.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	873

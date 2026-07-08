@@ -1,0 +1,11 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.IMAPS
+#
+# This macro handles SSL (TLS) IMAP traffic.
+# For plaintext (not recommended) and STARTLS (recommended) IMAP see
+# macro.IMAP.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	993

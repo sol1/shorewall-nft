@@ -1,0 +1,11 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.Zabbix
+#
+# This macro handles Zabbix monitoring software traffic from server to agent
+# and trap traffic from agent to zabbix server.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	10050	# zabbix_agent
+PARAM	DEST	SOURCE	tcp	10051	# zabbix_trap

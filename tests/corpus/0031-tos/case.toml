@@ -1,0 +1,46 @@
+description = "mangle TOS action. TOS(0x10) on forwarded tcp 80 sets the DSCP field, so a raw SYN to port 80 arrives with TOS byte 0x10. Diffed against upstream's mangle TOS target."
+family = 4
+
+[[links]]
+node_a = "server"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+[[links]]
+node_a = "client"
+dev_a = "c0"
+addr_a = "10.0.1.2/24"
+node_b = "fw"
+dev_b = "eth1"
+addr_b = "10.0.1.1/24"
+
+[routes]
+server = "10.0.2.1"
+client = "10.0.1.1"
+
+[[probes]]
+id = "forwarded-syn-gets-tos-10"
+proto = "rawtcp"
+from = "client"
+to = "server"
+addr = "10.0.2.2"
+port = 80
+source = "10.0.1.2"
+flags = "0x02"
+expect = "arrived"
+detail = "tos=0x10"
+
+[[probes]]
+id = "other-port-untouched"
+proto = "rawtcp"
+from = "client"
+to = "server"
+addr = "10.0.2.2"
+port = 81
+source = "10.0.1.2"
+flags = "0x02"
+expect = "arrived"
+detail = "tos=0x00"

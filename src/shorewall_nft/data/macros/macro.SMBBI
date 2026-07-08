@@ -1,0 +1,14 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.SMBBI
+#
+# This macro (bidirectional) handles Microsoft SMB traffic.
+#
+# Beware! This macro opens a lot of ports, and could possibly be used
+# to compromise your firewall if not used with care. You should only
+# allow SMB traffic between hosts you fully trust.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+SMB
+SMB	DEST	SOURCE

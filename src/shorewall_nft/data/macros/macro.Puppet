@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.Puppet
+#
+# This macro handles client-to-server for the Puppet configuration management.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	8140

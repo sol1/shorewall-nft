@@ -1,0 +1,10 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.Telnet
+#
+# This macro handles Telnet traffic.
+# For traffic over the internet, telnet is inappropriate; use SSH instead.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	23

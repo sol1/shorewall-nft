@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.IPFS-swarm
+#
+# This macro handles IPFS data traffic (the connection to IPFS swarm).
+#
+###############################################################################
+#ACTION SOURCE  DEST    PROTO   DPORT   SPORT   ORIGDEST        RATE   USER
+
+PARAM   -       -       tcp     4001

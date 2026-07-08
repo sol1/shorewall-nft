@@ -1,0 +1,10 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.POP3
+#
+# This macro handles plaintext POP3 traffic.
+# For encrypted POP3, see macro.POP3S.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	110

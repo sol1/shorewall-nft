@@ -1,0 +1,86 @@
+description = "Hosts file: mgmt zone is the upper half of the loc interface subnet. Same wire, different zones by source address."
+family = 4
+
+[[links]]
+node_a = "server"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+[[links]]
+node_a = "client"
+dev_a = "c0"
+addr_a = "10.0.1.2/24"
+node_b = "fw"
+dev_b = "eth1"
+addr_b = "10.0.1.1/24"
+
+[extra_addrs]
+client = ["10.0.1.130/24@c0"]
+
+[routes]
+server = "10.0.2.1"
+client = "10.0.1.1"
+
+[[probes]]
+id = "loc-to-fw-ssh"
+from = "client"
+to = "fw"
+addr = "10.0.1.1"
+proto = "tcp"
+port = 22
+source = "10.0.1.2"
+expect = "allow"
+
+[[probes]]
+id = "mgmt-to-fw-ssh"
+from = "client"
+to = "fw"
+addr = "10.0.1.1"
+proto = "tcp"
+port = 22
+source = "10.0.1.130"
+expect = "reject"
+
+[[probes]]
+id = "mgmt-to-fw-8443"
+from = "client"
+to = "fw"
+addr = "10.0.1.1"
+proto = "tcp"
+port = 8443
+source = "10.0.1.130"
+expect = "allow"
+
+[[probes]]
+id = "loc-to-fw-8443"
+from = "client"
+to = "fw"
+addr = "10.0.1.1"
+proto = "tcp"
+port = 8443
+source = "10.0.1.2"
+expect = "reject"
+
+[[probes]]
+id = "loc-to-server-80"
+from = "client"
+to = "server"
+addr = "10.0.2.2"
+proto = "tcp"
+port = 80
+source = "10.0.1.2"
+expect = "allow"
+peer = "10.0.2.1"
+
+[[probes]]
+id = "mgmt-to-server-80"
+from = "client"
+to = "server"
+addr = "10.0.2.2"
+proto = "tcp"
+port = 80
+source = "10.0.1.130"
+expect = "reject"

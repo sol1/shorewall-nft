@@ -1,0 +1,23 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.SMB
+#
+# This macro handles Microsoft SMB traffic.
+# You need to invoke this macro in both directions.
+# Beware!  This rule opens a lot of ports, and could possibly be used to
+# compromise your firewall if not used with care. You should only allow SMB
+# traffic between hosts you fully trust.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	udp	135,445
+
+?if ( __CT_TARGET && ! $AUTOHELPERS && __NETBIOS_NS_HELPER )
+ PARAM	-	-	udp	137 { helper=netbios-ns }
+ PARAM	-	-	udp	138:139
+?else
+ PARAM	-	-	udp	137:139
+?endif
+
+PARAM	-	-	udp	1024:	137
+PARAM	-	-	tcp	135,139,445

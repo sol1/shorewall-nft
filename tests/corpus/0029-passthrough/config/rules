@@ -1,0 +1,5 @@
+?SECTION NEW
+# inline matches: accept net->loc tcp 6000 only from source port 5000
+ACCEPT	net	loc	tcp	6000	-	-	;;	tcp sport 5000
+# free-form INLINE: open net->loc tcp 7777, verdict and all in the passthrough
+INLINE	net	loc	-	-	-	-	;;	tcp dport 7777 accept

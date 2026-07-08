@@ -1,0 +1,12 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.Cockpit
+#
+# This macro handles Time protocol (RFC868).
+# Unless you are supporting extremely old hardware or software,
+# you shouldn't be using this.  NTP is a superior alternative.
+#
+#		By Eric Teeter
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	9090

@@ -1,0 +1,10 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.NTPbi
+#
+# This macro handles  bi-directional NTP (for NTP peers).
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+NTP
+NTP	DEST	SOURCE

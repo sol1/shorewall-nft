@@ -1,0 +1,31 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.Edonkey
+#
+# This macro handles Edonkey traffic.
+#
+# http://www.portforward.com/english/routers/port_forwarding/2wire/1000s/eDonkey.htm
+# says to use udp 5737 rather than 4665.
+#
+# http://www.amule.org/wiki/index.php/FAQ_ed2k says this:
+#
+# 4661 TCP (outgoing) Port, on which a server listens for connection
+# (defined by server).
+#
+# 4665 UDP (outgoing) used for global server searches and global source
+# queries. This is always Server TCP port (in this case 4661) + 4.
+#
+# 4662 TCP (outgoing and incoming) Client to client transfers.
+#
+# 4672 UDP (outgoing and incoming) Extended eMule protocol, Queue
+# Rating, File Reask Ping
+#
+# 4711 TCP WebServer listening port.
+#
+# 4712 TCP External Connection port. Used to communicate aMule with other
+# applications such as aMule WebServer or aMuleCMD.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	4662
+PARAM	-	-	udp	4665

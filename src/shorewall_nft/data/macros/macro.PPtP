@@ -1,0 +1,15 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.PPtP Macro
+#
+# This macro handles PPTP traffic. NOTE: PPTP protocol is insecure.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+GRE
+
+?if ( __CT_TARGET && ! $AUTOHELPERS && __PPTP_HELPER )
+ PARAM	-	-	tcp	1723 { helper=pptp }
+?else
+ PARAM	-	-	tcp	1723
+?endif

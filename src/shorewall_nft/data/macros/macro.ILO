@@ -1,0 +1,19 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.ILO
+#
+# This macro handles console redirection with HP ILO 2+,
+# Use this macro to open access to your ILO interface from management
+# workstations.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	3002		# Raw serial data
+PARAM	-	-	tcp	9300		# Shared Remote Console
+PARAM	-	-	tcp	17988		# Virtual Media
+PARAM	-	-	tcp	17990		# Console Replay
+HTTP
+HTTPS
+RDP
+SSH
+Telnet						# Remote Console/Telnet

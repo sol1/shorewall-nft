@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.RedisCluster
+#
+# This macro handles Redis Cluster traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	16379

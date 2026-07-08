@@ -1,0 +1,14 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.LDAPS
+#
+# This macro handles encrypted LDAP traffic.  For plaintext LDAP
+# traffic, see macro.LDAP.  Use of LDAPS is recommended (and is
+# required by some directory services) if you want to do user
+# authentication over LDAP.  Note that some LDAP implementations
+# support initiating TLS connections via the plaintext LDAP port.
+# Consult your LDAP server documentation for details.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	636

@@ -1,0 +1,12 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.A_AllowICMPs
+#
+# This macro audits and accepts needed ICMP types.
+#
+###############################################################################
+#ACTION		SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE
+
+?COMMENT Needed ICMP types
+
+A_ACCEPT       -	-	icmp	fragmentation-needed
+A_ACCEPT       -	-	icmp	time-exceeded

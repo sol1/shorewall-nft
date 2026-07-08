@@ -1,0 +1,21 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.SixXS
+#
+# This macro handles SixXS - An IPv6 Deployment and Tunnel Broker
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+# Used for retrieving the tunnel information (eg by AICCU)
+PARAM	-	-	tcp	3874
+
+# Used for signaling where the current IPv4 endpoint
+# of the tunnel is and that it is alive
+PARAM	-	-	udp	3740
+
+# Used for tunneling IPv6 over IPv4 (static + heartbeat tunnels)
+PARAM	-	-	41
+
+# Used for tunneling IPv6 over IPv4 (AYIYA
+# tunnels)(5072 is official port, 8374 is used in the beta)
+PARAM	-	-	udp	5072,8374

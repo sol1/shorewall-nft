@@ -1,0 +1,10 @@
+#
+# Shorewall6 -- /usr/share/shorewall6/macro.Trcrt
+#
+# This macro handles ICMP and UDP Traceroute (UDP for up to 30 hops).
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO		DPORT	SPORT	ORIGDEST	RATE
+
+PARAM	-	-	udp		33434:33524	# UDP Traceroute
+PARAM	-	-	ipv6-icmp	128		# ICMP Traceroute

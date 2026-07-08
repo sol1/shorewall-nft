@@ -1,0 +1,11 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.A_DropDNSrep
+#
+# This macro audits and drops DNS UDP replies.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+?COMMENT Late DNS Replies
+
+A_DROP	-	-	udp	-	53

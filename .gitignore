@@ -1,0 +1,16 @@
+upstream/
+__pycache__/
+*.pyc
+.pytest_cache/
+tests/results/
+tests/harness/.stage/
+.claude/
+
+# debhelper build outputs
+debian/.debhelper/
+debian/files
+debian/debhelper-build-stamp
+debian/shorewall-nft/
+debian/*.debhelper
+debian/*.debhelper.log
+debian/*.substvars

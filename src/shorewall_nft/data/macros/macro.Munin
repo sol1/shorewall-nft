@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.Munin
+#
+# This macro handles Munin networked resource monitoring traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	4949

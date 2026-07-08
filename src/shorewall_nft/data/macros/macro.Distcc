@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.Distcc
+#
+# This macro handles connections to the Distributed Compiler service.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	3632

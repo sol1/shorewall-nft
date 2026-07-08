@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.Xymon
+#
+# This macro handles Xymon traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	1984

@@ -1,0 +1,9 @@
+# Install paths for Debian and Ubuntu. Used by debian/rules through
+# packaging/install.sh with DESTDIR set.
+PYTHON=/usr/bin/python3
+SBINDIR=/usr/sbin
+SHAREDIR=/usr/share/shorewall-nft
+CONFDIR=/etc
+VARDIR=/var/lib/shorewall-nft
+SERVICEDIR=/usr/lib/systemd/system
+MANDIR=/usr/share/man

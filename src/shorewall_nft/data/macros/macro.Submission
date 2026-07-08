@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.Submission
+#
+# This macro handles mail message submission (MSA) traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+MSA

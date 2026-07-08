@@ -1,0 +1,12 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.DropUPnP
+#
+# This macro silently drops UPnP probes on UDP port 1900
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+?COMMENT UPnP
+
+DEFAULT DROP
+PARAM	-	-	udp	1900

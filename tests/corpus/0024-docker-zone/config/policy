@@ -1,0 +1,4 @@
+dock	net	ACCEPT
+net	dock	DROP	info
+net	all	DROP	info
+all	all	REJECT	info

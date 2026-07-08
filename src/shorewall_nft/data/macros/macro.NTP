@@ -1,0 +1,10 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.NTP
+#
+# This macro handles NTP traffic.
+# For broadcast NTP traffic, use NTPbrd Macro.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	udp	123

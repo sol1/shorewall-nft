@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.MongoDB
+#
+# This macro handles MongoDB Daemon/Router traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	27017

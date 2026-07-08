@@ -1,0 +1,3 @@
+loc	net		ACCEPT
+net	all		DROP		info
+all	all		REJECT		info

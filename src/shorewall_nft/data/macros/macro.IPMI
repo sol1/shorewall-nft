@@ -1,0 +1,30 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.IPMI
+#
+# This macro handles IPMI console redirection with RMCP protocol.
+# Tested to work with with Asus (AMI),
+# Dell DRAC5+ (Avocent), and Supermicro (Aten or AMI).
+# Use this macro to open access to your IPMI interface from management
+# workstations.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	623		# RMCP
+PARAM	-	-	udp	623		# RMCP
+PARAM	-	-	tcp	3668,3669	# Virtual Media, Secure (Dell)
+PARAM	-	-	tcp	5120,5122,5123	# CD,FD,HD (Asus, Aten)
+PARAM	-	-	tcp	5900,5901	# Remote Console (Aten, Dell)
+PARAM	-	-	tcp	7578		# Remote Console (AMI)
+PARAM	-	-	tcp	8889		# WS-MAN
+HTTP
+Telnet
+SNMP
+
+# TLS/secure ports
+PARAM	-	-	tcp	3520		# Remote Console (Redfish)
+PARAM	-	-	tcp	3669		# Virtual Media (Dell)
+PARAM	-	-	tcp	5124,5126,5127	# CD,FD,HD (AMI)
+PARAM	-	-	tcp	7582		# Remote Console (AMI)
+HTTPS
+SSH						# Serial over Lan

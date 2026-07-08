@@ -1,0 +1,12 @@
+# Install paths for shorewall-nft. Override for a distro by copying this
+# file and editing, then: ./packaging/install.sh path/to/shorewallrc
+# The defaults follow the FHS and match where the old Shorewall package
+# put things, so the drop-in stays a drop-in.
+
+PYTHON=/usr/bin/python3          # interpreter the CLI runs under
+SBINDIR=/usr/sbin                # shorewall and shorewall6 commands
+SHAREDIR=/usr/share/shorewall-nft   # the Python package and macro data
+CONFDIR=/etc                     # config trees live at $CONFDIR/shorewall
+VARDIR=/var/lib/shorewall-nft    # compiled artifact, state, geoip data
+SERVICEDIR=/usr/lib/systemd/system  # unit files
+MANDIR=/usr/share/man            # man pages

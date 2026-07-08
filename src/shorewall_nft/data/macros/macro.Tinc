@@ -1,0 +1,10 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.Tinc
+#
+# This macro handles tinc VPN traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM   -       -       udp     655
+PARAM   -       -       tcp     655

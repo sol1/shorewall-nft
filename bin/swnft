@@ -1,0 +1,4 @@
+#!/bin/sh
+# Development wrapper. Runs the compiler from the source tree.
+REPO=$(cd "$(dirname "$0")/.." && pwd)
+PYTHONPATH=$REPO/src exec python3 -m shorewall_nft "$@"

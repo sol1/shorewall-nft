@@ -1,0 +1,17 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.Mail
+#
+# This macro handles SMTP (email secure and insecure) traffic.
+# It's the aggregate of macro.SMTP, macro.SMTPS, macro.MSA.
+#
+# Note: This macro handles traffic between an MUA (Email client)
+# and an MTA (mail server) or between MTAs. It does not enable
+# reading of email via POP3 or IMAP. For those you need to use
+# the POP3 or IMAP macros.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+SMTP
+SMTPS
+MSA

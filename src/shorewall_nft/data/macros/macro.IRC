@@ -1,0 +1,13 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.IRC
+#
+# This macro handles IRC traffic (Internet Relay Chat).
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+?if ( __CT_TARGET && ! $AUTOHELPERS && __IRC_HELPER  )
+ PARAM	-	-	tcp	6667 { helper=irc }
+?else
+ PARAM	-	-	tcp	6667
+?endif

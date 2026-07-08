@@ -1,0 +1,103 @@
+description = "Shorewall6 three-interfaces sample. IPv6 loc, dmz, net triangle."
+family = 6
+
+[[links]]
+node_a = "server"
+dev_a = "s0"
+addr_a = "fd00:2::2/64"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "fd00:2::1/64"
+
+[[links]]
+node_a = "client"
+dev_a = "c0"
+addr_a = "fd00:1::2/64"
+node_b = "fw"
+dev_b = "eth1"
+addr_b = "fd00:1::1/64"
+
+[[links]]
+node_a = "dmzhost"
+dev_a = "d0"
+addr_a = "fd00:3::2/64"
+node_b = "fw"
+dev_b = "eth2"
+addr_b = "fd00:3::1/64"
+
+[routes]
+server = "fd00:2::1"
+client = "fd00:1::1"
+dmzhost = "fd00:3::1"
+
+[[probes]]
+id = "client-to-server-tcp80"
+from = "client"
+to = "server"
+addr = "fd00:2::2"
+proto = "tcp"
+port = 80
+expect = "allow"
+peer = "fd00:1::2"
+
+[[probes]]
+id = "client-to-dmz-tcp22"
+from = "client"
+to = "dmzhost"
+addr = "fd00:3::2"
+proto = "tcp"
+port = 22
+expect = "allow"
+peer = "fd00:1::2"
+
+[[probes]]
+id = "client-to-dmz-tcp80"
+from = "client"
+to = "dmzhost"
+addr = "fd00:3::2"
+proto = "tcp"
+port = 80
+expect = "reject"
+
+[[probes]]
+id = "dmz-to-client-ping"
+from = "dmzhost"
+to = "client"
+addr = "fd00:1::2"
+proto = "icmp"
+expect = "allow"
+
+[[probes]]
+id = "server-to-dmz-tcp80"
+from = "server"
+to = "dmzhost"
+addr = "fd00:3::2"
+proto = "tcp"
+port = 80
+expect = "drop"
+
+[[probes]]
+id = "dmz-to-server-tcp53"
+from = "dmzhost"
+to = "server"
+addr = "fd00:2::2"
+proto = "tcp"
+port = 53
+expect = "allow"
+peer = "fd00:3::2"
+
+[[probes]]
+id = "dmz-to-fw-ping"
+from = "dmzhost"
+to = "fw"
+addr = "fd00:3::1"
+proto = "icmp"
+expect = "allow"
+
+[[probes]]
+id = "server-to-fw-ping"
+from = "server"
+to = "fw"
+addr = "fd00:2::1"
+proto = "icmp"
+expect = "drop"

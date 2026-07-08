@@ -1,0 +1,10 @@
+#
+# Shorewall --  /usr/share/shorewall/macro.DNS
+#
+# This macro handles DNS traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	udp	53
+PARAM	-	-	tcp	53

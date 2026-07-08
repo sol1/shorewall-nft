@@ -1,0 +1,10 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.NNTPS
+#
+# This macro handles encrypted NNTP traffic (Usenet).
+# For plaintext NNTP, see macro.NNTP.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	563

@@ -1,0 +1,10 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.Finger
+#
+# This macro handles Finger protocol.
+# You should not generally open your finger information to internet.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	79

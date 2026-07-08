@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.Webmin
+#
+# This macro handles Webmin traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	10000

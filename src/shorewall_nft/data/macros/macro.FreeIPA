@@ -1,0 +1,16 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.FreeIPA
+#
+# This macro handles FreeIPA server traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+DNS
+HTTP
+HTTPS
+Kerberos
+Kpasswd
+LDAP
+LDAPS
+NTP

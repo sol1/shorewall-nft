@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.Ping
+#
+# This macro handles ICMP 'ping' requests.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	icmp	8

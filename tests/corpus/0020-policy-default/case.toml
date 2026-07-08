@@ -1,0 +1,54 @@
+description = "Policy default actions: Broadcast(DROP),Multicast(DROP) drop bcast/mcast before the DROP policy logs. Crafted packet to a multicast dest is dropped on both engines."
+family = 4
+
+[[links]]
+node_a = "server"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+[[links]]
+node_a = "client"
+dev_a = "c0"
+addr_a = "10.0.1.2/24"
+node_b = "fw"
+dev_b = "eth1"
+addr_b = "10.0.1.1/24"
+
+[routes]
+server = "10.0.2.1"
+client = "10.0.1.1"
+
+[[probes]]
+id = "net-to-fw-multicast-dropped"
+proto = "rawtcp"
+from = "server"
+to = "fw"
+addr = "224.0.0.55"
+port = 8000
+source = "10.0.2.2"
+flags = "0x02"
+expect = "drop"
+
+[[probes]]
+id = "net-to-fw-unicast-dropped-by-policy"
+proto = "rawtcp"
+from = "server"
+to = "fw"
+addr = "10.0.2.1"
+port = 8000
+source = "10.0.2.2"
+flags = "0x02"
+expect = "drop"
+
+[[probes]]
+id = "loc-to-net-still-works"
+from = "client"
+to = "server"
+addr = "10.0.2.2"
+proto = "tcp"
+port = 80
+expect = "allow"
+peer = "10.0.2.1"

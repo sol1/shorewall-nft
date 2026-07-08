@@ -1,0 +1,113 @@
+description = "Two-ISP multi-homing: tracked providers, balanced default, dest-pinned rtrules, per-provider masquerade. Script mode runs the full firewall scripts including routing."
+family = 4
+mode = "script"
+ip_rules = true
+
+[[links]]
+node_a = "isp1"
+dev_a = "i0"
+addr_a = "203.0.113.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "203.0.113.1/24"
+
+[[links]]
+node_a = "isp2"
+dev_a = "i1"
+addr_a = "198.51.100.2/24"
+node_b = "fw"
+dev_b = "eth1"
+addr_b = "198.51.100.1/24"
+
+[[links]]
+node_a = "client"
+dev_a = "c0"
+addr_a = "10.0.1.2/24"
+node_b = "fw"
+dev_b = "eth2"
+addr_b = "10.0.1.1/24"
+
+[extra_addrs]
+client = ["10.0.1.3/24@c0"]
+isp1 = ["192.0.2.10/32"]
+isp2 = ["198.18.0.10/32"]
+
+[routes]
+client = "10.0.1.1"
+isp1 = "203.0.113.1"
+isp2 = "198.51.100.1"
+
+[[probes]]
+id = "isp1-to-fw-tcp22"
+from = "isp1"
+to = "fw"
+addr = "203.0.113.1"
+proto = "tcp"
+port = 22
+expect = "allow"
+
+[[probes]]
+id = "isp2-to-fw-tcp22"
+from = "isp2"
+to = "fw"
+addr = "198.51.100.1"
+proto = "tcp"
+port = 22
+expect = "allow"
+
+[[probes]]
+id = "client-via-isp1"
+from = "client"
+to = "isp1"
+addr = "192.0.2.10"
+proto = "tcp"
+port = 80
+expect = "allow"
+peer = "203.0.113.1"
+
+[[probes]]
+id = "client-via-isp2"
+from = "client"
+to = "isp2"
+addr = "198.18.0.10"
+proto = "tcp"
+port = 80
+expect = "allow"
+peer = "198.51.100.1"
+
+[[probes]]
+id = "isp1-to-fw-tcp80"
+from = "isp1"
+to = "fw"
+addr = "203.0.113.1"
+proto = "tcp"
+port = 80
+expect = "drop"
+
+[[probes]]
+id = "client-to-fw-ping"
+from = "client"
+to = "fw"
+addr = "10.0.1.1"
+proto = "icmp"
+expect = "allow"
+
+[[probes]]
+id = "client-src3-forced-wrong-isp"
+from = "client"
+to = "isp1"
+addr = "192.0.2.10"
+proto = "tcp"
+port = 80
+source = "10.0.1.3"
+expect = "drop"
+
+[[probes]]
+id = "fw-via-lo-rule-isp1"
+from = "fw"
+to = "isp1"
+addr = "192.0.2.10"
+proto = "tcp"
+port = 80
+expect = "allow"
+

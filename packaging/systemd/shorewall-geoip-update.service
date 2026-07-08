@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh shorewall-nft geoip country sets
+Documentation=man:shorewall(8)
+# Only meaningful once the firewall is up and the geoip sets exist.
+After=shorewall.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/shorewall geoip-update

@@ -1,0 +1,97 @@
+name: Packages
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  deb:
+    name: Debian package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y debhelper dpkg-dev
+
+      - name: Build the .deb
+        run: dpkg-buildpackage -b -us -uc
+
+      - name: Collect the package
+        run: |
+          mkdir -p dist
+          mv ../shorewall-nft_*_all.deb dist/
+
+      - name: Install and smoke-test
+        run: |
+          sudo apt-get install -y ./dist/shorewall-nft_*_all.deb
+          shorewall version
+          shorewall compile tests/corpus/0003-two-interfaces/config -o /tmp/out.nft
+          test -s /tmp/out.nft
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb
+          path: dist/*.deb
+
+  rpm:
+    name: RPM package
+    runs-on: ubuntu-latest
+    container: fedora:41
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: dnf -y install rpm-build rpmdevtools systemd-rpm-macros python3 nftables git
+
+      - name: Build the source tarball
+        run: |
+          rpmdev-setuptree
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          v=$(awk '/^Version:/{print $2}' packaging/shorewall-nft.spec)
+          git archive --format=tar.gz --prefix="shorewall-nft-$v/" \
+            -o "$HOME/rpmbuild/SOURCES/shorewall-nft-$v.tar.gz" HEAD
+
+      - name: Build the .rpm
+        run: rpmbuild -bb packaging/shorewall-nft.spec
+
+      - name: Collect and smoke-test
+        run: |
+          mkdir -p dist
+          cp "$HOME"/rpmbuild/RPMS/noarch/*.rpm dist/
+          dnf -y install ./dist/*.rpm
+          shorewall version
+          shorewall compile tests/corpus/0003-two-interfaces/config -o /tmp/out.nft
+          test -s /tmp/out.nft
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rpm
+          path: dist/*.rpm
+
+  release:
+    name: Attach packages to the release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [deb, rpm]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --repo "${{ github.repository }}" \
+            --title "${{ github.ref_name }}" \
+            --generate-notes \
+            artifacts/deb/*.deb artifacts/rpm/*.rpm

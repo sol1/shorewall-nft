@@ -1,0 +1,44 @@
+description = "geoip country match. SSH to the firewall is accepted only from the US geoip set. A source inside the set reaches it; a source outside is dropped. The set is filled as geoip-update would. Ours-only: upstream needs the xt_geoip module the topology lacks."
+family = 4
+no_upstream = true
+
+[geoip]
+us = ["10.0.2.0/24"]
+
+[[links]]
+node_a = "inside"
+dev_a = "i0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+[[links]]
+node_a = "outside"
+dev_a = "o0"
+addr_a = "10.0.3.2/24"
+node_b = "fw"
+dev_b = "eth0b"
+addr_b = "10.0.3.1/24"
+
+[routes]
+inside = "10.0.2.1"
+outside = "10.0.3.1"
+
+[[probes]]
+id = "us-source-reaches-ssh"
+from = "inside"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 22
+expect = "allow"
+
+[[probes]]
+id = "non-us-source-dropped"
+from = "outside"
+to = "fw"
+addr = "10.0.3.1"
+proto = "tcp"
+port = 22
+expect = "drop"

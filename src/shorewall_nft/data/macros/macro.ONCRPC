@@ -1,0 +1,8 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.ONCRPC
+#
+# This macro handles ONC RCP traffic (for rpcbind on Linux, etc).
+#
+##############################################################################################################################################################
+#ACTION		SOURCE		DEST		PROTO	DPORT	SPORT	ORIGDEST	RATE	USER	MARK	CONNLIMIT	TIME	HEADERS	SWITCH	HELPER
+PARAM		-		-		tcp,udp	111

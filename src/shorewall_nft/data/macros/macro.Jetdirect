@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.Jetdirect
+#
+# This macro handles HP Jetdirect printing.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	9100

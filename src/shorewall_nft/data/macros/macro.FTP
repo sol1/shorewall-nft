@@ -1,0 +1,13 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.FTP
+#
+# This macro handles FTP traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+?if ( __CT_TARGET && ! $AUTOHELPERS && __FTP_HELPER  )
+ PARAM	-	-	tcp	21 { helper=ftp }
+?else
+ PARAM	-	-	tcp	21
+?endif

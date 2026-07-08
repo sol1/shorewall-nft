@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.SPAMD
+#
+# This macro handles SpamAssassin SPAMD traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	783

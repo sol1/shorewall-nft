@@ -1,0 +1,12 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.Citrix
+#
+# This macro handles Citrix/ICA traffic (ICA, ICA Browser, CGP a.k.a.
+# ICA Session Reliability)
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	1494	# ICA
+PARAM	-	-	udp	1604	# ICA Browser
+PARAM	-	-	tcp	2598	# CGP Session Reliabilty

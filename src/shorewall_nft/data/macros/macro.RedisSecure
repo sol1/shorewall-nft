@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.RedisSecure
+#
+# This macro handles Redis Secure (SSL/TLS) traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	6380

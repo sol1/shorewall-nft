@@ -1,0 +1,10 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.DCC
+#
+# This macro handles DCC (Distributed Checksum Clearinghouse) traffic.
+# DCC is a distributed spam filtering mechanism.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	udp	6277

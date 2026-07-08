@@ -1,0 +1,10 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.SMTPS
+#
+# This macro handles legacy SMTP over SSL (TLS) traffic.
+# You should configure SMTP STARTTLS instead.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	465

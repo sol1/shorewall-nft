@@ -1,0 +1,10 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.Rfc1918
+#
+# This macro handles SOURCE or ORIGDEST address reserved by RFC 1918.
+#
+###############################################################################
+#ACTION	SOURCE	DEST
+
+PARAM	SOURCE:10.0.0.0/8,172.16.0.0/12,192.168.0.0/16	DEST
+PARAM	SOURCE	DEST { origdest=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16 }

@@ -1,0 +1,46 @@
+description = "ecn: disable ECN to 10.0.2.0/24 via eth0. A forwarded SYN with ECE and CWR set (0xc2) arrives at the host as a plain SYN (0x02), matching upstream's ECN removal."
+family = 4
+
+[[links]]
+node_a = "server"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+[[links]]
+node_a = "client"
+dev_a = "c0"
+addr_a = "10.0.1.2/24"
+node_b = "fw"
+dev_b = "eth1"
+addr_b = "10.0.1.1/24"
+
+[routes]
+server = "10.0.2.1"
+client = "10.0.1.1"
+
+[[probes]]
+id = "ecn-syn-stripped-to-plain-syn"
+proto = "rawtcp"
+from = "client"
+to = "server"
+addr = "10.0.2.2"
+port = 9999
+source = "10.0.1.2"
+flags = "0xc2"
+expect = "arrived"
+detail = "flags=0x02"
+
+[[probes]]
+id = "plain-syn-unchanged"
+proto = "rawtcp"
+from = "client"
+to = "server"
+addr = "10.0.2.2"
+port = 9998
+source = "10.0.1.2"
+flags = "0x02"
+expect = "arrived"
+detail = "flags=0x02"

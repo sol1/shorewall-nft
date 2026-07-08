@@ -1,0 +1,13 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.IPsecah
+#
+# This macro (bidirectional) handles IPsec authentication (AH) traffic.
+# This is insecure. You should use ESP with encryption for security.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	udp	500	500	# IKE
+PARAM	-	-	51			# AH
+PARAM	DEST	SOURCE	udp	500	500	# IKE
+PARAM	DEST	SOURCE	51			# AH

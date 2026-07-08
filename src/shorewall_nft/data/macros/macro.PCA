@@ -1,0 +1,10 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.PCA
+#
+# This macro handles PCAnywere (tm) traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	udp	5632
+PARAM	-	-	tcp	5631

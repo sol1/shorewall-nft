@@ -1,0 +1,10 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.Kerberos
+#
+# This macro handles Kerberos traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	88
+PARAM	-	-	udp	88

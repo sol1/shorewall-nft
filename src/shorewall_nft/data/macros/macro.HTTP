@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.HTTP
+#
+# This macro handles plaintext HTTP (WWW) traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	80

@@ -1,0 +1,3 @@
+#BAND	PROTO	DPORT
+1	tcp	22
+2	tcp	80

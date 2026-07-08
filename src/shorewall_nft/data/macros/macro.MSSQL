@@ -1,0 +1,10 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.MSSQL
+#
+# This macro handles MSSQL (Microsoft SQL Server)
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	1433
+PARAM	-	-	udp	1434

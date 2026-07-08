@@ -1,0 +1,26 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.SANE
+#
+# This macro handles SANE network scanning.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+?if ( __CT_TARGET && ! $AUTOHELPERS && __SANE_HELPER )
+ PARAM	-	-	tcp	6566 { helper=sane }
+?else
+ PARAM	-	-	tcp	6566
+?endif
+
+#
+# Kernels 2.6.23+ has nf_conntrack_sane module which will handle
+# sane data connection. If you need these, copy this file to /etc/shorewall
+# and remove comments from one of the entries below.
+#
+# If you don't have sane conntracking support you need to open whole dynamic
+# port range.
+#
+# This is for normal linux 2.4+
+#PARAM	-	-	tcp	32768:61000
+# This is generic rule for any os running saned.
+#PARAM	-	-	tcp	1024:

@@ -1,0 +1,8 @@
+#
+# Shorewall --/usr/share/shorewall/macro.BitcoinTestnet
+#
+# Macro for handling Bitcoin P2P traffic (Testnet mode)
+#
+##############################################################################################################################################################
+#ACTION     SOURCE      DEST        PROTO   DPORT   SPORT   ORIGDEST    RATE    USER    MARK    CONNLIMIT   TIME    HEADERS SWITCH  HELPER
+PARAM       -           -           tcp     18333

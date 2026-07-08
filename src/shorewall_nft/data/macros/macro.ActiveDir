@@ -1,0 +1,37 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.ActiveDir
+#
+# This macro handles ports for Samba 4 Active Directory Service.
+# You can copy this file to /etc/shorewall[6]/ and comment out the ports you
+# do not want open.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM   -       -       tcp     389 	#LDAP services
+PARAM   -       -       udp	389  
+PARAM   -       -       tcp     636	#LDAP SSL
+PARAM   -       -       tcp     3268	#LDAP GC
+PARAM   -       -       tcp     3269	#LDAP GC SSL
+PARAM   -       -       tcp     88	#Kerberos
+PARAM   -       -       udp	88
+
+# Use macro.DNS for DNS sevice
+
+PARAM   -       -       tcp     445	#Replication, User and Computer Authentication, Group Policy, Trusts
+PARAM   -       -       udp	445
+
+# Use macro.SMTP for Mail service
+
+PARAM   -       -       tcp     135	#RPC, EPM
+PARAM   -       -       tcp     5722	#RPC, DFSR (SYSVOL)
+PARAM   -       -       udp	123	#Windows Time
+PARAM   -       -       tcp     464	#Kerberosb change/set password
+PARAM   -       -       udp	464
+PARAM   -       -       udp	138	#DFS, Group Policy
+PARAM   -       -       tcp     9389	#SOAP
+PARAM   -       -       tcp     2535	#MADCAP
+PARAM   -       -       udp	2535
+PARAM   -       -       udp     137	#NetLogon, NetBIOS Name Resolution
+PARAM   -       -       tcp	139	#DFSN, NetBIOS Session Service, NetLogon    
+  

@@ -1,0 +1,58 @@
+description = "Docker coexistence: with DOCKER=Yes, forward traffic on the docker0 bridge survives the drop policy so Docker's own table stays the authority, while unknown non-docker interfaces are still dropped. Ours-only: upstream needs a live dockerd the topology lacks."
+family = 4
+no_upstream = true
+
+[[links]]
+node_a = "server"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+[[links]]
+node_a = "container"
+dev_a = "c0"
+addr_a = "10.88.0.2/24"
+node_b = "fw"
+dev_b = "docker0"
+addr_b = "10.88.0.1/24"
+
+[[links]]
+node_a = "rogue"
+dev_a = "r0"
+addr_a = "10.99.0.2/24"
+node_b = "fw"
+dev_b = "eth9"
+addr_b = "10.99.0.1/24"
+
+[routes]
+server = "10.0.2.1"
+container = "10.88.0.1"
+rogue = "10.99.0.1"
+
+[[probes]]
+id = "container-to-net-forwards"
+from = "container"
+to = "server"
+addr = "10.0.2.2"
+proto = "tcp"
+port = 80
+expect = "allow"
+
+[[probes]]
+id = "container-ping-net-forwards"
+from = "container"
+to = "server"
+addr = "10.0.2.2"
+proto = "icmp"
+expect = "allow"
+
+[[probes]]
+id = "rogue-unknown-iface-still-dropped"
+from = "rogue"
+to = "server"
+addr = "10.0.2.2"
+proto = "tcp"
+port = 80
+expect = "drop"

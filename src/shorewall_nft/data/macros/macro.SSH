@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.SSH
+#
+# This macro handles secure shell (SSH) traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	22

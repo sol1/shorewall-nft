@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.Rwhois
+#
+# This macro handles Remote Who Is (rwhois) traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	4321

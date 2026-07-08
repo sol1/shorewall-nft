@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.OpenVPN
+#
+# This macro handles OpenVPN traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	udp	1194

@@ -1,0 +1,10 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.Telnets
+#
+# This macro handles Telnet over SSL (TLS) traffic.
+# For traffic over the internet, SSH might be more practical.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDIST	RATE	USER
+
+PARAM	-	-	tcp	992

@@ -1,0 +1,14 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.NTPbrd
+#
+# This macro handles NTP traffic including replies to Broadcast NTP traffic.
+#
+# It is recommended only to use this where the source host is trusted -
+# otherwise it opens up a large hole in your firewall because
+# Netfilter doesn't track connections for broadcast traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	udp	123
+PARAM	-	-	udp	1024:	123

@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.SMBswat
+#
+# This macro handles connections to the Samba Web Administration Tool (SWAT).
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	901

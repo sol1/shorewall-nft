@@ -1,0 +1,10 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.AMQP
+#
+# This macro handles AMQP traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	5672
+PARAM	-	-	udp	5672

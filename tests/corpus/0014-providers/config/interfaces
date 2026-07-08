@@ -1,0 +1,4 @@
+?FORMAT 2
+net	ETH0	physical=eth0
+net	ETH1	physical=eth1
+loc	ETH2	physical=eth2

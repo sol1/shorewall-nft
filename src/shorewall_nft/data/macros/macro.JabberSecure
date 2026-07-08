@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.JabberSecure
+#
+# This macro handles deprecated Jabber (SSL) traffic. Use STARTTLS instead.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	5223

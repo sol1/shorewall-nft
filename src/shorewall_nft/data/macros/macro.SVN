@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.SVN
+#
+# This macro handles connections to the Subversion server (svnserve).
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	3690

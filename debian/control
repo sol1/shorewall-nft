@@ -1,0 +1,25 @@
+Source: shorewall-nft
+Section: net
+Priority: optional
+Maintainer: Dave Kempe <dave@sol1.com.au>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.6.2
+Homepage: https://github.com/sol1/shorewall-nft
+Rules-Requires-Root: no
+
+Package: shorewall-nft
+Architecture: all
+Depends: ${misc:Depends}, python3 (>= 3.7), nftables
+Provides: shorewall
+Conflicts: shorewall
+Replaces: shorewall
+Description: Shorewall firewall compiler for nftables
+ A drop-in replacement for Shorewall that generates nftables rulesets
+ instead of iptables. It reads an existing /etc/shorewall configuration
+ unchanged, so a working Shorewall box moves over without a config
+ rewrite, and supplies the same shorewall command and service.
+ .
+ Shorewall itself is dormant and does not support nftables. As distros
+ drop the iptables compatibility modules, the original stops working.
+ This package fills that gap while keeping the configuration and the
+ command surface the same.

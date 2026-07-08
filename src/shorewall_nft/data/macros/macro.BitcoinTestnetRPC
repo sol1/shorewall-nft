@@ -1,0 +1,8 @@
+#
+# Shorewall --/usr/share/shorewall/macro.BitcoinTestnetRPC
+#
+# Macro for handling Bitcoin RPC traffic (Testnet and Regtest mode)
+#
+##############################################################################################################################################################
+#ACTION     SOURCE      DEST        PROTO   DPORT   SPORT   ORIGDEST    RATE    USER    MARK    CONNLIMIT   TIME    HEADERS SWITCH  HELPER
+PARAM       -           -           tcp     18332

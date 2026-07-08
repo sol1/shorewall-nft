@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.VNC
+#
+# This macro handles VNC traffic for VNC display's 0 - 9.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	5900:5909

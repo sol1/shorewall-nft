@@ -1,0 +1,110 @@
+.TH SHOREWALL 8 "2026" "shorewall-nft" "System Administration"
+.SH NAME
+shorewall \- Shorewall firewall for nftables
+.SH SYNOPSIS
+.B shorewall
+.RI [ command ]
+.RI [ options ]
+.SH DESCRIPTION
+.B shorewall-nft
+is a drop-in replacement for Shorewall that compiles an
+.I /etc/shorewall
+configuration to an nftables ruleset. It reads the same configuration
+files as Shorewall, supplies the same
+.B shorewall
+command, and installs the same service, so a working Shorewall system
+moves over without a configuration rewrite.
+.PP
+The rules are generated into a single table,
+.IR "table inet shorewall" ,
+which serves both IPv4 and IPv6. The ruleset is applied atomically with
+.BR "nft -f" ,
+and validated first with
+.BR "nft -c -f" ,
+so a bad configuration never partly loads. The compiler fails loud on
+anything it does not support, naming the file and line, and never
+silently produces a weaker firewall.
+.SH COMMANDS
+.TP
+.B start
+Compile the configuration and load the ruleset.
+.TP
+.B stop
+Load the stopped-state ruleset, which permits only the hosts listed in
+.IR stoppedrules .
+.TP
+.B reload\fR, \fBrestart
+Recompile and reload the ruleset.
+.TP
+.B clear
+Remove the shorewall table entirely, leaving the firewall open.
+.TP
+.B try \fIdirectory\fR [\fItimeout\fR]
+Load a configuration and revert it automatically after
+.I timeout
+seconds unless it is confirmed. Safe for a change that might lock you
+out.
+.TP
+.B safe-start\fR, \fBsafe-restart
+Like start and restart, but revert automatically unless confirmed.
+.TP
+.B check \fR[\fIdirectory\fR]
+Compile and validate a configuration without loading it. Reports
+anything unsupported. Reads only; changes nothing.
+.TP
+.B compile \fR[\fIdirectory\fR] \fB-o \fIfile
+Write the generated nftables ruleset to a file.
+.TP
+.B status
+Show the loaded ruleset.
+.TP
+.B show\fR, \fBlist\fR, \fBls
+Show parts of the running configuration in nft syntax.
+.TP
+.B save\fR, \fBrestore\fR, \fBforget
+Manage a saved ruleset.
+.TP
+.B migrate \fR[\fB--undo\fR] [\fB--yes\fR]
+Move a Shorewall system to shorewall-nft. Validates
+.IR /etc/shorewall ,
+reports each file's support state, and hands the firewall over on
+confirmation. Refuses a configuration that does not compile.
+.B --undo
+reverses the service handover. See
+.BR shorewall-migration (7).
+.TP
+.B geoip-update \fR[\fB--from \fIdir\fR] [\fIcc\fR ...]
+Fill the geoip country sets from CIDR data, downloaded or read from a
+local directory. Run on a schedule by the shipped systemd timer.
+.TP
+.B ipcalc\fR, \fBiprange
+Address arithmetic helpers.
+.TP
+.B version
+Print the shorewall-nft version and the nft version.
+.SH FILES
+.TP
+.I /etc/shorewall
+The configuration, read unchanged. See the shorewall\-*(5) manual pages
+for the file formats.
+.TP
+.I /var/lib/shorewall-nft
+The compiled artifact, saved state, and geoip data.
+.SH COMPATIBILITY
+Most of Shorewall works unchanged. Raw iptables passthrough, geoip via
+the xt_geoip module, and a few obsolete features do not; a raw nftables
+passthrough and native geoip sets replace them. See the coverage
+document for the file-by-file state, and run
+.B shorewall check
+against a configuration for its specific result.
+.SH SEE ALSO
+.BR nft (8),
+.BR shorewall.conf (5),
+.BR shorewall-zones (5),
+.BR shorewall-interfaces (5),
+.BR shorewall-policy (5),
+.BR shorewall-rules (5)
+.SH NOTES
+This is shorewall-nft, an independent reimplementation. It is not the
+original Perl Shorewall, which does not support nftables. The
+configuration file formats are the same.

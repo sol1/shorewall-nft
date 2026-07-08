@@ -1,0 +1,284 @@
+#!/usr/bin/env python3
+"""Differential test runner for shorewall-nft.
+
+For every case in tests/corpus/, run the layers in order:
+
+    1 upstream-compile   upstream compiler accepts the config
+    2 ours-compile       shorewall-nft compiles the config
+    3 nft-check          nft -c -f accepts our output
+    4 upstream-probe     upstream ruleset loaded in a sandbox, probes run
+    5 expect-check       upstream verdicts match case.toml expectations
+    6 ours-probe         our ruleset loaded, probes run
+    7 parity             our verdicts match upstream verdicts
+
+A layer that cannot run because an earlier one failed is recorded as
+skipped, never as passed. Results go to tests/results/ as JSONL plus an
+appended journal. This script never edits results. Failures are
+recorded as failures.
+
+Usage: tests/run [CASE ...]   (default: all cases)
+"""
+import datetime
+import json
+import os
+import subprocess
+import sys
+import tomllib
+
+REPO = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+CORPUS = os.path.join(REPO, "tests", "corpus")
+RESULTS = os.path.join(REPO, "tests", "results")
+HARNESS = os.path.join(REPO, "tests", "harness")
+TMP = os.path.join(RESULTS, "tmp")
+
+
+def sh(args, **kw):
+    return subprocess.run(args, capture_output=True, text=True, **kw)
+
+
+def compile_upstream(case_dir, out, family):
+    r = sh([os.path.join(HARNESS, "compile-upstream.sh"),
+            os.path.join(case_dir, "config"), out, str(family)])
+    return r.returncode == 0, (r.stderr or r.stdout).strip()[-500:]
+
+
+def compile_ours(case_dir, out, family, script=None):
+    args = [sys.executable, "-m", "shorewall_nft", "compile",
+            os.path.join(case_dir, "config"), "-o", out,
+            "--family", str(family)]
+    if script:
+        args += ["--script", script]
+    r = sh(args, env=dict(os.environ, PYTHONPATH=os.path.join(REPO, "src")))
+    return r.returncode == 0, (r.stderr or r.stdout).strip()[-500:]
+
+
+def nft_check(path):
+    r = sh(["unshare", "-r", "-n", "/usr/sbin/nft", "-c", "-f", path])
+    return r.returncode == 0, r.stderr.strip()[-500:]
+
+
+def probe(case_dir, load):
+    r = sh([sys.executable, os.path.join(HARNESS, "sandbox.py"),
+            case_dir, "--load", load])
+    if r.returncode != 0:
+        return None, (r.stderr or r.stdout).strip()[-500:]
+    try:
+        return json.loads(r.stdout), ""
+    except json.JSONDecodeError as e:
+        return None, f"bad sandbox output: {e}"
+
+
+def normalize_tc(text):
+    """Whitespace-insensitive tc output for comparison."""
+    return "\n".join(" ".join(line.split())
+                     for line in sorted(text.splitlines()) if line.strip())
+
+
+def norm(probe_spec, verdict):
+    v = dict(verdict)
+    if probe_spec.get("proto") == "icmp" and v["verdict"] not in ("allow", None):
+        v["verdict"] = "blocked"
+    return v
+
+
+def check_expect(case, verdicts):
+    fails = []
+    vmap = {v["id"]: v for v in verdicts}
+    for p in case.get("probes", []):
+        v = vmap.get(p["id"])
+        if v is None:
+            fails.append(f"{p['id']}: no verdict")
+            continue
+        want = p["expect"]
+        if p["proto"] == "icmp" and want in ("drop", "reject", "blocked"):
+            want = "blocked"
+        got = norm(p, v)["verdict"]
+        if got != want:
+            fails.append(f"{p['id']}: expected {want}, got {got}")
+        if p.get("peer") and v.get("peer") != p["peer"]:
+            fails.append(f"{p['id']}: expected peer {p['peer']}, got {v.get('peer')}")
+        if p.get("detail") and p["detail"] not in (v.get("detail") or ""):
+            fails.append(f"{p['id']}: expected {p['detail']}, "
+                         f"got {v.get('detail')}")
+    return fails
+
+
+def check_parity(case, upstream, ours):
+    fails = []
+    umap = {v["id"]: v for v in upstream}
+    omap = {v["id"]: v for v in ours}
+    for p in case.get("probes", []):
+        u, o = umap.get(p["id"]), omap.get(p["id"])
+        if u is None or o is None:
+            fails.append(f"{p['id']}: missing verdict")
+            continue
+        un, on = norm(p, u), norm(p, o)
+        if un["verdict"] != on["verdict"]:
+            fails.append(f"{p['id']}: upstream {un['verdict']}, ours {on['verdict']}")
+        elif un.get("peer") != on.get("peer"):
+            fails.append(f"{p['id']}: peer upstream {un.get('peer')}, ours {on.get('peer')}")
+        elif p.get("detail") and un.get("detail") != on.get("detail"):
+            fails.append(f"{p['id']}: detail upstream {un.get('detail')}, "
+                         f"ours {on.get('detail')}")
+    return fails
+
+
+def run_case(name):
+    case_dir = os.path.join(CORPUS, name)
+    with open(os.path.join(case_dir, "case.toml"), "rb") as f:
+        case = tomllib.load(f)
+    family = case.get("family", 4)
+    script_mode = case.get("mode") == "script"
+    # Some behavioral cases (Docker coexistence) depend on runtime state
+    # upstream needs but the test topology lacks, so they check our
+    # verdicts against the case expectations without diffing upstream.
+    no_upstream = case.get("no_upstream", False)
+    out = os.path.join(TMP, name)
+    os.makedirs(out, exist_ok=True)
+    ours_nft = os.path.join(out, "ruleset.nft")
+    ours_script = os.path.join(out, "ours-firewall") if script_mode else None
+    layers = {}
+    detail = {}
+
+    if no_upstream:
+        layers["upstream-compile"] = "skip"
+    else:
+        ok, msg = compile_upstream(case_dir, out, family)
+        layers["upstream-compile"] = "pass" if ok else "FAIL"
+        if not ok:
+            detail["upstream-compile"] = msg
+
+    ok, msg = compile_ours(case_dir, ours_nft, family, script=ours_script)
+    layers["ours-compile"] = "pass" if ok else "FAIL"
+    if not ok:
+        detail["ours-compile"] = msg
+
+    if layers["ours-compile"] == "pass":
+        ok, msg = nft_check(ours_nft)
+        layers["nft-check"] = "pass" if ok else "FAIL"
+        if not ok:
+            detail["nft-check"] = msg
+    else:
+        layers["nft-check"] = "skip"
+
+    upstream_doc = None
+    upstream_verdicts = None
+    if script_mode:
+        upstream_load = "script:" + os.path.join(out, "firewall")
+    else:
+        ipt_mode = "ipt6:" if family == 6 else "ipt:"
+        upstream_load = ipt_mode + os.path.join(out, "upstream.rules")
+    if layers["upstream-compile"] == "pass":
+        upstream_doc, msg = probe(case_dir, upstream_load)
+        upstream_verdicts = upstream_doc["verdicts"] if upstream_doc else None
+        layers["upstream-probe"] = "pass" if upstream_verdicts is not None else "FAIL"
+        if upstream_verdicts is None:
+            detail["upstream-probe"] = msg
+    else:
+        layers["upstream-probe"] = "skip"
+
+    if upstream_verdicts is not None:
+        fails = check_expect(case, upstream_verdicts)
+        layers["expect-check"] = "pass" if not fails else "FAIL"
+        if fails:
+            detail["expect-check"] = fails
+    else:
+        layers["expect-check"] = "skip"
+
+    ours_doc = None
+    ours_verdicts = None
+    ours_load = ("script:" + ours_script if script_mode
+                 else "nft:" + ours_nft)
+    if layers["nft-check"] == "pass":
+        ours_doc, msg = probe(case_dir, ours_load)
+        ours_verdicts = ours_doc["verdicts"] if ours_doc else None
+        layers["ours-probe"] = "pass" if ours_verdicts is not None else "FAIL"
+        if ours_verdicts is None:
+            detail["ours-probe"] = msg
+    else:
+        layers["ours-probe"] = "skip"
+
+    if no_upstream:
+        if ours_verdicts is not None:
+            fails = check_expect(case, ours_verdicts)
+            layers["ours-expect"] = "pass" if not fails else "FAIL"
+            if fails:
+                detail["ours-expect"] = fails
+        else:
+            layers["ours-expect"] = "skip"
+    elif upstream_verdicts is not None and ours_verdicts is not None:
+        fails = check_parity(case, upstream_verdicts, ours_verdicts)
+        for dev in case.get("tc_devices", []):
+            up_tc = normalize_tc(upstream_doc.get("tc", {}).get(dev, ""))
+            our_tc = normalize_tc(ours_doc.get("tc", {}).get(dev, ""))
+            if up_tc != our_tc:
+                fails.append(f"tc state differs on {dev}:\n"
+                             f"upstream:\n{up_tc}\nours:\n{our_tc}")
+        if case.get("ip_rules"):
+            up_r = normalize_tc(upstream_doc.get("ip_rules", ""))
+            our_r = normalize_tc(ours_doc.get("ip_rules", ""))
+            if up_r != our_r:
+                fails.append(f"ip rules differ:\nupstream:\n{up_r}\n"
+                             f"ours:\n{our_r}")
+        layers["parity"] = "pass" if not fails else "FAIL"
+        if fails:
+            detail["parity"] = fails
+    else:
+        layers["parity"] = "skip"
+
+    return {"case": name, "layers": layers, "detail": detail,
+            "upstream_verdicts": upstream_verdicts,
+            "ours_verdicts": ours_verdicts}
+
+
+def main():
+    cases = sys.argv[1:] or sorted(
+        d for d in os.listdir(CORPUS)
+        if os.path.isfile(os.path.join(CORPUS, d, "case.toml")))
+    os.makedirs(TMP, exist_ok=True)
+    stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    rev = sh(["git", "-C", REPO, "rev-parse", "--short", "HEAD"]).stdout.strip()
+
+    results = []
+    for name in cases:
+        r = run_case(name)
+        results.append(r)
+        flat = " ".join(f"{k}={v}" for k, v in r["layers"].items())
+        print(f"{name}: {flat}")
+
+    for proof in ("wrapper-proof.sh", "cli-proof.sh"):
+        name = proof.replace(".sh", "")
+        r = sh([os.path.join(HARNESS, proof)])
+        results.append({"case": name,
+                        "layers": {"proof": "pass" if r.returncode == 0
+                                   else "FAIL"},
+                        "detail": {} if r.returncode == 0 else
+                        {"proof": (r.stdout + r.stderr)[-500:]},
+                        "upstream_verdicts": None, "ours_verdicts": None})
+        print(f"{name}: {'pass' if r.returncode == 0 else 'FAIL'}")
+
+    log = os.path.join(RESULTS, f"run-{stamp}.jsonl")
+    with open(log, "w") as f:
+        for r in results:
+            f.write(json.dumps({"stamp": stamp, "rev": rev, **r}) + "\n")
+
+    # Green means nothing failed. A skip is a layer that legitimately
+    # did not run (an ours-only case skips the upstream layers).
+    green = all(v != "FAIL" for r in results for v in r["layers"].values())
+    with open(os.path.join(RESULTS, "JOURNAL.md"), "a") as j:
+        j.write(f"\n## {stamp} rev {rev}\n\n")
+        for r in results:
+            j.write(f"- {r['case']}: " +
+                    " ".join(f"{k}={v}" for k, v in r["layers"].items()) + "\n")
+            for k, v in r["detail"].items():
+                if isinstance(v, list):
+                    for item in v:
+                        j.write(f"    - {k}: {item}\n")
+                else:
+                    j.write(f"    - {k}: {v}\n")
+    print(f"results: {log}")
+    sys.exit(0 if green else 1)
+
+
+if __name__ == "__main__":
+    main()

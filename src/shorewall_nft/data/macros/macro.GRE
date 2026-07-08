@@ -1,0 +1,10 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.GRE
+#
+# This macro (bidirectional) handles Generic Routing Encapsulation (GRE).
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	47	# GRE
+PARAM	DEST	SOURCE	47	# GRE

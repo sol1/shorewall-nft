@@ -1,0 +1,6 @@
+shorewall-nft (0.0.1) unstable; urgency=medium
+
+  * Initial packaging. Shorewall-compatible firewall compiler for
+    nftables, reading an existing /etc/shorewall unchanged.
+
+ -- Dave Kempe <dave@sol1.com.au>  Tue, 07 Jul 2026 00:00:00 +0000

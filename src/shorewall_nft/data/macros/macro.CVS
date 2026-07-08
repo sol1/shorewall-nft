@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.CVS
+#
+# This macro handles connections to the CVS pserver.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	2401

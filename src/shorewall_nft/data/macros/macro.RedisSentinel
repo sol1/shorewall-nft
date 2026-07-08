@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.RedisSentinel
+#
+# This macro handles Redis Sentinel traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	26379

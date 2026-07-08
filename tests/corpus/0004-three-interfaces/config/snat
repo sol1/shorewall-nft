@@ -1,0 +1,24 @@
+#
+# Shorewall - Sample SNAT/Masqueradee File for three-interface configuration.
+# Copyright (C) 2006-2017 by the Shorewall Team
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+#
+# See the file README.txt for further details.
+#------------------------------------------------------------------------------
+# For information about entries in this file, type "man shorewall-snat"
+#
+# See https://shorewall.org/manpages/shorewall-snat.html for more information
+?FORMAT 2
+###################################################################################################################################################
+#ACTION			SOURCE			DEST            PROTO	DPORT	SPORT	IPSEC	MARK	USER	SWITCH	ORIGDEST	PROBABILITY
+#
+# Rules generated from masq file /home/teastep/shorewall/trunk/Shorewall/Samples/three-interfaces/masq by Shorewall 5.0.13-RC1 - Sat Oct 15 11:43:47 PDT 2016
+#
+MASQUERADE		10.0.0.0/8,\
+			169.254.0.0/16,\
+			172.16.0.0/12,\
+			192.168.0.0/16		NET_IF

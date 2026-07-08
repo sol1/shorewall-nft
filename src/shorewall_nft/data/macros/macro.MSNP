@@ -1,0 +1,9 @@
+#
+# Shorewall - /usr/share/shorewall/macro.MSNP
+#
+# This macro handles MSNP (MicroSoft Notification Protocol)
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	1863

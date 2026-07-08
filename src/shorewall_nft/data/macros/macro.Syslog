@@ -1,0 +1,10 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.Syslog
+#
+# This macro handles syslog traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	udp	514
+PARAM	-	-	tcp	514

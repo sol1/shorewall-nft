@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.WebCache
+#
+# This macro handles Web Caches and Dansguardian traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM   -       -       tcp	8080

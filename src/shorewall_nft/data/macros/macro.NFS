@@ -1,0 +1,12 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.NFS
+#
+# This macro handles NFS v4.1+ traffic with default ports.
+# You should only allow NFS traffic between hosts you fully trust.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	111		# portmapper, rpcbind
+PARAM	-	-	tcp	2049		# nfs
+PARAM	-	-	tcp	20048		# mountd

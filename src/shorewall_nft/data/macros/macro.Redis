@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.Redis
+#
+# This macro handles Redis traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	6379

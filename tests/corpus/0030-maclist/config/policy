@@ -1,0 +1,3 @@
+loc	net	ACCEPT
+lok	net	ACCEPT
+all	all	DROP

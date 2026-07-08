@@ -1,0 +1,3 @@
+?FORMAT 2
+net	NET_IF	physical=eth0
+dock	DOCKERNET	bridge,physical=br-+

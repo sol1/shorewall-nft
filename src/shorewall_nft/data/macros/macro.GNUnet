@@ -1,0 +1,12 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.GNUnet
+#
+# This macro handles GNUnet (secure peer-to-peer networking) traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	2086
+PARAM	-	-	udp	2086
+PARAM	-	-	tcp	1080
+PARAM	-	-	udp	1080

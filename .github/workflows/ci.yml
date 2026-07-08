@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Differential test suite
+    # 22.04 allows unprivileged user namespaces out of the box; newer
+    # releases restrict them under AppArmor, relaxed in the step below.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nftables iptables python3 git perl
+
+      - name: Allow unprivileged user namespaces
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+
+      - name: Clone upstream Shorewall for the differential comparison
+        run: git clone --depth 1 https://gitlab.com/shorewall/code upstream/shorewall
+
+      - name: Run the suite
+        run: tests/run
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: tests/results/

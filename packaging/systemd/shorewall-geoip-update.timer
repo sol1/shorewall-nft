@@ -1,0 +1,13 @@
+[Unit]
+Description=Refresh shorewall-nft geoip country sets weekly
+Documentation=man:shorewall(8)
+
+[Timer]
+# Weekly, with a random delay so many hosts do not hit the data source
+# at once. Persistent runs a missed refresh after downtime.
+OnCalendar=weekly
+RandomizedDelaySec=6h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

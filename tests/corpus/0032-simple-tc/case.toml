@@ -1,0 +1,34 @@
+description = "Simple traffic shaping. eth0 gets a 10mbit egress tbf, a three-band prio qdisc with sfq leaves, and a 20mbit ingress police. tcpri sends tcp 22 to band 1 and tcp 80 to band 2. The tc state is compared against upstream."
+family = 4
+mode = "script"
+tc_devices = ["eth0"]
+
+[[links]]
+node_a = "server"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+[[links]]
+node_a = "client"
+dev_a = "c0"
+addr_a = "10.0.1.2/24"
+node_b = "fw"
+dev_b = "eth1"
+addr_b = "10.0.1.1/24"
+
+[routes]
+server = "10.0.2.1"
+client = "10.0.1.1"
+
+[[probes]]
+id = "loc-to-net-still-forwards"
+from = "client"
+to = "server"
+addr = "10.0.2.2"
+proto = "tcp"
+port = 80
+expect = "allow"
+peer = "10.0.2.1"

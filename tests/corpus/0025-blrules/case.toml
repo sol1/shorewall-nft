@@ -1,0 +1,56 @@
+description = "blrules: blacklist the loc subnet from forwarding, whitelist 10.0.1.9 first. The whitelisted host reaches net; the rest of loc is dropped before the regular rules. Established replies are unaffected."
+family = 4
+
+[[links]]
+node_a = "server"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+[[links]]
+node_a = "client"
+dev_a = "c0"
+addr_a = "10.0.1.2/24"
+node_b = "fw"
+dev_b = "eth1"
+addr_b = "10.0.1.1/24"
+
+[extra_addrs]
+client = ["10.0.1.9/24@c0"]
+
+[routes]
+server = "10.0.2.1"
+client = "10.0.1.1"
+
+[[probes]]
+id = "blacklisted-loc-host-dropped"
+from = "client"
+to = "server"
+addr = "10.0.2.2"
+proto = "tcp"
+port = 80
+source = "10.0.1.2"
+expect = "drop"
+
+[[probes]]
+id = "whitelisted-loc-host-allowed"
+from = "client"
+to = "server"
+addr = "10.0.2.2"
+proto = "tcp"
+port = 80
+source = "10.0.1.9"
+expect = "allow"
+peer = "10.0.2.1"
+
+[[probes]]
+id = "loc-to-fw-ssh-blacklisted"
+from = "client"
+to = "fw"
+addr = "10.0.1.1"
+proto = "tcp"
+port = 22
+source = "10.0.1.2"
+expect = "drop"

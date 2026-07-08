@@ -1,0 +1,28 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.IPPserver
+#
+# This macro handles Internet Printing Protocol (IPP), indicating
+# that DEST is a printing server for SOURCE.  The macro allows
+# print queue broadcasts from the server to the client, and
+# printing connections from the client to the server.
+#
+# Example usage on a single-interface firewall which is a print client:
+#
+#	IPPserver(ACCEPT)	$FW	net
+#
+# Example for a two-interface firewall which acts as a print server for loc:
+#
+#	IPPserver(ACCEPT)	loc	$FW
+#
+# NOTE: If you want both to serve requests for local printers and listen to
+# requests for remote printers (i.e. your CUPS server is also a client),
+# you need to apply the rule twice, e.g.
+#
+#	IPPserver(ACCEPT)	loc	$FW
+#	IPPserver(ACCEPT)	$FW	loc
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	SOURCE	DEST	tcp	631
+PARAM	DEST	SOURCE	udp	631

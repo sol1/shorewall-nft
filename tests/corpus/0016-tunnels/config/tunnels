@@ -1,0 +1,3 @@
+openvpn		net		10.0.2.2
+openvpnserver:tcp:443	net	10.0.2.2
+gre		net		10.0.2.2

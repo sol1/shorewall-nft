@@ -1,0 +1,4 @@
+?FORMAT 2
+net	eth0
+loc	eth1	maclist
+lok	eth2	maclist

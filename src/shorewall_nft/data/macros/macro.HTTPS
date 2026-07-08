@@ -1,0 +1,9 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.HTTPS
+#
+# This macro handles HTTPS (WWW over TLS) traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	443

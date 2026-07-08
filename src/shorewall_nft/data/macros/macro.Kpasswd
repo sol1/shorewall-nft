@@ -1,0 +1,10 @@
+#
+# Shorewall -- /usr/share/shorewall/macro.Kpasswd
+#
+# This macro handles Kerberos "passwd" traffic.
+#
+###############################################################################
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER
+
+PARAM	-	-	tcp	464
+PARAM	-	-	udp	464
