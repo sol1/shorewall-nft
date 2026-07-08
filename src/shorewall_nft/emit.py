@@ -637,9 +637,12 @@ class Emitter:
         globs = self._docker_bridge_globs()
         if not globs:
             return
-        match = globs[0] if len(globs) == 1 else "{ " + ", ".join(globs) + " }"
-        self.out(f"iifname {match} accept comment \"docker coexistence\"", 2)
-        self.out(f"oifname {match} accept comment \"docker coexistence\"", 2)
+        # One rule per bridge, not an anonymous set. nft 1.0.2 mishandles
+        # a set of interface-name globs (byteorder mismatch), and separate
+        # rules are equivalent.
+        for g in globs:
+            self.out(f'iifname {g} accept comment "docker coexistence"', 2)
+            self.out(f'oifname {g} accept comment "docker coexistence"', 2)
 
     def _interface_filters(self, hook):
         """Jump arriving traffic through the smurf and tcp-flag checks
