@@ -1,3 +1,12 @@
+shorewall-nft (0.0.5) unstable; urgency=medium
+
+  * migrate no longer prints the "other stack not handled yet" note once
+    that stack is already running under shorewall-nft. It checked only
+    whether the config directory existed, which is always true after a
+    migration. The start line now names the family being handed over.
+
+ -- Dave Kempe <dave@sol1.com.au>  Thu, 09 Jul 2026 00:00:00 +0000
+
 shorewall-nft (0.0.4) unstable; urgency=medium
 
   * shorewall6 migrate no longer fails on the stock conntrack file. The

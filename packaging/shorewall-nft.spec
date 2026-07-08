@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.0.4
+Version:        0.0.5
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -73,6 +73,9 @@ DESTDIR=%{buildroot} packaging/install.sh packaging/shorewallrc.redhat
 %systemd_postun shorewall-geoip-update.timer
 
 %changelog
+* Thu Jul 09 2026 Dave Kempe <dave@sol1.com.au> - 0.0.5-1
+- migrate no longer nudges about the other stack once it is already on
+  shorewall-nft. Label the start line with the family.
 * Wed Jul 08 2026 Dave Kempe <dave@sol1.com.au> - 0.0.4-1
 - shorewall6 migrate no longer fails on conntrack helpers with no IPv6
   support (irc, netbios-ns, pptp, snmp, amanda skipped for IPv6).

@@ -529,7 +529,7 @@ def cmd_migrate(args, family):
     # resolve a stale unit, so a direct start is reliable.
     _sysd("daemon-reload")
     _sysd("enable", _service(family))
-    print("Starting shorewall-nft.")
+    print(f"Starting shorewall-nft ({label}).")
     rc = cmd_start([], family)
     loaded = subprocess.run([_nft(), "list", "table", *table_for(family).split()],
                             capture_output=True).returncode == 0
@@ -591,8 +591,14 @@ def _clear_legacy_iptables(family):
 
 def _other_stack_note(family):
     """Warn if the other family still has a config or a live iptables
-    ruleset, so migrating one stack points the way to the other."""
+    ruleset, so migrating one stack points the way to the other. Silent
+    if the other stack is already on shorewall-nft."""
     other = 4 if family == 6 else 6
+    already = subprocess.run(
+        [_nft(), "list", "table", *table_for(other).split()],
+        capture_output=True).returncode == 0
+    if already:
+        return
     conf = "/etc/shorewall" if other == 4 else "/etc/shorewall6"
     cmd = "shorewall" if other == 4 else "shorewall6"
     label = "IPv4" if other == 4 else "IPv6"
