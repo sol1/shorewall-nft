@@ -35,7 +35,6 @@ BEHAVIORAL_DEFAULTS = {
     "ACCOUNTING_TABLE": "filter",
     "MANGLE_ENABLED": "yes",
     "IMPLICIT_CONTINUE": "no",
-    "FASTACCEPT": "no",
     "MULTICAST": "no",
     "MARK_IN_FORWARD_CHAIN": "no",
     "BASIC_FILTERS": "no",

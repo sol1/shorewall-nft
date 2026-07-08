@@ -38,9 +38,13 @@ UNTRACKED_DISPOSITION (continue), SMURF_DISPOSITION (drop),
 TCP_FLAGS_DISPOSITION (drop), SFILTER_DISPOSITION (drop),
 RPFILTER_DISPOSITION (drop), MACLIST_TABLE (filter),
 ACCOUNTING_TABLE (filter), MANGLE_ENABLED (yes),
-IMPLICIT_CONTINUE (no), FASTACCEPT (no), MULTICAST (no),
+IMPLICIT_CONTINUE (no), MULTICAST (no),
 MARK_IN_FORWARD_CHAIN (no), BASIC_FILTERS (no), REJECT_ACTION (empty),
 TC_PRIOMAP (the default priomap).
+
+FASTACCEPT is accepted at any value and ignored. It only moves where
+established and related traffic is accepted, for speed; the verdict is
+the same, so it changes nothing we need to reject.
 
 Several of these are candidates to honor properly later, TC_PRIOMAP and
 the disposition settings especially. For now they are gated, not

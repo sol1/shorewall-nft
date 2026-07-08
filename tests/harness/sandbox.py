@@ -20,7 +20,10 @@ import os
 import subprocess
 import sys
 import time
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:            # Python < 3.11: use the tomli backport
+    import tomli as tomllib
 
 RAWTCP = r'''
 # Craft a TCP segment with arbitrary flags and send it. Verdict is
