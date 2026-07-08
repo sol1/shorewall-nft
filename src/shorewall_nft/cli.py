@@ -460,18 +460,25 @@ def _compat_report(confdir):
     return lines, unsupported
 
 
+def _service(family):
+    return "shorewall6.service" if family == 6 else "shorewall.service"
+
+
 def cmd_migrate(args, family):
-    """Validate an existing /etc/shorewall under nftables, report the
-    compatibility state, then hand the firewall over. Never changes the
-    running firewall without confirmation, and refuses a config that
-    does not compile."""
+    """Validate an existing Shorewall configuration under nftables,
+    report the compatibility state, then hand the firewall over. Never
+    changes the running firewall without confirmation, and refuses a
+    config that does not compile. Handles one stack: `shorewall migrate`
+    for IPv4, `shorewall6 migrate` for IPv6. It warns when the other
+    stack still needs migrating."""
     undo = "--undo" in args
     assume_yes = "--yes" in args or "-y" in args
     confdir = _confdir(family)
+    label = "IPv6" if family == 6 else "IPv4"
 
     if undo:
         print("Reversing the service handover.")
-        _sysd("disable", "--now", "shorewall.service")
+        _sysd("disable", "--now", _service(family))
         print("shorewall-nft stopped and disabled. Re-enable the previous "
               "firewall to finish rolling back.")
         return 0
@@ -479,7 +486,7 @@ def cmd_migrate(args, family):
     if not os.path.isdir(confdir):
         _fatal(f"no configuration at {confdir}")
 
-    print(f"Checking {confdir} against nftables.\n")
+    print(f"Checking {confdir} ({label}) against nftables.\n")
     lines, unsupported = _compat_report(confdir)
     print("\n".join(lines))
     print()
@@ -508,9 +515,8 @@ def cmd_migrate(args, family):
         print("These would not carry over. Remove or replace them first.")
         return 1
 
-    print("\nReady to hand over. This enables shorewall-nft at boot and")
-    print("starts it now, loading its ruleset and taking over from the")
-    print("previous Shorewall.")
+    print(f"\nReady to hand over ({label}). This enables shorewall-nft at")
+    print("boot and starts it now, taking over from the previous Shorewall.")
     if not assume_yes:
         print("Proceed? [y/n] ", end="", flush=True)
         if sys.stdin.readline().strip().lower() not in ("y", "yes"):
@@ -518,56 +524,86 @@ def cmd_migrate(args, family):
             return 0
 
     # Enable for boot. daemon-reload first, since the unit may have just
-    # been installed.
+    # been installed. Start by loading the ruleset directly rather than
+    # through systemctl: a leftover SysV init script can make systemd
+    # resolve a stale unit, so a direct start is reliable.
     _sysd("daemon-reload")
-    _sysd("enable", "shorewall.service")
-    # Start now by loading the ruleset directly rather than through
-    # systemctl. A leftover /etc/init.d/shorewall from the old package can
-    # make systemd resolve a stale SysV unit, so a direct start is the
-    # reliable way to bring the firewall up.
+    _sysd("enable", _service(family))
     print("Starting shorewall-nft.")
     rc = cmd_start([], family)
     loaded = subprocess.run([_nft(), "list", "table", *table_for(family).split()],
                             capture_output=True).returncode == 0
     if rc == 0 and loaded:
-        # The previous Shorewall left its iptables ruleset in the kernel.
-        # Our nft table is loaded and protecting the box now, so tear the
-        # old ruleset down, otherwise both firewalls filter at once.
-        if _clear_legacy_iptables():
-            print("Cleared the previous Shorewall's iptables ruleset.")
+        # Tear down only this family's old iptables ruleset. The other
+        # family keeps its firewall until its own migrate runs.
+        if _clear_legacy_iptables(family):
+            print(f"Cleared the previous Shorewall's "
+                  f"{_iptables_cmd(family)} ruleset.")
         print("shorewall-nft is running and enabled at boot. "
               "Verify with 'shorewall status'.")
+        _other_stack_note(family)
         return 0
     print("shorewall-nft is enabled but the ruleset did not load. "
           "Run 'shorewall start' and check the output.", file=sys.stderr)
     return 1
 
 
-def _clear_legacy_iptables():
-    """Tear down a classic Shorewall iptables ruleset left in the kernel.
-    Set the built-in policies to ACCEPT, flush every chain and delete the
-    non-built-in chains, for IPv4 and IPv6. Mirrors what `shorewall clear`
-    did. Returns True if there was a ruleset to clear."""
+def _iptables_cmd(family):
+    return "ip6tables" if family == 6 else "iptables"
+
+
+def _iptables_has_rules(family):
+    """True if this family's classic iptables ruleset has anything beyond
+    the bare built-in chains."""
     import shutil
-    cleared = False
-    for cmd in ("iptables", "ip6tables"):
-        path = shutil.which(cmd) or f"/usr/sbin/{cmd}"
-        if not os.path.exists(path):
-            continue
-        # A non-empty ruleset has more than the bare built-in chains.
-        listing = subprocess.run([path, "-S"], capture_output=True, text=True)
-        if listing.returncode == 0 and any(
-                not ln.startswith("-P ") and ln.strip()
-                for ln in listing.stdout.splitlines()):
-            cleared = True
-        for table in ("raw", "mangle", "nat", "filter"):
-            for chain in ("PREROUTING", "INPUT", "FORWARD", "OUTPUT",
-                          "POSTROUTING"):
-                subprocess.run([path, "-t", table, "-P", chain, "ACCEPT"],
-                               capture_output=True)
-            subprocess.run([path, "-t", table, "-F"], capture_output=True)
-            subprocess.run([path, "-t", table, "-X"], capture_output=True)
+    cmd = _iptables_cmd(family)
+    path = shutil.which(cmd) or f"/usr/sbin/{cmd}"
+    if not os.path.exists(path):
+        return False
+    r = subprocess.run([path, "-S"], capture_output=True, text=True)
+    return r.returncode == 0 and any(
+        ln.strip() and not ln.startswith("-P ")
+        for ln in r.stdout.splitlines())
+
+
+def _clear_legacy_iptables(family):
+    """Tear down this family's classic Shorewall iptables ruleset left in
+    the kernel. Set the built-in policies to ACCEPT, flush every chain and
+    delete the non-built-in chains. Mirrors what `shorewall clear` did.
+    The other family's ruleset is left alone, so migrating one stack does
+    not drop the firewall on the other. Returns True if there was a
+    ruleset to clear."""
+    import shutil
+    cmd = _iptables_cmd(family)
+    path = shutil.which(cmd) or f"/usr/sbin/{cmd}"
+    if not os.path.exists(path):
+        return False
+    cleared = _iptables_has_rules(family)
+    for table in ("raw", "mangle", "nat", "filter"):
+        for chain in ("PREROUTING", "INPUT", "FORWARD", "OUTPUT",
+                      "POSTROUTING"):
+            subprocess.run([path, "-t", table, "-P", chain, "ACCEPT"],
+                           capture_output=True)
+        subprocess.run([path, "-t", table, "-F"], capture_output=True)
+        subprocess.run([path, "-t", table, "-X"], capture_output=True)
     return cleared
+
+
+def _other_stack_note(family):
+    """Warn if the other family still has a config or a live iptables
+    ruleset, so migrating one stack points the way to the other."""
+    other = 4 if family == 6 else 6
+    conf = "/etc/shorewall" if other == 4 else "/etc/shorewall6"
+    cmd = "shorewall" if other == 4 else "shorewall6"
+    label = "IPv4" if other == 4 else "IPv6"
+    reasons = []
+    if os.path.isdir(conf):
+        reasons.append(f"a configuration at {conf}")
+    if _iptables_has_rules(other):
+        reasons.append(f"a live {_iptables_cmd(other)} ruleset")
+    if reasons:
+        print(f"\nNote: {' and '.join(reasons)} still present. {label} is "
+              f"not handled yet. Run '{cmd} migrate' to hand it over too.")
 
 
 def _sysd(*args):

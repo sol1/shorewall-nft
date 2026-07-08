@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.0.3
+Version:        0.0.4
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -48,6 +48,7 @@ DESTDIR=%{buildroot} packaging/install.sh packaging/shorewallrc.redhat
 %{_sbindir}/shorewall6
 %{_datadir}/shorewall-nft/
 %{_unitdir}/shorewall.service
+%{_unitdir}/shorewall6.service
 %{_unitdir}/shorewall-geoip-update.service
 %{_unitdir}/shorewall-geoip-update.timer
 %{_mandir}/man8/shorewall*.8*
@@ -58,17 +59,27 @@ DESTDIR=%{buildroot} packaging/install.sh packaging/shorewallrc.redhat
 # Register the unit but do not enable or start it. The admin runs
 # `shorewall migrate` or `shorewall start` when ready.
 %systemd_post shorewall.service
+%systemd_post shorewall6.service
 %systemd_post shorewall-geoip-update.timer
 
 %preun
 %systemd_preun shorewall.service
+%systemd_preun shorewall6.service
 %systemd_preun shorewall-geoip-update.timer
 
 %postun
 %systemd_postun shorewall.service
+%systemd_postun shorewall6.service
 %systemd_postun shorewall-geoip-update.timer
 
 %changelog
+* Wed Jul 08 2026 Dave Kempe <dave@sol1.com.au> - 0.0.4-1
+- shorewall6 migrate no longer fails on conntrack helpers with no IPv6
+  support (irc, netbios-ns, pptp, snmp, amanda skipped for IPv6).
+- Ship shorewall6.service so IPv6 starts at boot; migrate enables the
+  service for the stack it hands over.
+- migrate handles one stack and warns when the other still needs it;
+  it clears only its own family's old iptables ruleset.
 * Wed Jul 08 2026 Dave Kempe <dave@sol1.com.au> - 0.0.3-1
 - Separate family tables: shorewall uses ip shorewall and shorewall6
   uses ip6 shorewall, so both run at once without clobbering each other

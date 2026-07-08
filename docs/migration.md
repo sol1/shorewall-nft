@@ -49,9 +49,25 @@ This does, in order:
 3. Asks you to confirm.
 4. Enables and starts shorewall-nft, which loads the nftables ruleset
    and takes over from the previous Shorewall.
+5. Clears the previous Shorewall's IPv4 iptables ruleset, so the old and
+   new firewalls do not both filter.
 
 If a file is unsupported, migrate refuses and tells you which. Fix that
 first; it will not hand over a configuration it cannot fully honor.
+
+## IPv6
+
+shorewall and shorewall6 are separate, as they always were. `shorewall
+migrate` hands over IPv4 only and leaves the IPv6 firewall alone. If you
+also run shorewall6, migrate says so, and you hand IPv6 over the same
+way:
+
+    shorewall6 migrate
+
+Run it after the IPv4 migration. It validates /etc/shorewall6, loads the
+`ip6 shorewall` table, enables shorewall6.service for boot, and clears
+the old ip6tables ruleset. Until you run it, IPv6 keeps running on the
+previous Shorewall's rules.
 
 ## Try it safely first
 

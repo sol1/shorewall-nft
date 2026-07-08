@@ -18,6 +18,13 @@ def table_for(family):
     overwrite each other and neither filters the other's protocol."""
     return f"{'ip6' if family == 6 else 'ip'} shorewall"
 
+
+# Conntrack helpers the kernel registers for IPv4 only. nft rejects a
+# ct helper object for these in an ip6 table, so they are dropped from
+# the IPv6 ruleset. The stock conntrack file assigns all of them under
+# AUTOHELPERS.
+IPV4_ONLY_HELPERS = {"amanda", "irc", "netbios-ns", "pptp", "snmp"}
+
 ICMP_TYPES = {
     "0": "echo-reply",
     "3": "destination-unreachable",
@@ -847,11 +854,18 @@ class Emitter:
         self.out("")
 
     def _helpers(self):
-        if not self.cfg.helpers:
+        # These conntrack helpers have no IPv6 helper registered in the
+        # kernel, so nft rejects a ct helper object for them in an ip6
+        # table. They only ever matched IPv4 traffic anyway, so drop them
+        # from the IPv6 ruleset.
+        v6 = self.cfg.family == 6
+        helpers = [h for h in self.cfg.helpers
+                   if not (v6 and h.helper in IPV4_ONLY_HELPERS)]
+        if not helpers:
             return
         self.out("")
         seen = {}
-        for h in self.cfg.helpers:
+        for h in helpers:
             key = (h.helper, h.proto)
             if key in seen:
                 continue
@@ -860,7 +874,7 @@ class Emitter:
             self.out(f'type "{h.helper}" protocol {h.proto};', 2)
             self.out("}", 1)
         for hook, letter in (("prerouting", "P"), ("output", "O")):
-            rules = [h for h in self.cfg.helpers if letter in h.hooks]
+            rules = [h for h in helpers if letter in h.hooks]
             if not rules:
                 continue
             self.out(f"chain helper_{hook} {{", 1)

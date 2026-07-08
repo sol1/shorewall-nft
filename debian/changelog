@@ -1,3 +1,16 @@
+shorewall-nft (0.0.4) unstable; urgency=medium
+
+  * shorewall6 migrate no longer fails on the stock conntrack file. The
+    conntrack helpers with no IPv6 support in the kernel (irc,
+    netbios-ns, pptp, snmp, amanda) are skipped for IPv6.
+  * Ship shorewall6.service, so IPv6 comes up at boot. migrate now
+    enables the service for the stack it hands over.
+  * migrate handles one stack at a time and warns when the other still
+    needs migrating, and it clears only its own family's old iptables
+    ruleset, leaving the other family's firewall in place.
+
+ -- Dave Kempe <dave@sol1.com.au>  Wed, 08 Jul 2026 15:00:00 +0000
+
 shorewall-nft (0.0.3) unstable; urgency=medium
 
   * Separate family tables. shorewall now uses table ip shorewall and

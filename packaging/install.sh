@@ -84,7 +84,8 @@ fi
 # Service units, installed disabled.
 if [ -n "$SERVICEDIR" ]; then
     install -d "$DESTDIR$SERVICEDIR"
-    for unit in shorewall.service shorewall-geoip-update.service \
+    for unit in shorewall.service shorewall6.service \
+                shorewall-geoip-update.service \
                 shorewall-geoip-update.timer; do
         install -m 0644 "$here/packaging/systemd/$unit" \
             "$DESTDIR$SERVICEDIR/$unit"
