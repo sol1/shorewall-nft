@@ -10,14 +10,16 @@ on:
 jobs:
   deb:
     name: Debian package
-    runs-on: ubuntu-latest
+    # Build on the oldest supported release so the package installs there
+    # and on newer ones.
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
       - name: Install build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y debhelper dpkg-dev
+          sudo apt-get install -y build-essential debhelper dpkg-dev
 
       - name: Build the .deb
         run: dpkg-buildpackage -b -us -uc
@@ -44,10 +46,15 @@ jobs:
     runs-on: ubuntu-latest
     container: fedora:41
     steps:
+      # git must be present before checkout, or actions/checkout falls
+      # back to an API tarball with no .git and git archive cannot run.
+      - name: Install git
+        run: dnf -y install git
+
       - uses: actions/checkout@v4
 
       - name: Install build tools
-        run: dnf -y install rpm-build rpmdevtools systemd-rpm-macros python3 nftables git
+        run: dnf -y install rpm-build rpmdevtools systemd-rpm-macros python3 nftables
 
       - name: Build the source tarball
         run: |

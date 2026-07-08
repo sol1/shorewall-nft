@@ -23,7 +23,10 @@ import json
 import os
 import subprocess
 import sys
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:            # Python < 3.11: use the tomli backport
+    import tomli as tomllib            # Debian/Ubuntu: python3-tomli
 
 REPO = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 CORPUS = os.path.join(REPO, "tests", "corpus")

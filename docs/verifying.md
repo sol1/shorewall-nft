@@ -11,7 +11,9 @@ so you can reproduce every result on your own machine in minutes.
 - Linux with user namespaces enabled (any recent distro).
 - `nft` (nftables) and `iptables` with the nft backend. On Debian and
   most distros these are in /usr/sbin.
-- Python 3.7 or later. No third-party modules.
+- Python 3.7 or later for the compiler itself, no third-party modules.
+  The test harness reads TOML, so on Python before 3.11 it also needs
+  the `tomli` module (the `python3-tomli` package on Debian and Ubuntu).
 - `unshare`. Part of util-linux, already present.
 
 No root. No virtual machines. The harness builds throwaway network
