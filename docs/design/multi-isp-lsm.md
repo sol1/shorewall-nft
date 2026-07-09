@@ -119,6 +119,13 @@ list at the end.
 
 ## 2. Principle: static ruleset, dynamic routing seam
 
+Seam, here, is used in the sense from Michael Feathers: one deliberate
+joint where behaviour can change without editing the code around it.
+Concretely it is the single routing-recompute function that every dynamic
+actor (the enable/disable verbs, the link monitor, the profile switch)
+calls, so none of them has to touch the static compiler or the packet
+filter.
+
 The compiler is deliberately static. It reads the config once and emits a
 ruleset plus a shell wrapper. That is right for the packet-filtering
 rules, which do not change while the firewall runs. Routing is different.
