@@ -66,8 +66,8 @@ def _compile_to(confdir, family, script_path):
     compile_config(confdir, ruleset, family, script_path=script_path)
 
 
-def _run_script(script_path, verb):
-    r = subprocess.run([script_path, verb])
+def _run_script(script_path, *verb):
+    r = subprocess.run([script_path, *verb])
     return r.returncode
 
 
@@ -675,17 +675,73 @@ NOT_IMPLEMENTED = {
     "delete": "dynamic zones",
     "open": "dynamic open",
     "close": "dynamic open",
-    "enable": "optional interfaces",
-    "disable": "optional interfaces",
-    "reenable": "optional interfaces",
     "remote-start": "remote administration",
     "remote-reload": "remote administration",
     "remote-restart": "remote administration",
     "remote-getcaps": "remote administration",
 }
 
+def _state_dir():
+    # The wrapper's runtime state, where provider .state files live. This
+    # is the wrapper's $STATE, distinct from the compiled-artifact vardir.
+    return os.environ.get("SWNFT_STATE", "/var/run/shorewall-nft")
+
+
+def _provider_disabled(name):
+    path = os.path.join(_state_dir(), "providers", name + ".state")
+    try:
+        return open(path).read().strip() == "down"
+    except OSError:
+        return False
+
+
+def _provider_names(family):
+    from .compile import load
+    return [p.name for p in load(_confdir(family), family).providers]
+
+
+def _set_provider(args, family, verb):
+    if not args:
+        _fatal(f"{verb} requires a provider name")
+    name = args[0]
+    names = _provider_names(family)
+    if name not in names:
+        _fatal(f"no provider named {name}")
+    if verb == "disable":
+        enabled = [n for n in names if not _provider_disabled(n)]
+        if enabled == [name]:
+            _fatal(f"{name} is the only enabled provider; refusing to "
+                   "disable it")
+    script = _script_path(_vardir(family))
+    if not os.path.exists(script):
+        _fatal("no running firewall; run 'shorewall start' first")
+    rc = _run_script(script, verb, name)
+    if rc == 0:
+        print(f"Provider {name} {verb}d.")
+    return rc
+
+
+def cmd_disable(args, family):
+    """Take a provider out of service without a reload: mark it down and
+    recompute routing over the providers that remain."""
+    return _set_provider(args, family, "disable")
+
+
+def cmd_enable(args, family):
+    """Return a provider to service and recompute routing."""
+    return _set_provider(args, family, "enable")
+
+
+def cmd_reenable(args, family):
+    """Reset a provider to enabled, as upstream's reenable does."""
+    return _set_provider(args, family, "enable")
+
+
 VERBS = {
     "version": cmd_version,
+    "enable": cmd_enable,
+    "disable": cmd_disable,
+    "reenable": cmd_reenable,
     "check": cmd_check,
     "compile": cmd_compile,
     "start": cmd_start,

@@ -277,7 +277,8 @@ def main():
         flat = " ".join(f"{k}={v}" for k, v in r["layers"].items())
         print(f"{name}: {flat}")
 
-    for proof in ("wrapper-proof.sh", "cli-proof.sh", "dualstack-proof.sh"):
+    for proof in ("wrapper-proof.sh", "cli-proof.sh", "dualstack-proof.sh",
+                  "seam-proof.sh"):
         name = proof.replace(".sh", "")
         r = sh([os.path.join(HARNESS, proof)])
         results.append({"case": name,

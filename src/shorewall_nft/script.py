@@ -88,82 +88,99 @@ def _sysctls(cfg):
 
 
 def _routing(cfg):
-    """Shell for setup_routing and clear_routing, replicating
-    upstream's generated ip commands: per-provider tables, fwmark and
-    source-address rules, rtrules entries, balanced default in table
-    250. State saved so clear can restore the original default."""
+    """Shell for the routing seam. Returns three bodies: build (recompute
+    the tables, rules and balanced default from the currently usable
+    providers), clear (remove every provider-scoped rule and table), and
+    restore (put the saved default back). reroute_providers runs clear
+    then build and is safe to run at any time, so enable/disable and the
+    link monitor recompute routing without a full reload. Each provider's
+    routing is gated on provider_usable, which is false when the interface
+    is down or the provider is disabled."""
     if not cfg.providers and not cfg.routes:
-        return ("    :", "    :")
-    up = []
-    down = []
-    up.append('    mkdir -p "$STATE"')
-    up.append('    ip -4 route show default > "$STATE/default.save" '
-              "2>/dev/null || :")
+        return ("    :", "    :", "    :")
+    build, clear, restore = [], [], []
+    balanced = any(p.balance for p in cfg.providers)
+
+    # clear: strip everything a rebuild will re-add, so the result always
+    # reflects the current usable set. No default-route restore here.
+    clear.append("    while ip -4 rule del pref 20000 2>/dev/null; do :; done")
+    for i, p in enumerate(cfg.providers):
+        clear.append(f"    ip -4 route flush table {p.number} 2>/dev/null || :")
+        if p.mark:
+            clear.append(f"    ip -4 rule del fwmark {p.mark:#x}/0xff "
+                         f"pref {10000 + i} 2>/dev/null || :")
+    for pri in dict.fromkeys(r.priority for r in cfg.rtrules):
+        clear.append(f"    while ip -4 rule del pref {pri} 2>/dev/null; "
+                     "do :; done")
+    if balanced:
+        clear.append("    ip -4 rule del from 0.0.0.0/0 lookup main pref 999 "
+                     "2>/dev/null || :")
+        clear.append("    ip -4 rule del from 0.0.0.0/0 table 250 pref 32765 "
+                     "2>/dev/null || :")
+        clear.append("    ip -4 route flush table 250 2>/dev/null || :")
+
+    # build: rebuild from the usable providers.
     nexthops = []
     for i, p in enumerate(cfg.providers):
-        up.append(f"    # provider {p.name} ({p.number}) via {p.interface}")
-        up.append(f"    ip -4 route flush table {p.number} 2>/dev/null || :")
+        u = f"provider_usable {p.name} {p.interface}"
+        build.append(f"    # provider {p.name} ({p.number}) via {p.interface}")
         gw = p.gateway
-        fwmark_pref = 10000 + i
         detecting = p.gateway in ("detect", "")
-        # The fwmark rule does not depend on the gateway.
         if p.mark:
-            up.append(f"    ip -4 rule del fwmark {p.mark:#x}/0xff "
-                      "2>/dev/null || :")
-            up.append(f"    ip -4 rule add fwmark {p.mark:#x}/0xff "
-                      f"pref {fwmark_pref} table {p.number}")
-            down.append(f"    ip -4 rule del fwmark {p.mark:#x}/0xff "
-                        "2>/dev/null || :")
+            build.append(f"    if {u}; then ip -4 rule add fwmark "
+                         f"{p.mark:#x}/0xff pref {10000 + i} "
+                         f"table {p.number}; fi")
         if detecting:
             # A findgw extension script overrides detection; otherwise
             # detect from the interface's default route or on-link routes.
             var = f"GW{i}"
-            up.append(f"    {var}=$(run_findgw {p.interface})")
-            up.append(f'    [ -n "${var}" ] || {var}=$(ip -4 route list '
-                      f"dev {p.interface} 2>/dev/null | sed -n "
-                      "'s/^default via \\([0-9.]*\\).*/\\1/p' | head -1)")
-            up.append(f'    [ -n "${var}" ] || {var}=$(ip -4 route list '
-                      f"dev {p.interface} 2>/dev/null | sed -n "
-                      "'s/.* via \\([0-9.]*\\).*/\\1/p' | head -1)")
-            up.append(f'    if [ -n "${var}" ]; then')
-            up.append(f"        ip -4 route replace ${var} dev {p.interface}")
-            up.append(f"        ip -4 route replace ${var} dev {p.interface} "
-                      f"table {p.number}")
-            up.append(f"        ip -4 route replace default via ${var} "
-                      f"dev {p.interface} table {p.number}")
-            up.append(f'    elif [ -n "$(ip -o link show {p.interface} up '
-                      "2>/dev/null)\" ]; then")
+            build.append(f"    {var}=")
+            build.append(f"    if {u}; then")
+            build.append(f"        {var}=$(run_findgw {p.interface})")
+            build.append(f'        [ -n "${var}" ] || {var}=$(ip -4 route list '
+                         f"dev {p.interface} 2>/dev/null | sed -n "
+                         "'s/^default via \\([0-9.]*\\).*/\\1/p' | head -1)")
+            build.append(f'        [ -n "${var}" ] || {var}=$(ip -4 route list '
+                         f"dev {p.interface} 2>/dev/null | sed -n "
+                         "'s/.* via \\([0-9.]*\\).*/\\1/p' | head -1)")
+            build.append(f'        if [ -n "${var}" ]; then')
+            build.append(f"            ip -4 route replace ${var} "
+                         f"dev {p.interface}")
+            build.append(f"            ip -4 route replace ${var} "
+                         f"dev {p.interface} table {p.number}")
+            build.append(f"            ip -4 route replace default via ${var} "
+                         f"dev {p.interface} table {p.number}")
+            build.append("        else")
             # Up but no gateway: a point-to-point interface (WireGuard, ppp)
-            # routes via the device. A down interface falls through and is
-            # skipped, so it does not error or break the balanced default.
-            up.append(f"        ip -4 route replace default dev "
-                      f"{p.interface} table {p.number}")
-            up.append("    fi")
+            # routes via the device.
+            build.append(f"            ip -4 route replace default "
+                         f"dev {p.interface} table {p.number}")
+            build.append("        fi")
+            build.append("    fi")
             gw = f"${var}"
         else:
-            up.append(f'    if [ -n "$(ip -o link show {p.interface} up '
-                      "2>/dev/null)\" ]; then")
-            up.append(f"        ip -4 route replace {gw} dev {p.interface}")
-            up.append(f"        ip -4 route replace {gw} dev {p.interface} "
-                      f"table {p.number}")
-            up.append(f"        ip -4 route replace default via {gw} "
-                      f"dev {p.interface} table {p.number}")
-            up.append("    fi")
+            build.append(f"    if {u}; then")
+            build.append(f"        ip -4 route replace {gw} dev {p.interface}")
+            build.append(f"        ip -4 route replace {gw} dev {p.interface} "
+                         f"table {p.number}")
+            build.append(f"        ip -4 route replace default via {gw} "
+                         f"dev {p.interface} table {p.number}")
+            build.append("    fi")
         if not p.loose:
-            up.append(f"    for addr in $(ip -4 -o addr show dev "
-                      f"{p.interface} | awk '{{print $4}}' | cut -d/ -f1); do")
-            up.append("        ip -4 rule del from $addr pref 20000 "
-                      "2>/dev/null || :")
-            up.append(f"        ip -4 rule add from $addr pref 20000 "
-                      f"table {p.number}")
-            up.append("    done")
-            down.append(f"    while ip -4 rule del pref 20000 2>/dev/null; "
-                        "do :; done")
+            build.append(f"    if {u}; then")
+            build.append(f"        for addr in $(ip -4 -o addr show dev "
+                         f"{p.interface} | awk '{{print $4}}' | cut -d/ -f1); "
+                         "do")
+            build.append(f"            ip -4 rule add from $addr pref 20000 "
+                         f"table {p.number}")
+            build.append("        done")
+            build.append("    fi")
         if p.balance:
-            nexthops.append((gw, p.interface, p.balance))
-        down.append(f"    ip -4 route flush table {p.number} 2>/dev/null || :")
+            nexthops.append((gw, p.interface, p.name, p.balance))
     numbers = {p.name: p.number for p in cfg.providers}
     numbers.update({str(p.number): p.number for p in cfg.providers})
+    up = build
+    down = clear
     for i, r in enumerate(cfg.rtrules):
         table = numbers.get(r.provider, r.provider)
         m = []
@@ -194,21 +211,22 @@ def _routing(cfg):
                   f"table {table}")
         if r.runtime_iface:
             up.append("    fi")
-        down.append(f"    while ip -4 rule del pref {r.priority} "
-                    "2>/dev/null; do :; done")
     if nexthops:
         # Build the balanced default from providers whose gateway
         # resolved. A detected gateway that came back empty is skipped.
         up.append('    NEXTHOPS=""')
-        for gw, iface, weight in nexthops:
-            # Only balance across providers whose gateway resolved and whose
-            # interface is up. Including a down interface makes the whole
-            # multipath route fail with "Device for nexthop is not up".
+        for gw, iface, name, weight in nexthops:
+            # Only balance across usable providers whose gateway resolved.
+            # A down or disabled provider is left out, so the multipath
+            # route never lists a dead nexthop.
             up.append(f'    if [ -n "{gw}" ] && '
-                      f'[ -n "$(ip -o link show {iface} up 2>/dev/null)" ]; '
-                      "then")
+                      f"provider_usable {name} {iface}; then")
+            # onlink: the provider gateway sits directly on its
+            # interface. It keeps single-nexthop rebuilds from failing
+            # with "Nexthop has invalid gateway" when the balance set
+            # shrinks to one usable provider.
             up.append(f'        NEXTHOPS="$NEXTHOPS nexthop via {gw} '
-                      f'dev {iface} weight {weight}"')
+                      f'dev {iface} onlink weight {weight}"')
             up.append("    fi")
         up.append('    if [ -n "$NEXTHOPS" ]; then')
         up.append("    ip -4 route replace default scope global table 250 "
@@ -227,13 +245,11 @@ def _routing(cfg):
         up.append("    while ip -4 route del default table main "
                   "2>/dev/null; do :; done")
         up.append("    fi")
-        down.append("    ip -4 rule add from 0.0.0.0/0 lookup main "
-                    "pref 32766 2>/dev/null || :")
-        down.append("    ip -4 rule del from 0.0.0.0/0 lookup main "
-                    "pref 999 2>/dev/null || :")
-        down.append("    ip -4 rule del from 0.0.0.0/0 table 250 "
-                    "pref 32765 2>/dev/null || :")
-        down.append("    ip -4 route flush table 250 2>/dev/null || :")
+        # On teardown the balance layout is undone by clear (which removes
+        # 999, 32765 and table 250); restore only puts the stock main rule
+        # back before the saved default is reinstated.
+        restore.append("    ip -4 rule add from 0.0.0.0/0 lookup main "
+                       "pref 32766 2>/dev/null || :")
     for r in cfg.routes:
         # A routes-file entry: add to the provider's table.
         m = [r["dest"]]
@@ -245,11 +261,11 @@ def _routing(cfg):
         up.append(f"    ip -4 route replace {spec} table {r['table']}")
         down.append(f"    ip -4 route del {spec} table {r['table']} "
                     "2>/dev/null || :")
-    down.append('    if [ -s "$STATE/default.save" ]; then')
-    down.append("        while read route; do ip -4 route replace $route; "
-                'done < "$STATE/default.save"')
-    down.append("    fi")
-    return ("\n".join(up), "\n".join(down))
+    restore.append('    if [ -s "$STATE/default.save" ]; then')
+    restore.append("        while read route; do ip -4 route replace $route; "
+                   'done < "$STATE/default.save"')
+    restore.append("    fi")
+    return ("\n".join(build), "\n".join(clear), "\n".join(restore))
 
 
 def _proxyarp(cfg):
@@ -419,13 +435,29 @@ apply_sysctls() {{
     :
 }}
 
-setup_routing() {{
-{routing_up}
+provider_usable() {{
+    # $1 provider name, $2 interface. Usable when the interface is up and
+    # the provider has not been disabled by hand or by the link monitor.
+    [ -n "$(ip -o link show "$2" up 2>/dev/null)" ] || return 1
+    [ "$(cat "$STATE/providers/$1.state" 2>/dev/null)" = down ] && return 1
+    return 0
+}}
+
+reroute_providers() {{
+{routing_clear}
+{routing_build}
     :
 }}
 
+setup_routing() {{
+    mkdir -p "$STATE/providers"
+    ip -4 route show default > "$STATE/default.save" 2>/dev/null || :
+    reroute_providers
+}}
+
 clear_routing() {{
-{routing_down}
+{routing_clear}
+{routing_restore}
     :
 }}
 
@@ -523,6 +555,21 @@ case "$1" in
         clear_proxyarp
         run_clear
         ;;
+    reroute)
+        # Recompute routing for the current usable provider set, without
+        # touching the ruleset. enable/disable and the link monitor use
+        # this to fail over without a full reload.
+        reroute_providers
+        ;;
+    disable)
+        mkdir -p "$STATE/providers"
+        echo down > "$STATE/providers/$2.state"
+        reroute_providers
+        ;;
+    enable)
+        rm -f "$STATE/providers/$2.state"
+        reroute_providers
+        ;;
     status)
         nft list table {table}
         ;;
@@ -592,7 +639,7 @@ def render_script(cfg, ruleset, stop_ruleset):
     from .emit import table_for
     table = table_for(cfg.family)
     sysctls = "\n".join(f"    sysctl -qw {s}" for s in _sysctls(cfg)) or "    :"
-    routing_up, routing_down = _routing(cfg)
+    routing_build, routing_clear, routing_restore = _routing(cfg)
     # Simple shaping (tcinterfaces) and classful shaping (tcdevices)
     # are alternatives; a config uses one.
     tc_up, tc_down = _simple_tc(cfg) if cfg.tcinterfaces else _tc(cfg)
@@ -601,8 +648,9 @@ def render_script(cfg, ruleset, stop_ruleset):
     return TEMPLATE.format(confdir=cfg.confdir, sysctls=sysctls,
                            table=table,
                            extensions=_extensions(cfg),
-                           routing_up=routing_up,
-                           routing_down=routing_down,
+                           routing_build=routing_build,
+                           routing_clear=routing_clear,
+                           routing_restore=routing_restore,
                            tc_up=tc_up, tc_down=tc_down,
                            proxyarp_up=proxyarp_up,
                            proxyarp_down=proxyarp_down,

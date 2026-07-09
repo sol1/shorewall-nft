@@ -399,7 +399,7 @@ def apply_event(event, load_mode, load_path, env):
         if load_mode != "script":
             sys.exit(f"event 'run' needs script mode, got {load_mode}")
         r = subprocess.run(["ip", "netns", "exec", "fw", "sh",
-                            os.path.realpath(load_path), verb],
+                            os.path.realpath(load_path), *verb.split()],
                            env=env, capture_output=True, text=True)
         if r.returncode != 0:
             sys.exit(f"event verb '{verb}' failed:\n{r.stdout}\n{r.stderr}")
