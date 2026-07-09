@@ -1,0 +1,3 @@
+#NAME	NUMBER	MARK	DUP	INTERFACE	GATEWAY	OPTIONS
+isp1	1	1	-	eth0	203.0.113.2	track,balance,optional
+isp2	2	2	-	eth1	198.51.100.2	track,balance,optional

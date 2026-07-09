@@ -77,6 +77,20 @@ def normalize_tc(text):
                      for line in sorted(text.splitlines()) if line.strip())
 
 
+# The kernel's own rules (local, main, default). Whether the stock main
+# rule at 32766 is kept or dropped is cosmetic once main is also consulted
+# at pref 999, and upstream is inconsistent about it, so the ip rule diff
+# is over the rules we actually add, not these.
+KERNEL_RULE_PREFS = {"0", "32766", "32767"}
+
+
+def normalize_rules(text):
+    kept = [line for line in text.splitlines()
+            if line.strip() and line.split(":", 1)[0].strip()
+            not in KERNEL_RULE_PREFS]
+    return normalize_tc("\n".join(kept))
+
+
 def norm(probe_spec, verdict):
     v = dict(verdict)
     if probe_spec.get("proto") == "icmp" and v["verdict"] not in ("allow", None):
@@ -84,10 +98,18 @@ def norm(probe_spec, verdict):
     return v
 
 
+def all_probes(case):
+    """Initial probes plus every event's probes, in order."""
+    probes = list(case.get("probes", []))
+    for event in case.get("events", []):
+        probes += event.get("probes", [])
+    return probes
+
+
 def check_expect(case, verdicts):
     fails = []
     vmap = {v["id"]: v for v in verdicts}
-    for p in case.get("probes", []):
+    for p in all_probes(case):
         v = vmap.get(p["id"])
         if v is None:
             fails.append(f"{p['id']}: no verdict")
@@ -110,7 +132,7 @@ def check_parity(case, upstream, ours):
     fails = []
     umap = {v["id"]: v for v in upstream}
     omap = {v["id"]: v for v in ours}
-    for p in case.get("probes", []):
+    for p in all_probes(case):
         u, o = umap.get(p["id"]), omap.get(p["id"])
         if u is None or o is None:
             fails.append(f"{p['id']}: missing verdict")
@@ -218,11 +240,17 @@ def run_case(name):
                 fails.append(f"tc state differs on {dev}:\n"
                              f"upstream:\n{up_tc}\nours:\n{our_tc}")
         if case.get("ip_rules"):
-            up_r = normalize_tc(upstream_doc.get("ip_rules", ""))
-            our_r = normalize_tc(ours_doc.get("ip_rules", ""))
+            up_r = normalize_rules(upstream_doc.get("ip_rules", ""))
+            our_r = normalize_rules(ours_doc.get("ip_rules", ""))
             if up_r != our_r:
                 fails.append(f"ip rules differ:\nupstream:\n{up_r}\n"
                              f"ours:\n{our_r}")
+        for t in case.get("route_tables", []):
+            up_rt = normalize_tc(upstream_doc.get("routes", {}).get(str(t), ""))
+            our_rt = normalize_tc(ours_doc.get("routes", {}).get(str(t), ""))
+            if up_rt != our_rt:
+                fails.append(f"route table {t} differs:\nupstream:\n{up_rt}\n"
+                             f"ours:\n{our_rt}")
         layers["parity"] = "pass" if not fails else "FAIL"
         if fails:
             detail["parity"] = fails

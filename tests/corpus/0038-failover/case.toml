@@ -1,0 +1,104 @@
+description = "Multi-ISP failover. Two balanced, tracked, optional providers. The client net prefers isp1 by ordered rtrules and falls back to isp2. A destination reachable through both ISPs lets a probe show which uplink carried it, by the masquerade source the server sees. Events take isp1 down and restart, then restore it, proving failover and failback. Ours-verified against expectations; upstream's restart-with-a-down-optional-provider behavior is validated separately."
+family = 4
+mode = "script"
+no_upstream = true
+ip_rules = true
+route_tables = [250, 1, 2]
+forward = ["isp1", "isp2"]
+
+# client -- fw -- {isp1, isp2} -- server. The server sits behind both
+# ISPs at one address, so the same destination is reachable either way.
+[[links]]
+node_a = "client"
+dev_a = "c0"
+addr_a = "10.0.1.2/24"
+node_b = "fw"
+dev_b = "eth2"
+addr_b = "10.0.1.1/24"
+
+[[links]]
+node_a = "isp1"
+dev_a = "i0"
+addr_a = "203.0.113.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "203.0.113.1/24"
+
+[[links]]
+node_a = "isp2"
+dev_a = "i1"
+addr_a = "198.51.100.2/24"
+node_b = "fw"
+dev_b = "eth1"
+addr_b = "198.51.100.1/24"
+
+[[links]]
+node_a = "isp1"
+dev_a = "s0"
+addr_a = "100.64.1.1/24"
+node_b = "server"
+dev_b = "v0"
+addr_b = "100.64.1.2/24"
+
+[[links]]
+node_a = "isp2"
+dev_a = "s1"
+addr_a = "100.64.2.1/24"
+node_b = "server"
+dev_b = "v1"
+addr_b = "100.64.2.2/24"
+
+[extra_addrs]
+server = ["100.100.100.100/32"]
+
+[routes]
+client = "10.0.1.1"
+
+[static_routes]
+isp1 = ["100.100.100.100 via 100.64.1.2"]
+isp2 = ["100.100.100.100 via 100.64.2.2"]
+server = ["203.0.113.0/24 via 100.64.1.1", "198.51.100.0/24 via 100.64.2.1"]
+
+# Steady state: both up, the client net prefers isp1.
+[[probes]]
+id = "primary-via-isp1"
+from = "client"
+to = "server"
+addr = "100.100.100.100"
+proto = "tcp"
+port = 80
+expect = "allow"
+peer = "203.0.113.1"
+
+# isp1 uplink dies. A restart recomputes routing; isp1's table empties,
+# so the ordered rtrule falls through to isp2.
+[[events]]
+description = "isp1 uplink fails"
+dev = "eth0"
+state = "down"
+run = "restart"
+[[events.probes]]
+id = "failover-to-isp2"
+from = "client"
+to = "server"
+addr = "100.100.100.100"
+proto = "tcp"
+port = 80
+expect = "allow"
+peer = "198.51.100.1"
+
+# isp1 comes back. The client net returns to its preferred uplink.
+[[events]]
+description = "isp1 restored"
+dev = "eth0"
+state = "up"
+run = "restart"
+[[events.probes]]
+id = "failback-to-isp1"
+from = "client"
+to = "server"
+addr = "100.100.100.100"
+proto = "tcp"
+port = 80
+expect = "allow"
+peer = "203.0.113.1"

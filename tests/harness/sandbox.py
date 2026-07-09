@@ -231,16 +231,42 @@ def build(case):
             extra = ["nodad"] if ":" in addr else []
             ns(node, "ip", "addr", "add", addr, "dev", dev, *extra)
             ns(node, "ip", "link", "set", dev, "up")
+        # A link can start down, to model a provider whose uplink is
+        # already dead at firewall start, or a backup not yet dialed.
+        if not link.get("up", True):
+            for side in ("a", "b"):
+                ns(link[f"node_{side}"], "ip", "link", "set",
+                   link[f"dev_{side}"], "down")
     for node, addrs in case.get("extra_addrs", {}).items():
         for addr in addrs:
             addr, _, dev = addr.partition("@")
             ns(node, "ip", "addr", "add", addr, "dev", dev or "lo")
     for node, gw in case.get("routes", {}).items():
         ns(node, "ip", "route", "add", "default", "via", gw)
-    ns("fw", "sysctl", "-qw", "net.ipv4.ip_forward=1")
+    # Arbitrary static routes for topologies where a destination is
+    # reachable through more than one path (failover scenarios).
+    for node, specs in case.get("static_routes", {}).items():
+        for spec in specs:
+            ns(node, "ip", "route", "add", *spec.split())
+    # The fw always forwards; transit nodes (upstream ISP routers) opt in.
+    for node in ["fw"] + case.get("forward", []):
+        ns(node, "sysctl", "-qw", "net.ipv4.ip_forward=1")
     ns("fw", "sysctl", "-qw", "net.ipv6.conf.all.forwarding=1")
     _settle(case)
     return nodes
+
+
+def _warm(case):
+    """Warm neighbor caches over every up link. Runs after the build and
+    again after a mid-test topology change, so a re-routed path does not
+    lose the first probe to neighbor discovery."""
+    for link in case.get("links", []):
+        addr_a = link["addr_a"].split("/")[0]
+        addr_b = link["addr_b"].split("/")[0]
+        ns(link["node_a"], "ping", "-c1", "-W1", addr_b, check=False,
+           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        ns(link["node_b"], "ping", "-c1", "-W1", addr_a, check=False,
+           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 def _settle(case):
@@ -254,13 +280,7 @@ def _settle(case):
         if "tentative" not in out:
             break
         time.sleep(0.1)
-    for link in case.get("links", []):
-        addr_a = link["addr_a"].split("/")[0]
-        addr_b = link["addr_b"].split("/")[0]
-        ns(link["node_a"], "ping", "-c1", "-W1", addr_b, check=False,
-           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        ns(link["node_b"], "ping", "-c1", "-W1", addr_a, check=False,
-           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    _warm(case)
 
 
 def load_ruleset(spec):
@@ -286,11 +306,19 @@ def load_ruleset(spec):
         sys.exit(f"unknown load mode: {mode}")
 
 
+def all_probes(case):
+    """Every probe in the case: the initial ones plus each event's."""
+    probes = list(case.get("probes", []))
+    for event in case.get("events", []):
+        probes += event.get("probes", [])
+    return probes
+
+
 def start_listeners(case):
     procs = []
     bind = "::" if case.get("family", 4) == 6 else "0.0.0.0"
     wanted = {(p["to"], p.get("listen_port", p["port"]), p["proto"])
-              for p in case.get("probes", []) if p["proto"] in ("tcp", "udp")}
+              for p in all_probes(case) if p["proto"] in ("tcp", "udp")}
     for node, port, proto in sorted(wanted):
         script = LISTENER if proto == "tcp" else LISTENER_UDP
         procs.append(subprocess.Popen(
@@ -302,9 +330,9 @@ def start_listeners(case):
     return procs
 
 
-def run_probes(case):
+def run_probes(probes):
     verdicts = []
-    for p in case.get("probes", []):
+    for p in probes:
         entry = {"id": p["id"], "verdict": None, "peer": None, "detail": None}
         if p["proto"] == "rawtcp":
             # Start a raw sniffer on the destination, send the crafted
@@ -357,6 +385,26 @@ def teardown(nodes, procs):
             sh("kill", "-9", pid, check=False)
 
 
+def apply_event(event, load_mode, load_path, env):
+    """Mutate the running topology for a failover scenario: toggle a
+    device, run an arbitrary command inside the fw namespace (a dial
+    hook, say), or re-run the firewall script with a verb like restart."""
+    dev, state = event.get("dev"), event.get("state")
+    if dev and state:
+        ns("fw", "ip", "link", "set", dev, state)
+    if event.get("exec"):
+        ns("fw", "sh", "-c", event["exec"], check=False)
+    verb = event.get("run")
+    if verb:
+        if load_mode != "script":
+            sys.exit(f"event 'run' needs script mode, got {load_mode}")
+        r = subprocess.run(["ip", "netns", "exec", "fw", "sh",
+                            os.path.realpath(load_path), verb],
+                           env=env, capture_output=True, text=True)
+        if r.returncode != 0:
+            sys.exit(f"event verb '{verb}' failed:\n{r.stdout}\n{r.stderr}")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("case_dir")
@@ -392,13 +440,27 @@ def main():
     for cc, cidrs in case.get("geoip", {}).items():
         ns("fw", "nft", "add", "element", fam, "shorewall",
            f"geoip_{cc}", "{ " + ", ".join(cidrs) + " }")
+    load_mode, _, load_path = args.load.partition(":")
+    script_env = dict(os.environ, SWNFT_STATE="/run/swnft-state")
     procs = start_listeners(case)
     try:
-        verdicts = run_probes(case)
+        verdicts = run_probes(case.get("probes", []))
+        # Failover scenarios: apply each event, let the path settle, then
+        # run that event's probes. Their verdicts append to the list, keyed
+        # by id, so the runner grades the whole sequence.
+        for event in case.get("events", []):
+            apply_event(event, load_mode, load_path, script_env)
+            time.sleep(0.4)
+            _warm(case)
+            verdicts += run_probes(event.get("probes", []))
         ip_rules = ""
         if case.get("ip_rules"):
             ip_rules = ns("fw", "ip", "-4", "rule", "show",
                           capture_output=True, text=True).stdout
+        routes = {}
+        for t in case.get("route_tables", []):
+            routes[str(t)] = ns("fw", "ip", "-4", "route", "show", "table",
+                                 str(t), capture_output=True, text=True).stdout
         tc_state = {}
         for dev in case.get("tc_devices", []):
             q = ns("fw", "tc", "qdisc", "show", "dev", dev,
@@ -411,7 +473,7 @@ def main():
     finally:
         teardown(nodes, procs)
     json.dump({"load": args.load, "verdicts": verdicts, "tc": tc_state,
-               "ip_rules": ip_rules}, sys.stdout)
+               "ip_rules": ip_rules, "routes": routes}, sys.stdout)
     print()
 
 
