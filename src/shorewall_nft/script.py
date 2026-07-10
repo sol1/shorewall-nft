@@ -226,41 +226,25 @@ def _routing(cfg):
         if r.runtime_iface:
             up.append("    fi")
     if default_managed:
-        # Move the main-table lookup ahead to pref 999 so connected routes
-        # win, and take the default out of main, so the default falls to
-        # the balance table (250, pref 32765) and then, last, the fallback
-        # table (253, the kernel default table at pref 32767).
-        up.append("    ip -4 rule add from 0.0.0.0/0 lookup main pref 999")
-        up.append("    ip -4 rule del from 0.0.0.0/0 lookup main "
-                  "pref 32766 2>/dev/null || :")
-        up.append("    while ip -4 route del default table main "
-                  "2>/dev/null; do :; done")
-        # Teardown re-adds the stock main rule before restore reinstates
-        # the saved default.
-        restore.append("    ip -4 rule add from 0.0.0.0/0 lookup main "
-                       "pref 32766 2>/dev/null || :")
-    if nexthops:
-        # The balanced default over the usable providers. onlink keeps a
-        # single-nexthop rebuild from failing with "Nexthop has invalid
-        # gateway" when the set shrinks to one.
+        # Detect the usable balance nexthops and fallbacks first, so the
+        # main-table default is only moved aside when a provider table has a
+        # default to catch it. onlink keeps a single-nexthop rebuild from
+        # failing with "Nexthop has invalid gateway" when the set shrinks to
+        # one. HAVE_DEFAULT records whether any usable default was installed.
         up.append('    NEXTHOPS=""')
+        up.append('    FBHOPS=""')
+        up.append('    HAVE_DEFAULT=""')
         for gw, iface, name, weight in nexthops:
             up.append(f'    if [ -n "{gw}" ] && '
                       f"provider_usable {name} {iface}; then")
             up.append(f'        NEXTHOPS="$NEXTHOPS nexthop via {gw} '
                       f'dev {iface} onlink weight {weight}"')
+            up.append("        HAVE_DEFAULT=1")
             up.append("    fi")
-        up.append('    if [ -n "$NEXTHOPS" ]; then')
-        up.append("        ip -4 route replace default scope global "
-                  "table 250 $NEXTHOPS")
-        up.append("        ip -4 rule add from 0.0.0.0/0 table 250 pref 32765")
-        up.append("    fi")
-    if fallbacks:
-        # Last-resort default in table 253, reached only when the balance
-        # table has no route. A weight makes a balanced fallback; without
-        # one, a metric route ordered by provider number.
-        up.append('    FBHOPS=""')
         for gw, iface, name, number, weight in fallbacks:
+            # Last-resort default in table 253, reached only when the balance
+            # table has no route. A weight makes a balanced fallback; without
+            # one, a metric route ordered by provider number.
             up.append(f'    if [ -n "{gw}" ] && '
                       f"provider_usable {name} {iface}; then")
             if weight:
@@ -269,7 +253,30 @@ def _routing(cfg):
             else:
                 up.append(f"        ip -4 route replace default via {gw} "
                           f"dev {iface} table 253 metric {number} onlink")
+            up.append("        HAVE_DEFAULT=1")
             up.append("    fi")
+        # Move the main-table lookup ahead to pref 999 so connected routes
+        # win. Take the default out of main only when a provider default is
+        # usable; with every provider down, leave the box's own default in
+        # place so an all-down boot is not cut off.
+        up.append("    ip -4 rule add from 0.0.0.0/0 lookup main pref 999")
+        up.append('    if [ -n "$HAVE_DEFAULT" ]; then')
+        up.append("        ip -4 rule del from 0.0.0.0/0 lookup main "
+                  "pref 32766 2>/dev/null || :")
+        up.append("        while ip -4 route del default table main "
+                  "2>/dev/null; do :; done")
+        up.append("    fi")
+        # Teardown re-adds the stock main rule before restore reinstates
+        # the saved default.
+        restore.append("    ip -4 rule add from 0.0.0.0/0 lookup main "
+                       "pref 32766 2>/dev/null || :")
+        # Install the balanced default over the usable providers.
+        up.append('    if [ -n "$NEXTHOPS" ]; then')
+        up.append("        ip -4 route replace default scope global "
+                  "table 250 $NEXTHOPS")
+        up.append("        ip -4 rule add from 0.0.0.0/0 table 250 pref 32765")
+        up.append("    fi")
+        # Install the weighted (balanced) fallback in table 253.
         up.append('    if [ -n "$FBHOPS" ]; then')
         up.append("        ip -4 route replace default scope global "
                   "table 253 $FBHOPS")
@@ -461,7 +468,12 @@ save_dynamic_sets() {{
     [ -n "$DYNSETS" ] || return 0
     mkdir -p "$STATE/sets"
     for s in $DYNSETS; do
-        elems=$(nft list set {table} "$s" 2>/dev/null | tr '\\n' ' ' \\
+        # Only touch the snapshot when the set is present in the live table.
+        # On a cold start (or after stop) the set does not exist, so leave
+        # any saved snapshot for the restore step to reload. Without this a
+        # cold start would wipe entries that should survive a reboot.
+        listing=$(nft list set {table} "$s" 2>/dev/null) || continue
+        elems=$(printf '%s' "$listing" | tr '\\n' ' ' \\
                 | sed -n 's/.*elements = {{\\([^}}]*\\)}}.*/\\1/p')
         if [ -n "$elems" ]; then
             echo "add element {table} $s {{$elems}}" > "$STATE/sets/$s.nft"
@@ -493,7 +505,12 @@ reroute_providers() {{
 
 setup_routing() {{
     mkdir -p "$STATE/providers"
-    ip -4 route show default > "$STATE/default.save" 2>/dev/null || :
+    # Save the box's own default route so stop can put it back. Save only a
+    # non-empty read: after the first start the default lives in a provider
+    # table and main shows none, so a reload here must not overwrite the
+    # saved pristine default with an empty file.
+    d=$(ip -4 route show default 2>/dev/null)
+    [ -n "$d" ] && printf '%s\\n' "$d" > "$STATE/default.save"
     reroute_providers
 }}
 
