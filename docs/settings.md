@@ -25,6 +25,7 @@ These are read and acted on.
 | DOCKER, DOCKER_BRIDGE | Docker coexistence. |
 | TCP_FLAGS_LOG_LEVEL | Log level for the tcp-flags check. |
 | ADMINISABSENTMINDED | Affects the stopped-state policy. |
+| REQUIRE_IPSETS | Yes (default): an unsupported ipset is a compile error. No: warn and skip it, so one odd set does not fail the whole ruleset. |
 
 ## Rejected loud if set to a non-default value
 

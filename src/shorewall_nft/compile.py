@@ -199,7 +199,11 @@ def load(confdir, family=4):
     if os.path.exists(_path(confdir, "accounting")):
         cfg.accounting = parsers.parse_accounting(
             _path(confdir, "accounting"), variables, cfg.interfaces)
-    cfg.ipsets = ipsets.load_for(confdir)
+    # REQUIRE_IPSETS=No downgrades an unsupported ipset from a hard error
+    # to a warning, so one odd set does not fail the whole compile.
+    strict_ipsets = variables.get("REQUIRE_IPSETS", "Yes").lower() \
+        not in ("no", "0", "off")
+    cfg.ipsets = ipsets.load_for(confdir, strict_ipsets)
     if os.path.exists(_path(confdir, "providers")):
         cfg.providers = parsers.parse_providers(
             _path(confdir, "providers"), variables, cfg.interfaces)

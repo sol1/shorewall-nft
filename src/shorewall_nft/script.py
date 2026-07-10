@@ -428,6 +428,24 @@ TEMPLATE = """#!/bin/sh
 PATH=/usr/sbin:/sbin:/usr/bin:/bin
 export PATH
 STATE=${{SWNFT_STATE:-/var/run/shorewall-nft}}
+# Sets filled at runtime by an external tool (a knock or ban daemon that
+# writes to the nft set directly). Declared empty in the ruleset and
+# preserved across a reload.
+DYNSETS="{dynsets}"
+
+save_dynamic_sets() {{
+    [ -n "$DYNSETS" ] || return 0
+    mkdir -p "$STATE/sets"
+    for s in $DYNSETS; do
+        elems=$(nft list set {table} "$s" 2>/dev/null | tr '\\n' ' ' \\
+                | sed -n 's/.*elements = {{\\([^}}]*\\)}}.*/\\1/p')
+        if [ -n "$elems" ]; then
+            echo "add element {table} $s {{$elems}}" > "$STATE/sets/$s.nft"
+        else
+            rm -f "$STATE/sets/$s.nft"
+        fi
+    done
+}}
 
 {extensions}
 apply_sysctls() {{
@@ -529,9 +547,15 @@ case "$1" in
     start|reload|restart)
         run_init
         apply_sysctls
+        # Capture externally-filled sets before the table is replaced,
+        # then reload them after, so live entries survive a reload.
+        save_dynamic_sets
         load_ruleset || {{ echo "$0: ruleset load failed" >&2; exit 1; }}
         for gf in "$STATE"/geoip/*.nft; do
             [ -e "$gf" ] && nft -f "$gf" 2>/dev/null || :
+        done
+        for sf in "$STATE"/sets/*.nft; do
+            [ -e "$sf" ] && nft -f "$sf" 2>/dev/null || :
         done
         setup_routing
         setup_tc
@@ -554,6 +578,11 @@ case "$1" in
         clear_tc
         clear_proxyarp
         run_clear
+        ;;
+    savesets)
+        # Snapshot externally-filled sets to $STATE/sets so they survive
+        # a reload or a reboot restore.
+        save_dynamic_sets
         ;;
     reroute)
         # Recompute routing for the current usable provider set, without
@@ -636,8 +665,9 @@ def _extensions(cfg):
 
 def render_script(cfg, ruleset, stop_ruleset):
     from . import chunk
-    from .emit import table_for
+    from .emit import table_for, external_sets
     table = table_for(cfg.family)
+    dynsets = " ".join(external_sets(cfg))
     sysctls = "\n".join(f"    sysctl -qw {s}" for s in _sysctls(cfg)) or "    :"
     routing_build, routing_clear, routing_restore = _routing(cfg)
     # Simple shaping (tcinterfaces) and classful shaping (tcdevices)
@@ -646,7 +676,7 @@ def render_script(cfg, ruleset, stop_ruleset):
     proxyarp_up, proxyarp_down = _proxyarp(cfg)
     skeleton, chunks = chunk.split(ruleset, table)
     return TEMPLATE.format(confdir=cfg.confdir, sysctls=sysctls,
-                           table=table,
+                           table=table, dynsets=dynsets,
                            extensions=_extensions(cfg),
                            routing_build=routing_build,
                            routing_clear=routing_clear,

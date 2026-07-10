@@ -1,0 +1,48 @@
+description = "A dynamic, externally-filled ipset. +knoc_ssh is not in /etc/shorewall/ipsets; a knock daemon fills the nft set directly. The set starts empty so SSH is blocked; adding the client's address opens it; and a reload preserves the entry. Ours-verified; nft sets are ours-specific runtime state upstream's ipset path does not mirror."
+family = 4
+mode = "script"
+no_upstream = true
+
+[[links]]
+node_a = "client"
+dev_a = "c0"
+addr_a = "10.0.1.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.1.1/24"
+
+# Empty set: the knock has not happened, SSH is blocked.
+[[probes]]
+id = "knock-closed"
+from = "client"
+to = "fw"
+addr = "10.0.1.1"
+proto = "tcp"
+port = 22
+expect = "drop"
+
+# The knock daemon adds the client to the nft set directly.
+[[events]]
+description = "knock: add the client to the set"
+exec = "nft add element ip shorewall knoc_ssh { 10.0.1.2 }"
+[[events.probes]]
+id = "knock-open"
+from = "client"
+to = "fw"
+addr = "10.0.1.1"
+proto = "tcp"
+port = 22
+expect = "allow"
+
+# A reload must not drop the knocked-in client.
+[[events]]
+description = "reload"
+run = "restart"
+[[events.probes]]
+id = "survives-reload"
+from = "client"
+to = "fw"
+addr = "10.0.1.1"
+proto = "tcp"
+port = 22
+expect = "allow"

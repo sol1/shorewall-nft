@@ -429,8 +429,13 @@ def cmd_iprange(args, family):
 
 
 def cmd_savesets(args, family):
-    print("shorewall-nft: no dynamic sets to save yet")
-    return 0
+    """Snapshot the runtime contents of externally-filled sets, so they
+    survive a reload or a reboot restore."""
+    script = _script_path(_vardir(family))
+    if not os.path.exists(script):
+        print("shorewall-nft: nothing running to save sets from")
+        return 0
+    return _run_script(script, "savesets")
 
 
 def _compat_report(confdir):
