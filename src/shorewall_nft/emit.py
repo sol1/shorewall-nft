@@ -448,11 +448,12 @@ class Emitter:
             # A set with baked elements is static (from /etc/shorewall/
             # ipsets). Any other referenced set is filled at runtime by an
             # external tool, so it is declared empty and preserved across
-            # reloads. Only a hash:net set is an interval set; a plain
-            # hash:ip set (single addresses) is the default and suits a
-            # knock or ban list.
+            # reloads. A referenced-but-undefined set may be handed single
+            # addresses or CIDRs by that tool, so it is an interval set with
+            # auto-merge (interval holds both). A defined hash:net is also an
+            # interval set; only a defined hash:ip stays a plain address set.
             static = bool(defn and defn.elements)
-            interval = bool(defn) and defn.settype == "hash:net"
+            interval = defn is None or defn.settype == "hash:net"
             timeout = defn.timeout if defn else 0
             flags = ["interval"] if interval else []
             if timeout:
