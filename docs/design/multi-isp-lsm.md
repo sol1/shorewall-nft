@@ -558,8 +558,16 @@ phase 3, remain.
    providers section in `shorewall status`. `lsm-unit.py` tests the state
    machine with scripted probes; `lsm-proof.sh` runs the daemon against a
    gateway in its own netns, drops it, and asserts failover and recovery.
-3. **Profiles.** The `profiles` file, `profile_<name>` functions, the
-   `shorewall profile` verb, and monitor-driven profile selection.
+   `shorewall show providers` prints the posture, each provider with its
+   interface, gateway, weight, up/enabled state and monitor line, the
+   rtrules routed to it, the balanced default, the active profile, and
+   the fall-through that happens when each provider is lost.
+3. **Profiles.** A separate `/etc/shorewall/profiles` file (decided:
+   monitoring stays in `lsm`, postures in `profiles`), `profile_<name>`
+   functions, the `shorewall profile` verb, and monitor-driven profile
+   selection. The monitor defaults to per-provider enable/disable
+   (today's behavior); profile selection is opt-in when a profiles file
+   exists. `show providers` grows a profile view here.
 4. **Backlog.** The secondary gaps, prioritised by real configs in the
    fleet: configurable mark layout, `load=`, shared interfaces, IPv6
    providers.

@@ -35,12 +35,20 @@ has 2 default && ok "isp2 table populated" || bad "isp2 table populated"
 has 250 "dev eth0" && has 250 "dev eth1" \
     && ok "balance has both providers" || bad "balance has both providers"
 
+# show providers lists both, with the fall-through spelled out.
+sw show providers 2>/dev/null | grep -q "isp1 lost: from 10.0.1.0/24" \
+    && ok "show providers explains the failover" \
+    || bad "show providers explains the failover"
+
 # Disable isp1 with no reload. Its table empties and it leaves the balance.
 sw disable isp1 >/dev/null 2>&1 && ok "disable isp1" || bad "disable isp1"
 has 1 default && bad "isp1 table should be empty" || ok "isp1 table emptied"
 has 250 "dev eth0" && bad "balance still routes via isp1" \
     || ok "balance dropped isp1"
 has 250 "dev eth1" && ok "balance kept isp2" || bad "balance kept isp2"
+sw show providers 2>/dev/null | grep -qE "isp1.*disabled" \
+    && ok "show providers reflects the disable" \
+    || bad "show providers reflects the disable"
 
 # The last enabled provider is protected.
 sw disable isp2 >/dev/null 2>&1 && bad "disabled the last provider" \

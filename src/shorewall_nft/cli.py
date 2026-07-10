@@ -375,9 +375,124 @@ def cmd_show(args, family):
                 level = f" {p.loglevel}" if p.loglevel else ""
                 print(f"{p.source}\t{p.dest}\t{p.policy}{level}")
         return 0
+    if what in ("providers", "provider"):
+        return _show_providers(family)
     print(f"shorewall-nft: 'show {what}' is not implemented yet",
           file=sys.stderr)
     return 1
+
+
+def _ip():
+    return "/usr/sbin/ip" if os.path.exists("/usr/sbin/ip") else "ip"
+
+
+def _interface_up(iface):
+    r = subprocess.run([_ip(), "-o", "link", "show", iface, "up"],
+                       capture_output=True, text=True)
+    return bool(r.stdout.strip())
+
+
+def _monitor_status(name):
+    """Live monitor line for a provider, or "" if the monitor has not
+    written one."""
+    path = os.path.join(_state_dir(), "lsm", name + ".status")
+    try:
+        return open(path).read().strip()
+    except OSError:
+        return ""
+
+
+def _active_profile():
+    try:
+        return open(os.path.join(_state_dir(), "profile")).read().strip()
+    except OSError:
+        return "default (no /etc/shorewall/profiles)"
+
+
+def _rtrule_source(r):
+    if r.runtime_iface:
+        return f"&{r.runtime_iface}"
+    if r.iif:
+        return f"iif {r.iif}"
+    return r.source or "any"
+
+
+def _show_providers(family):
+    """The provider and link-monitor posture, and what happens to each
+    routed network when a provider is lost. Read-only."""
+    from .compile import load
+    from . import lsm
+    cfg = load(_confdir(family), family)
+    if not cfg.providers:
+        print("No providers configured.")
+        return 0
+
+    mons = {}
+    lsm_path = os.path.join(_confdir(family), "lsm")
+    if os.path.isfile(lsm_path):
+        pmap = {p.name: (p.interface, p.gateway) for p in cfg.providers}
+        for m in lsm.parse_lsm(lsm_path, pmap):
+            mons[m.name] = m
+
+    print(f"shorewall-nft providers   ({table_for(family)})\n")
+    for p in cfg.providers:
+        up = "up" if _interface_up(p.interface) else "down"
+        state = "disabled" if _provider_disabled(p.name) else "enabled"
+        bal = f"balance={p.balance}" if p.balance else "no balance"
+        mark = f"mark {p.mark}" if p.mark else "no mark"
+        print(f"  {p.name}   {p.interface}   gw {p.gateway or '-'}   "
+              f"{mark}   {bal}   [{up} · {state}]")
+        m = mons.get(p.name)
+        if m:
+            live = _monitor_status(p.name)
+            print(f"         monitor   {m.method} {', '.join(m.targets) or '-'}"
+                  f"   every {m.interval}s, down after {m.down}"
+                  f"{'   ' + live if live else ''}")
+        else:
+            print("         monitor   (none)")
+        # rtrules that route to this provider, and whether each is the
+        # preferred rule or a lower-priority fallback for its source.
+        mine = [r for r in cfg.rtrules
+                if r.provider in (p.name, str(p.number))]
+        for r in mine:
+            same = sorted((x for x in cfg.rtrules
+                           if (x.source, x.dest, x.iif)
+                           == (r.source, r.dest, r.iif)),
+                          key=lambda x: x.priority)
+            tag = "   fallback" if same and same[0] is not r else ""
+            print(f"         rtrules   from {_rtrule_source(r)} to "
+                  f"{r.dest or 'any'}   pref {r.priority}{tag}")
+
+    bals = [p for p in cfg.providers if p.balance]
+    if bals:
+        print("\n  balanced default (table 250):  "
+              + ", ".join(f"{p.name} ×{p.balance}" for p in bals))
+    print(f"  active profile: {_active_profile()}")
+
+    # What happens when a provider is lost: ordered rtrule fall-through,
+    # and the balance set shrinking.
+    flows = []
+    for p in cfg.providers:
+        for r in cfg.rtrules:
+            if r.provider not in (p.name, str(p.number)):
+                continue
+            same = sorted((x for x in cfg.rtrules
+                           if (x.source, x.dest, x.iif)
+                           == (r.source, r.dest, r.iif)),
+                          key=lambda x: x.priority)
+            idx = same.index(r)
+            if same[0] is r and idx + 1 < len(same):
+                nxt = same[idx + 1].provider
+                flows.append(f"    {p.name} lost: from {_rtrule_source(r)} "
+                             f"falls through to {nxt}")
+    if len(bals) > 1:
+        flows.append("    a balanced provider lost: balance continues over "
+                     "the rest")
+    if flows:
+        print("\n  on failure:")
+        for line in flows:
+            print(line)
+    return 0
 
 
 def cmd_save(args, family):
