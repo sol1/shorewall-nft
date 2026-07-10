@@ -540,14 +540,24 @@ to `sandbox.py`, so every existing case runs unchanged.
 
 ## 8. Phased plan
 
-1. **Seam.** Refactor `_routing` around a usable set and emit
-   `reroute_providers`. Add the `${VARDIR}/providers/*.state` files and
-   the `enable`/`disable`/`reenable` verbs. Ship `fallback` and honest
-   `optional` in the same phase, since they exercise the same recompute.
-   Test with a failover corpus case and a proof script.
-2. **Monitor.** The `shorewall-lsm` daemon, ping method, the `lsm` config
-   file, the systemd unit, the status files, and the `shorewall status`
-   providers section. Test the state machine with faked probes.
+Status: phase 1 (seam and verbs) and phase 2 (the monitor) are built.
+`fallback` and an explicit `optional` from phase 1, and profiles from
+phase 3, remain.
+
+1. **Seam.** Done. `_routing` splits into build, clear and restore;
+   `reroute_providers` recomputes over the usable set, gated on
+   `provider_usable` (a `${STATE}/providers/*.state` marker plus the
+   interface being up). `enable`/`disable`/`reenable` are real verbs and
+   refuse to disable the last provider. `seam-proof.sh` and
+   `0038-failover` cover it. Still to do: `fallback` (table 253) and an
+   explicit `optional` field.
+2. **Monitor.** Done. `src/shorewall_nft/lsm.py` is a stdlib ping monitor
+   with an up/down state machine (hysteresis, reliability quorum, latency
+   threshold), an `/etc/shorewall/lsm` parser, the `shorewall lsm` verb,
+   `shorewall-lsm.service`, status files under `${STATE}/lsm`, and a
+   providers section in `shorewall status`. `lsm-unit.py` tests the state
+   machine with scripted probes; `lsm-proof.sh` runs the daemon against a
+   gateway in its own netns, drops it, and asserts failover and recovery.
 3. **Profiles.** The `profiles` file, `profile_<name>` functions, the
    `shorewall profile` verb, and monitor-driven profile selection.
 4. **Backlog.** The secondary gaps, prioritised by real configs in the

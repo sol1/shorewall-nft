@@ -49,6 +49,7 @@ DESTDIR=%{buildroot} packaging/install.sh packaging/shorewallrc.redhat
 %{_datadir}/shorewall-nft/
 %{_unitdir}/shorewall.service
 %{_unitdir}/shorewall6.service
+%{_unitdir}/shorewall-lsm.service
 %{_unitdir}/shorewall-geoip-update.service
 %{_unitdir}/shorewall-geoip-update.timer
 %{_mandir}/man8/shorewall*.8*
@@ -60,16 +61,19 @@ DESTDIR=%{buildroot} packaging/install.sh packaging/shorewallrc.redhat
 # `shorewall migrate` or `shorewall start` when ready.
 %systemd_post shorewall.service
 %systemd_post shorewall6.service
+%systemd_post shorewall-lsm.service
 %systemd_post shorewall-geoip-update.timer
 
 %preun
 %systemd_preun shorewall.service
 %systemd_preun shorewall6.service
+%systemd_preun shorewall-lsm.service
 %systemd_preun shorewall-geoip-update.timer
 
 %postun
 %systemd_postun shorewall.service
 %systemd_postun shorewall6.service
+%systemd_postun shorewall-lsm.service
 %systemd_postun shorewall-geoip-update.timer
 
 %changelog

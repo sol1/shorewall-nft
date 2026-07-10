@@ -329,6 +329,24 @@ def cmd_status(args, family):
     else:
         total, nat = counts
         print(f"\n{total} filter rules, {nat} nat rules")
+
+    # Provider and link-monitor state, if this box does multi-ISP.
+    try:
+        names = _provider_names(family)
+    except (ConfigError, OSError):
+        names = []
+    if names:
+        print("\nProviders:")
+        lsm_dir = os.path.join(_state_dir(), "lsm")
+        for name in names:
+            state = "disabled" if _provider_disabled(name) else "enabled"
+            mon = ""
+            try:
+                with open(os.path.join(lsm_dir, name + ".status")) as f:
+                    mon = "  monitor: " + f.read().strip()
+            except OSError:
+                pass
+            print(f"  {name}: {state}{mon}")
     return 0
 
 
@@ -742,11 +760,45 @@ def cmd_reenable(args, family):
     return _set_provider(args, family, "enable")
 
 
+def cmd_lsm(args, family):
+    """Run the link monitor. Probe each provider's gateway and enable or
+    disable it through the seam on a state change. --once runs a single
+    check cycle, for scripting and tests."""
+    from . import lsm
+    once = "--once" in args
+    script = _script_path(_vardir(family))
+    if not os.path.exists(script):
+        _fatal("no running firewall; run 'shorewall start' first")
+    monitors = lsm.build_monitors(_confdir(family), family)
+    if not monitors:
+        print("shorewall-nft: no lsm configuration; nothing to monitor")
+        return 0
+    names = _provider_names(family)
+    status_dir = os.path.join(_state_dir(), "lsm")
+
+    def apply(name, state):
+        if state == "down":
+            live = [n for n in names if not _provider_disabled(n)]
+            if live == [name]:
+                print(f"lsm: {name} is down but is the last usable provider; "
+                      "leaving it up", file=sys.stderr)
+                return
+            _run_script(script, "disable", name)
+            print(f"lsm: {name} down, disabled")
+        else:
+            _run_script(script, "enable", name)
+            print(f"lsm: {name} up, enabled")
+
+    lsm.run(monitors, apply, status_dir=status_dir, once=once)
+    return 0
+
+
 VERBS = {
     "version": cmd_version,
     "enable": cmd_enable,
     "disable": cmd_disable,
     "reenable": cmd_reenable,
+    "lsm": cmd_lsm,
     "check": cmd_check,
     "compile": cmd_compile,
     "start": cmd_start,

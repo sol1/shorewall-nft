@@ -1,0 +1,17 @@
+[Unit]
+Description=Shorewall-nft link monitor
+Documentation=man:shorewall(8)
+# The firewall must be up first: the monitor drives its routing seam.
+After=shorewall.service
+Wants=shorewall.service
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/shorewall lsm
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

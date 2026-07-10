@@ -85,6 +85,7 @@ fi
 if [ -n "$SERVICEDIR" ]; then
     install -d "$DESTDIR$SERVICEDIR"
     for unit in shorewall.service shorewall6.service \
+                shorewall-lsm.service \
                 shorewall-geoip-update.service \
                 shorewall-geoip-update.timer; do
         install -m 0644 "$here/packaging/systemd/$unit" \
