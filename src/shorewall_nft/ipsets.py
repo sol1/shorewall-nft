@@ -40,6 +40,9 @@ def parse(path, strict=True):
             if not parts or parts[0].startswith("#"):
                 continue
             if parts[0] == "create":
+                if len(parts) < 3:
+                    raise ConfigError("ipset create needs NAME TYPE",
+                                      path, lineno)
                 name, settype = parts[1], parts[2]
                 if settype not in ("hash:ip", "hash:net"):
                     if strict:
@@ -49,12 +52,29 @@ def parse(path, strict=True):
                     unsupported.append((name, settype))
                     skipped.add(name)
                     continue
+                # Options follow the type. Look for keywords only there, so a
+                # set literally named "family" or "timeout" is not mistaken
+                # for the option, and bound-check the value.
+                opts = parts[3:]
                 fam = "inet"
-                if "family" in parts:
-                    fam = parts[parts.index("family") + 1]
+                if "family" in opts:
+                    idx = parts.index("family", 3)
+                    if idx + 1 >= len(parts):
+                        raise ConfigError(f"ipset {name}: family needs a value",
+                                          path, lineno)
+                    fam = parts[idx + 1]
                 timeout = 0
-                if "timeout" in parts:
-                    timeout = int(parts[parts.index("timeout") + 1])
+                if "timeout" in opts:
+                    idx = parts.index("timeout", 3)
+                    if idx + 1 >= len(parts):
+                        raise ConfigError(f"ipset {name}: timeout needs a value",
+                                          path, lineno)
+                    try:
+                        timeout = int(parts[idx + 1])
+                    except ValueError:
+                        raise ConfigError(
+                            f"ipset {name}: timeout not an integer: "
+                            f"{parts[idx + 1]!r}", path, lineno)
                 sets[name] = IpsetDef(name=name, settype=settype, family=fam,
                                       timeout=timeout)
             elif parts[0] == "add":
@@ -80,6 +100,8 @@ def load_for(confdir, strict=True):
     sets, unsupported = parse(path, strict)
     for name, settype in unsupported:
         print(f"shorewall-nft: ipset {name} (type {settype}) is not "
-              f"supported and was skipped; rules using +{name} will match "
-              "nothing", file=sys.stderr)
+              f"supported and was skipped; rules using +{name} match "
+              "nothing, so a DROP or REJECT that relies on it will not "
+              "block and an ACCEPT will not match. Set REQUIRE_IPSETS=Yes "
+              "to make this a hard error instead.", file=sys.stderr)
     return sets

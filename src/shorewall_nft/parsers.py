@@ -739,8 +739,15 @@ def parse_providers(path, variables, interfaces):
         gateway = cols[5]
         if gateway == "-":
             gateway = ""
-        p = Provider(name=name, number=int(number),
-                     mark=int(mark, 0) if mark != "-" else 0,
+        try:
+            num = int(number)
+        except ValueError:
+            raise line.error(f"provider NUMBER must be an integer: {number!r}")
+        try:
+            markval = int(mark, 0) if mark != "-" else 0
+        except ValueError:
+            raise line.error(f"provider MARK must be an integer: {mark!r}")
+        p = Provider(name=name, number=num, mark=markval,
                      interface=interface, gateway=gateway,
                      origin=f"{os.path.basename(line.path)}:{line.lineno}")
         options = cols[6] if len(cols) > 6 and cols[6] != "-" else ""
@@ -748,17 +755,25 @@ def parse_providers(path, variables, interfaces):
             key, eq, value = opt.partition("=")
             if key not in PROVIDER_OPTIONS:
                 raise line.error(f"unsupported provider option {key}")
+            if eq and value:
+                try:
+                    weight = int(value)
+                except ValueError:
+                    raise line.error(f"provider option {key} weight must be "
+                                     f"an integer: {value!r}")
+            else:
+                weight = None
             if key == "track":
                 p.track = True
             elif key == "balance":
-                p.balance = int(value) if eq else 1
+                p.balance = weight if weight is not None else 1
             elif key == "primary":
                 p.balance = 1
             elif key == "loose":
                 p.loose = True
             elif key == "fallback":
                 p.fallback = True
-                p.fallback_weight = int(value) if eq else 0
+                p.fallback_weight = weight if weight is not None else 0
             elif key == "optional":
                 p.optional = True
             elif key == "persistent":
