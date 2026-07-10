@@ -333,8 +333,11 @@ def cmd_status(args, family):
     # Provider and link-monitor state, if this box does multi-ISP.
     try:
         names = _provider_names(family)
-    except (ConfigError, OSError):
+    except (ConfigError, OSError) as e:
         names = []
+        if isinstance(e, ConfigError):
+            print(f"\nWarning: the provider configuration does not parse, so "
+                  f"provider status is unavailable: {e}", file=sys.stderr)
     if names:
         print("\nProviders:")
         lsm_dir = os.path.join(_state_dir(), "lsm")
@@ -848,6 +851,13 @@ def _provider_disabled(name):
         return False
 
 
+def _lsm_marker(name):
+    # Marks a disable as the link monitor's own. The monitor re-enables only
+    # the providers it disabled, so an operator 'disable' is never undone by
+    # a link flap. An operator action (enable/disable/reenable) clears it.
+    return os.path.join(_state_dir(), "lsm", name + ".owned")
+
+
 def _provider_names(family):
     from .compile import load
     return [p.name for p in load(_confdir(family), family).providers]
@@ -870,6 +880,12 @@ def _set_provider(args, family, verb):
         _fatal("no running firewall; run 'shorewall start' first")
     rc = _run_script(script, verb, name)
     if rc == 0:
+        # An operator action takes ownership away from the monitor, so a
+        # later link flap will not override it.
+        try:
+            os.remove(_lsm_marker(name))
+        except OSError:
+            pass
         print(f"Provider {name} {verb}d.")
     return rc
 
@@ -891,9 +907,12 @@ def cmd_reenable(args, family):
 
 
 def cmd_lsm(args, family):
-    """Run the link monitor. Probe each provider's gateway and enable or
-    disable it through the seam on a state change. --once runs a single
-    check cycle, for scripting and tests."""
+    """Run the link monitor. Probe each provider and enable or disable it
+    through the seam on a state change. The monitor re-enables only the
+    providers it disabled itself, so an operator 'disable' is never undone
+    by a link flap. --once runs a single check cycle, for scripting and
+    tests; it reloads the saved counters so the up/down hysteresis
+    accumulates across separate invocations."""
     from . import lsm
     once = "--once" in args
     script = _script_path(_vardir(family))
@@ -905,19 +924,58 @@ def cmd_lsm(args, family):
         return 0
     names = _provider_names(family)
     status_dir = os.path.join(_state_dir(), "lsm")
+    if once:
+        lsm.restore_state(status_dir, monitors)
+    # Providers the monitor wanted down but left up because they were the
+    # last usable link. Retried once another provider is usable again.
+    pending = set()
+
+    def _own(name):
+        try:
+            os.makedirs(status_dir, exist_ok=True)
+            open(_lsm_marker(name), "w").close()
+        except OSError:
+            pass
+
+    def _flush_pending():
+        for name in list(pending):
+            live = [n for n in names if not _provider_disabled(n)]
+            if name in live and len(live) > 1:
+                _run_script(script, "disable", name)
+                _own(name)
+                pending.discard(name)
+                print(f"lsm: {name} down (deferred), disabled")
 
     def apply(name, state):
         if state == "down":
+            if _provider_disabled(name):
+                # Already down, by the operator or an earlier cycle. Do not
+                # claim ownership of a disable that is not the monitor's.
+                pending.discard(name)
+                return
             live = [n for n in names if not _provider_disabled(n)]
             if live == [name]:
+                pending.add(name)
                 print(f"lsm: {name} is down but is the last usable provider; "
                       "leaving it up", file=sys.stderr)
                 return
             _run_script(script, "disable", name)
+            _own(name)
+            pending.discard(name)
             print(f"lsm: {name} down, disabled")
         else:
+            pending.discard(name)
+            if not os.path.exists(_lsm_marker(name)):
+                # Not the monitor's disable (operator disable, or never
+                # disabled). Leave the operator's decision alone.
+                return
             _run_script(script, "enable", name)
+            try:
+                os.remove(_lsm_marker(name))
+            except OSError:
+                pass
             print(f"lsm: {name} up, enabled")
+        _flush_pending()
 
     lsm.run(monitors, apply, status_dir=status_dir, once=once)
     return 0

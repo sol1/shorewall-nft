@@ -14,8 +14,11 @@ docs/design/multi-isp-lsm.md section 10.
 import os
 import re
 import subprocess
+import sys
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+
+from .errors import ConfigError
 
 DEFAULTS = {
     "method": "ping",
@@ -63,32 +66,56 @@ def parse_lsm(path, providers):
     blocks = {}
     cur = None
     with open(path) as f:
-        for raw in f:
+        for lineno, raw in enumerate(f, 1):
             line = raw.split("#", 1)[0].strip()
             if not line:
                 continue
             if line.startswith("?PROVIDER"):
-                cur = line.split()[1]
+                toks = line.split()
+                if len(toks) < 2:
+                    raise ConfigError("lsm: ?PROVIDER needs a provider name",
+                                      path, lineno)
+                cur = toks[1]
                 blocks[cur] = dict(DEFAULTS)
                 continue
             if cur is None:
-                raise ValueError(f"lsm: setting before any ?PROVIDER: {line}")
+                raise ConfigError(
+                    f"lsm: setting before any ?PROVIDER: {line}", path, lineno)
             parts = line.split(None, 1)
             key = parts[0].lower()
             val = parts[1].strip() if len(parts) > 1 else ""
             if key not in DEFAULTS:
-                raise ValueError(f"lsm: unknown setting {key}")
+                raise ConfigError(f"lsm: unknown setting {key}", path, lineno)
+            if key in _INT_KEYS:
+                try:
+                    int(val)
+                except ValueError:
+                    raise ConfigError(f"lsm: {key} must be an integer: "
+                                      f"{val!r}", path, lineno)
             blocks[cur][key] = val
     mons = []
     for name, b in blocks.items():
         iface, gw = providers.get(name, ("", ""))
         interface = iface if b["interface"] == "-" else b["interface"]
         check = b["check"]
-        targets = [gw] if check == "-" else [t for t in re.split(r"[,\s]+",
-                                                                  check) if t]
+        if check == "-":
+            # The default target is the provider gateway. A point-to-point
+            # link (ppp, WireGuard) has no gateway, and "detect" is not a
+            # real host, so there is nothing to probe. Skip such a provider
+            # rather than probe an empty target and declare a healthy link
+            # down.
+            targets = [] if gw in ("", "detect") else [gw]
+        else:
+            targets = [t for t in re.split(r"[,\s]+", check) if t]
+        if not targets:
+            print(f"shorewall-nft: lsm provider {name} has no probe target "
+                  "(its gateway is unknown and no 'check' is set); it will "
+                  "not be monitored. Add a 'check' line to monitor it.",
+                  file=sys.stderr)
+            continue
         kw = {k: int(b[k]) for k in _INT_KEYS}
         mons.append(MonitorCfg(
-            name=name, interface=interface, targets=[t for t in targets if t],
+            name=name, interface=interface, targets=targets,
             method=b["method"], metered=b["metered"].lower() in ("yes", "1"),
             dial="" if b["dial"] == "-" else b["dial"],
             hangup="" if b["hangup"] == "-" else b["hangup"], **kw))
@@ -176,7 +203,35 @@ def write_status(status_dir, mon, now):
     os.makedirs(status_dir, exist_ok=True)
     rtt = f"{mon.rtt:.1f}ms" if mon.rtt is not None else "-"
     with open(os.path.join(status_dir, mon.cfg.name + ".status"), "w") as f:
-        f.write(f"{mon.state} rtt={rtt} loss={mon.loss}% at={int(now)}\n")
+        f.write(f"{mon.state} rtt={rtt} loss={mon.loss}% at={int(now)} "
+                f"ok={mon.ok_run} fail={mon.fail_run}\n")
+
+
+def restore_state(status_dir, monitors):
+    """Reload the state and hysteresis counters a prior cycle wrote, so a
+    stateless driver ('lsm --once' from cron) accumulates failures across
+    separate invocations instead of resetting to up/0 every time. The
+    long-running daemon keeps its counters in memory and does not need
+    this."""
+    for m in monitors:
+        try:
+            with open(os.path.join(status_dir, m.cfg.name + ".status")) as f:
+                toks = f.read().split()
+        except OSError:
+            continue
+        if toks and toks[0] in ("up", "down"):
+            m.state = toks[0]
+        for t in toks:
+            if t.startswith("ok="):
+                try:
+                    m.ok_run = int(t[3:])
+                except ValueError:
+                    pass
+            elif t.startswith("fail="):
+                try:
+                    m.fail_run = int(t[5:])
+                except ValueError:
+                    pass
 
 
 def build_monitors(confdir, family, probe=probe_once):
@@ -192,7 +247,8 @@ def build_monitors(confdir, family, probe=probe_once):
         for c in parse_lsm(path, pmap):
             mons[c.name] = c
     for p in cfg.providers:
-        if p.persistent and p.gateway and p.name not in mons:
+        if (p.persistent and p.gateway and p.gateway != "detect"
+                and p.name not in mons):
             mons[p.name] = MonitorCfg(name=p.name, interface=p.interface,
                                       targets=[p.gateway])
     return [Monitor(c, probe) for c in mons.values()]

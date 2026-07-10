@@ -83,6 +83,11 @@ so they test that link, not whichever one currently holds the default
 route. A far `check` target (a well-known host) tests reachability
 through the link rather than just the local gateway.
 
+A point-to-point provider (ppp, WireGuard) has no gateway, so the default
+target does not resolve. Give it an explicit `check` target; without one
+it is not monitored, and a warning says so, rather than being reported
+down and disabled while its link is up.
+
 The state machine is deliberate: a link goes down only after `down`
 consecutive failed checks and comes back only after `up` consecutive
 good ones, so a brief blip does not flap the routes. `reliability` is a
