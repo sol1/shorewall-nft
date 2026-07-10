@@ -1,0 +1,68 @@
+description = "An externally-filled ipset survives a cold stop and start, not just a reload. A knock daemon fills +knoc_ssh, the admin runs savesets, then stops and starts the firewall. The knocked-in entry must come back. Regression: on start the set snapshot was captured before the ruleset loaded, and a cold start (no live set) deleted the snapshot instead of keeping it, so the entry was lost across a stop or reboot. Ours-verified; nft sets are ours-specific runtime state."
+family = 4
+mode = "script"
+no_upstream = true
+
+[[links]]
+node_a = "client"
+dev_a = "c0"
+addr_a = "10.0.1.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.1.1/24"
+
+# Empty set: the knock has not happened, SSH is blocked.
+[[probes]]
+id = "knock-closed"
+from = "client"
+to = "fw"
+addr = "10.0.1.1"
+proto = "tcp"
+port = 22
+expect = "drop"
+
+# The knock daemon adds the client to the nft set directly.
+[[events]]
+description = "knock: add the client to the set"
+exec = "nft add element ip shorewall knoc_ssh { 10.0.1.2 }"
+[[events.probes]]
+id = "knock-open"
+from = "client"
+to = "fw"
+addr = "10.0.1.1"
+proto = "tcp"
+port = 22
+expect = "allow"
+
+# Snapshot the live sets, as the admin does before a planned stop.
+[[events]]
+description = "savesets"
+run = "savesets"
+
+# Stop the firewall. The stop ruleset drops, so the set is gone from the
+# live table.
+[[events]]
+description = "stop"
+run = "stop"
+[[events.probes]]
+id = "stopped"
+from = "client"
+to = "fw"
+addr = "10.0.1.1"
+proto = "tcp"
+port = 22
+expect = "drop"
+
+# Start again. The snapshot must be reloaded, so the knocked-in client is
+# still allowed with no second knock.
+[[events]]
+description = "start"
+run = "start"
+[[events.probes]]
+id = "survives-coldstart"
+from = "client"
+to = "fw"
+addr = "10.0.1.1"
+proto = "tcp"
+port = 22
+expect = "allow"

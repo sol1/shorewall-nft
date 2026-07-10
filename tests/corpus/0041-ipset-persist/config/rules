@@ -1,0 +1,3 @@
+?SECTION NEW
+# SSH to the firewall only from the externally-filled knock set
+ACCEPT	net:+knoc_ssh	$FW	tcp	22

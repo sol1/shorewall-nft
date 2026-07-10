@@ -77,4 +77,21 @@ gw_up
 wait_for 'isp1_up' && ok "monitor re-enabled isp1 on recovery" \
     || bad "monitor re-enabled isp1 on recovery"
 
+# An operator disable must survive a link flap. Take isp1 out of service
+# by hand, then flap its gateway down and back up. The monitor disabled it
+# itself before, but this disable is the operator's, so the flap must not
+# re-enable it.
+isp1_state() { grep -o '^[a-z]*' "$WORK/state/lsm/isp1.status" 2>/dev/null; }
+sw disable isp1 >/dev/null 2>&1 && ok "operator disabled isp1" \
+    || bad "operator disabled isp1"
+# Flap the gateway. Wait on the monitor's own state file, not the route
+# table, so the down then up transition actually fires while isp1 is out.
+gw_down
+wait_for '[ "$(isp1_state)" = down ]'
+gw_up
+wait_for '[ "$(isp1_state)" = up ]'
+sleep 2                       # let a buggy re-enable act after the transition
+isp1_up && bad "link flap re-enabled an operator disable" \
+    || ok "operator disable survived a link flap"
+
 exit $fail
