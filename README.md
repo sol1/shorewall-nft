@@ -119,6 +119,23 @@ and enables nothing, and never touches /etc/shorewall. Then:
 See docs/migration.md for moving a live Shorewall box, and
 docs/packaging.md for the packaging design.
 
+## Multi-ISP and failover
+
+The `providers` and `rtrules` files are read unchanged. On top of them
+shorewall-nft adds runtime control and a link monitor, so a provider can
+be taken out of service or fail over on its own, with no reload:
+
+    shorewall disable <provider>    # take it out of service
+    shorewall enable  <provider>    # put it back
+    shorewall reenable <provider>   # reset to enabled
+    shorewall show providers        # the routing posture and failover flow
+    shorewall lsm                   # the link monitor (or its systemd service)
+
+Disabling and the monitor change only which uplink egress traffic takes,
+never the packet filter, so they cannot open a hole. See docs/failover.md
+for the provider options, the link-monitor configuration and a worked
+two-ISP-plus-backup example.
+
 ## License
 
 GPLv2, the same license as Shorewall. See LICENSE.
