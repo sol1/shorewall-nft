@@ -756,8 +756,13 @@ def parse_providers(path, variables, interfaces):
                 p.balance = 1
             elif key == "loose":
                 p.loose = True
-            # optional, persistent, fallback accepted; runtime detection
-            # of link state is not implemented yet.
+            elif key == "fallback":
+                p.fallback = True
+                p.fallback_weight = int(value) if eq else 0
+            elif key == "optional":
+                p.optional = True
+            elif key == "persistent":
+                p.persistent = True
         out.append(p)
     return out
 

@@ -29,12 +29,12 @@ def cfg(**kw):
 
 
 # 1. Down hysteresis: down only after `down` consecutive failures.
-m = Monitor(cfg(down=3, up=3), probe=lambda *a: (False, None))
+m = Monitor(cfg(down=3, up=3), probe=lambda *a: (False, None, 100))
 seq = [m.record(False) for _ in range(3)]
 (ok if seq == [None, None, "down"] else bad)("down after 3 failures")
 
 # 2. A single success mid-streak resets the fail run.
-m = Monitor(cfg(down=3), probe=lambda *a: (False, None))
+m = Monitor(cfg(down=3), probe=lambda *a: (False, None, 100))
 m.record(False); m.record(False); m.record(True)
 (ok if m.record(False) is None and m.state == "up"
  else bad)("one success resets the fail run")
@@ -48,23 +48,30 @@ seq = [m.record(True) for _ in range(3)]
 
 # 4. Reliability quorum: 2 targets, need 2, only 1 answers -> failure.
 answers = {"a": True, "b": False}
+def probe(t, *a):
+    return (answers[t], 5.0 if answers[t] else None, 0 if answers[t] else 100)
 c = cfg(targets=["a", "b"], reliability=2, down=1)
-m = Monitor(c, probe=lambda t, *a: (answers[t], 5.0 if answers[t] else None))
+m = Monitor(c, probe=probe)
 (ok if m.check() == "down" else bad)("quorum: 1 of 2 is a failure")
 
 c = cfg(targets=["a", "b"], reliability=1, down=1)
-m = Monitor(c, probe=lambda t, *a: (answers[t], 5.0 if answers[t] else None))
+m = Monitor(c, probe=probe)
 (ok if m.check() is None and m.state == "up"
  else bad)("quorum: 1 of 2 meets reliability 1")
 
 # 5. Latency degradation: reachable but over the threshold counts as down.
 c = cfg(targets=["a"], max_latency=100, down=1)
-m = Monitor(c, probe=lambda *a: (True, 250.0))
+m = Monitor(c, probe=lambda *a: (True, 250.0, 0))
 (ok if m.check() == "down" else bad)("high latency trips failover")
 
 m = Monitor(cfg(targets=["a"], max_latency=100, down=1),
-            probe=lambda *a: (True, 20.0))
+            probe=lambda *a: (True, 20.0, 0))
 (ok if m.check() is None else bad)("latency under the threshold stays up")
+
+# 5b. Loss degradation: reachable but over the loss threshold counts down.
+m = Monitor(cfg(targets=["a"], max_loss=50, down=1),
+            probe=lambda *a: (True, 5.0, 60))
+(ok if m.check() == "down" else bad)("high loss trips failover")
 
 # 6. Config parse: defaults, gateway fallback, interface fallback.
 import tempfile  # noqa: E402

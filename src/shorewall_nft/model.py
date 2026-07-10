@@ -92,6 +92,10 @@ class Provider:
     track: bool = False
     balance: int = 0          # nexthop weight, 0 means not balanced
     loose: bool = False
+    fallback: bool = False    # last-resort default route in table 253
+    fallback_weight: int = 0  # 0 means a metric route, >0 a balanced one
+    optional: bool = False    # may be down; not required at start
+    persistent: bool = False  # keep monitoring for recovery while down
     origin: str = ""
 
 

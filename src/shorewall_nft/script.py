@@ -100,6 +100,10 @@ def _routing(cfg):
         return ("    :", "    :", "    :")
     build, clear, restore = [], [], []
     balanced = any(p.balance for p in cfg.providers)
+    has_fallback = any(p.fallback for p in cfg.providers)
+    # When either is in play the default lives in a provider table, so the
+    # main-table default is moved aside (see below).
+    default_managed = balanced or has_fallback
 
     # clear: strip everything a rebuild will re-add, so the result always
     # reflects the current usable set. No default-route restore here.
@@ -112,15 +116,22 @@ def _routing(cfg):
     for pri in dict.fromkeys(r.priority for r in cfg.rtrules):
         clear.append(f"    while ip -4 rule del pref {pri} 2>/dev/null; "
                      "do :; done")
-    if balanced:
+    if default_managed:
         clear.append("    ip -4 rule del from 0.0.0.0/0 lookup main pref 999 "
                      "2>/dev/null || :")
+    if balanced:
         clear.append("    ip -4 rule del from 0.0.0.0/0 table 250 pref 32765 "
                      "2>/dev/null || :")
         clear.append("    ip -4 route flush table 250 2>/dev/null || :")
+    if has_fallback:
+        # Table 253 is the kernel default table, empty under USE_DEFAULT_RT
+        # (the real default lives in main, saved to default.save), so it is
+        # ours to flush.
+        clear.append("    ip -4 route flush table 253 2>/dev/null || :")
 
     # build: rebuild from the usable providers.
     nexthops = []
+    fallbacks = []
     for i, p in enumerate(cfg.providers):
         u = f"provider_usable {p.name} {p.interface}"
         build.append(f"    # provider {p.name} ({p.number}) via {p.interface}")
@@ -177,6 +188,9 @@ def _routing(cfg):
             build.append("    fi")
         if p.balance:
             nexthops.append((gw, p.interface, p.name, p.balance))
+        if p.fallback:
+            fallbacks.append((gw, p.interface, p.name, p.number,
+                              p.fallback_weight))
     numbers = {p.name: p.number for p in cfg.providers}
     numbers.update({str(p.number): p.number for p in cfg.providers})
     up = build
@@ -211,45 +225,55 @@ def _routing(cfg):
                   f"table {table}")
         if r.runtime_iface:
             up.append("    fi")
-    if nexthops:
-        # Build the balanced default from providers whose gateway
-        # resolved. A detected gateway that came back empty is skipped.
-        up.append('    NEXTHOPS=""')
-        for gw, iface, name, weight in nexthops:
-            # Only balance across usable providers whose gateway resolved.
-            # A down or disabled provider is left out, so the multipath
-            # route never lists a dead nexthop.
-            up.append(f'    if [ -n "{gw}" ] && '
-                      f"provider_usable {name} {iface}; then")
-            # onlink: the provider gateway sits directly on its
-            # interface. It keeps single-nexthop rebuilds from failing
-            # with "Nexthop has invalid gateway" when the balance set
-            # shrinks to one usable provider.
-            up.append(f'        NEXTHOPS="$NEXTHOPS nexthop via {gw} '
-                      f'dev {iface} onlink weight {weight}"')
-            up.append("    fi")
-        up.append('    if [ -n "$NEXTHOPS" ]; then')
-        up.append("    ip -4 route replace default scope global table 250 "
-                  "$NEXTHOPS")
-        # Upstream moves the main table lookup to pref 999, ahead of
-        # the fwmark and balance rules, so connected routes win. Only
-        # the default falls through to the balance table at 32765.
-        up.append("    ip -4 rule del from 0.0.0.0/0 lookup main pref 999 "
-                  "2>/dev/null || :")
+    if default_managed:
+        # Move the main-table lookup ahead to pref 999 so connected routes
+        # win, and take the default out of main, so the default falls to
+        # the balance table (250, pref 32765) and then, last, the fallback
+        # table (253, the kernel default table at pref 32767).
         up.append("    ip -4 rule add from 0.0.0.0/0 lookup main pref 999")
-        up.append("    ip -4 rule del from 0.0.0.0/0 table 250 pref 32765 "
-                  "2>/dev/null || :")
-        up.append("    ip -4 rule add from 0.0.0.0/0 table 250 pref 32765")
         up.append("    ip -4 rule del from 0.0.0.0/0 lookup main "
                   "pref 32766 2>/dev/null || :")
         up.append("    while ip -4 route del default table main "
                   "2>/dev/null; do :; done")
-        up.append("    fi")
-        # On teardown the balance layout is undone by clear (which removes
-        # 999, 32765 and table 250); restore only puts the stock main rule
-        # back before the saved default is reinstated.
+        # Teardown re-adds the stock main rule before restore reinstates
+        # the saved default.
         restore.append("    ip -4 rule add from 0.0.0.0/0 lookup main "
                        "pref 32766 2>/dev/null || :")
+    if nexthops:
+        # The balanced default over the usable providers. onlink keeps a
+        # single-nexthop rebuild from failing with "Nexthop has invalid
+        # gateway" when the set shrinks to one.
+        up.append('    NEXTHOPS=""')
+        for gw, iface, name, weight in nexthops:
+            up.append(f'    if [ -n "{gw}" ] && '
+                      f"provider_usable {name} {iface}; then")
+            up.append(f'        NEXTHOPS="$NEXTHOPS nexthop via {gw} '
+                      f'dev {iface} onlink weight {weight}"')
+            up.append("    fi")
+        up.append('    if [ -n "$NEXTHOPS" ]; then')
+        up.append("        ip -4 route replace default scope global "
+                  "table 250 $NEXTHOPS")
+        up.append("        ip -4 rule add from 0.0.0.0/0 table 250 pref 32765")
+        up.append("    fi")
+    if fallbacks:
+        # Last-resort default in table 253, reached only when the balance
+        # table has no route. A weight makes a balanced fallback; without
+        # one, a metric route ordered by provider number.
+        up.append('    FBHOPS=""')
+        for gw, iface, name, number, weight in fallbacks:
+            up.append(f'    if [ -n "{gw}" ] && '
+                      f"provider_usable {name} {iface}; then")
+            if weight:
+                up.append(f'        FBHOPS="$FBHOPS nexthop via {gw} '
+                          f'dev {iface} onlink weight {weight}"')
+            else:
+                up.append(f"        ip -4 route replace default via {gw} "
+                          f"dev {iface} table 253 metric {number} onlink")
+            up.append("    fi")
+        up.append('    if [ -n "$FBHOPS" ]; then')
+        up.append("        ip -4 route replace default scope global "
+                  "table 253 $FBHOPS")
+        up.append("    fi")
     for r in cfg.routes:
         # A routes-file entry: add to the provider's table.
         m = [r["dest"]]

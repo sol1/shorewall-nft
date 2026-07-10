@@ -438,10 +438,21 @@ def _show_providers(family):
     for p in cfg.providers:
         up = "up" if _interface_up(p.interface) else "down"
         state = "disabled" if _provider_disabled(p.name) else "enabled"
-        bal = f"balance={p.balance}" if p.balance else "no balance"
+        opts = []
+        if p.track:
+            opts.append("track")
+        if p.balance:
+            opts.append(f"balance={p.balance}")
+        if p.fallback:
+            opts.append("fallback" + (f"={p.fallback_weight}"
+                                      if p.fallback_weight else ""))
+        for name, flag in (("loose", p.loose), ("optional", p.optional),
+                           ("persistent", p.persistent)):
+            if flag:
+                opts.append(name)
         mark = f"mark {p.mark}" if p.mark else "no mark"
         print(f"  {p.name}   {p.interface}   gw {p.gateway or '-'}   "
-              f"{mark}   {bal}   [{up} · {state}]")
+              f"{mark}   {', '.join(opts) or 'no options'}   [{up} · {state}]")
         m = mons.get(p.name)
         if m:
             live = _monitor_status(p.name)
@@ -488,6 +499,10 @@ def _show_providers(family):
     if len(bals) > 1:
         flows.append("    a balanced provider lost: balance continues over "
                      "the rest")
+    fbs = [p for p in cfg.providers if p.fallback]
+    if bals and fbs:
+        flows.append("    all balanced providers lost: traffic falls to the "
+                     "fallback via " + ", ".join(p.name for p in fbs))
     if flows:
         print("\n  on failure:")
         for line in flows:

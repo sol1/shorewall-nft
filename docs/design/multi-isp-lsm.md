@@ -540,17 +540,18 @@ to `sandbox.py`, so every existing case runs unchanged.
 
 ## 8. Phased plan
 
-Status: phase 1 (seam and verbs) and phase 2 (the monitor) are built.
-`fallback` and an explicit `optional` from phase 1, and profiles from
-phase 3, remain.
+Status: phase 1 (seam, verbs, fallback, optional, persistent) and phase 2
+(the monitor) are built. Profiles from phase 3 remain.
 
 1. **Seam.** Done. `_routing` splits into build, clear and restore;
    `reroute_providers` recomputes over the usable set, gated on
    `provider_usable` (a `${STATE}/providers/*.state` marker plus the
    interface being up). `enable`/`disable`/`reenable` are real verbs and
-   refuse to disable the last provider. `seam-proof.sh` and
-   `0038-failover` cover it. Still to do: `fallback` (table 253) and an
-   explicit `optional` field.
+   refuse to disable the last provider. `fallback` adds a last-resort
+   default in table 253 (`0040-fallback` proves it), `optional` is a
+   stored, honored flag, and `persistent` marks a provider for automatic
+   monitoring. `seam-proof.sh`, `0038-failover` and `0040-fallback` cover
+   the phase.
 2. **Monitor.** Done. `src/shorewall_nft/lsm.py` is a stdlib ping monitor
    with an up/down state machine (hysteresis, reliability quorum, latency
    threshold), an `/etc/shorewall/lsm` parser, the `shorewall lsm` verb,

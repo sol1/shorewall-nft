@@ -95,19 +95,22 @@ def parse_lsm(path, providers):
     return mons
 
 
-def probe_once(target, interface, timeout):
-    """One ICMP probe bound to the interface. Returns (ok, rtt_ms). rtt
-    is None on failure. Uses the ping binary so no raw-socket privilege
-    is needed."""
-    cmd = ["ping", "-n", "-c", "1", "-W", str(timeout)]
+def probe_once(target, interface, timeout, count=1):
+    """Probe a target with count ICMP echoes bound to the interface.
+    Returns (ok, rtt_ms, loss_percent): ok is True if any reply came
+    back, rtt is the average or None, loss is the percentage lost. Uses
+    the ping binary so no raw-socket privilege is needed."""
+    cmd = ["ping", "-n", "-c", str(count), "-W", str(timeout)]
     if interface:
         cmd += ["-I", interface]
     cmd.append(target)
     r = subprocess.run(cmd, capture_output=True, text=True)
-    if r.returncode != 0:
-        return False, None
-    m = re.search(r"time=([\d.]+)", r.stdout)
-    return True, (float(m.group(1)) if m else None)
+    ok = r.returncode == 0
+    m = re.search(r"(\d+)% packet loss", r.stdout)
+    loss = int(m.group(1)) if m else (0 if ok else 100)
+    m = re.search(r"= [\d.]+/([\d.]+)/", r.stdout)
+    rtt = float(m.group(1)) if m else None
+    return ok, rtt, loss
 
 
 class Monitor:
@@ -147,17 +150,19 @@ class Monitor:
         c = self.cfg
         answered = 0
         rtts = []
+        losses = []
         for target in c.targets:
-            ok, rtt = self._probe(target, c.interface, c.timeout)
+            ok, rtt, loss = self._probe(target, c.interface, c.timeout, c.count)
+            losses.append(loss)
             if ok:
                 answered += 1
                 if rtt is not None:
                     rtts.append(rtt)
         self.rtt = max(rtts) if rtts else None
-        total = len(c.targets) or 1
-        self.loss = round(100 * (total - answered) / total)
+        self.loss = max(losses) if losses else 100
         reachable = answered >= c.reliability
         degraded = bool(c.max_latency and self.rtt and self.rtt > c.max_latency)
+        degraded = degraded or bool(c.max_loss and self.loss > c.max_loss)
         return self.record(reachable and not degraded)
 
 
@@ -175,12 +180,22 @@ def write_status(status_dir, mon, now):
 
 
 def build_monitors(confdir, family, probe=probe_once):
-    """Monitors from the lsm file, or [] if there is no lsm file."""
+    """Monitors from the lsm file, plus any provider marked persistent,
+    which is watched with default parameters so it recovers on its own
+    even without an explicit lsm entry."""
+    from .compile import load
+    cfg = load(confdir, family)
+    pmap = {p.name: (p.interface, p.gateway) for p in cfg.providers}
+    mons = {}
     path = os.path.join(confdir, "lsm")
-    if not os.path.isfile(path):
-        return []
-    providers = load_providers(confdir, family)
-    return [Monitor(c, probe) for c in parse_lsm(path, providers)]
+    if os.path.isfile(path):
+        for c in parse_lsm(path, pmap):
+            mons[c.name] = c
+    for p in cfg.providers:
+        if p.persistent and p.gateway and p.name not in mons:
+            mons[p.name] = MonitorCfg(name=p.name, interface=p.interface,
+                                      targets=[p.gateway])
+    return [Monitor(c, probe) for c in mons.values()]
 
 
 def run(monitors, apply, status_dir=None, once=False,
