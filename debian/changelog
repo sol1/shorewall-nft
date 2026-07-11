@@ -1,3 +1,13 @@
+shorewall-nft (0.0.6) unstable; urgency=medium
+
+  * A source or destination column may again mix an address list with an
+    ipset, MAC or geoip reference, for example 10.0.0.0/24,+knoc_ssh.
+    Upstream fans a mixed column out into one rule per element, an OR; the
+    compiler now does the same instead of rejecting it. A negated mixed
+    column becomes an AND of exclusions in one rule, as upstream does.
+
+ -- Dave Kempe <dave@sol1.com.au>  Sat, 11 Jul 2026 00:00:00 +0000
+
 shorewall-nft (0.0.5) unstable; urgency=medium
 
   * migrate no longer prints the "other stack not handled yet" note once

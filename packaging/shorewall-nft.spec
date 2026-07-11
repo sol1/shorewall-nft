@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.0.5
+Version:        0.0.6
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -77,6 +77,11 @@ DESTDIR=%{buildroot} packaging/install.sh packaging/shorewallrc.redhat
 %systemd_postun shorewall-geoip-update.timer
 
 %changelog
+* Sat Jul 11 2026 Dave Kempe <dave@sol1.com.au> - 0.0.6-1
+- A source or destination column may again mix an address list with an
+  ipset, MAC or geoip reference. Upstream fans a mixed column out into one
+  rule per element; the compiler now does the same instead of rejecting it.
+
 * Thu Jul 09 2026 Dave Kempe <dave@sol1.com.au> - 0.0.5-1
 - migrate no longer nudges about the other stack once it is already on
   shorewall-nft. Label the start line with the family.
