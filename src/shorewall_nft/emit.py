@@ -1044,7 +1044,7 @@ class Emitter:
                         emit_stmt(chain,
                                   f"counter jump {_acct_chain(a.table)}", a)
                     if a.table == chain:
-                        emit_stmt(chain, f'counter name "{_acct_counter(a.table)}"', a)
+                        emit_stmt(chain, "counter", a)
                     continue
                 if a.chain != chain:
                     continue
@@ -1059,19 +1059,12 @@ class Emitter:
                     emit_stmt(chain, "counter", a)
 
         self.out("")
-        counters = []
         for idx, a in enumerate(self.cfg.accounting):
             if a.net:
                 self.out(f"set acct_{_acct_ident(a.table)}_{idx} {{", 1)
                 self.out(f"type {addr_type}; flags dynamic; counter; "
                          "size 65535;", 2)
                 self.out("}", 1)
-            elif a.action == "count-chain":
-                name = _acct_counter(a.table)
-                if name not in counters:
-                    counters.append(name)
-                    self.out(f"counter {name} {{", 1)
-                    self.out("}", 1)
         chains = set()
         for a in self.cfg.accounting:
             if a.chain != "accounting":

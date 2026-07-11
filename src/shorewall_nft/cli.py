@@ -510,6 +510,7 @@ def _show_accounting(family):
                 target, detail = "DONE", ""
             elif named_count:
                 target = named_count.group(1)[len("acct_"):]
+                target = re.sub(r"_\d+$", "", target)
                 detail = ""
             else:
                 target, detail = "COUNT", ""
