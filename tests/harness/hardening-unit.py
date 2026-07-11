@@ -5,6 +5,7 @@
 # down, lsm --once state round-trips, and an externally filled set is an
 # interval set. Pure Python, no packets.
 import os
+import shutil
 import sys
 import tempfile
 
@@ -12,7 +13,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                 "..", "..", "src"))
 from shorewall_nft import ipsets, lsm  # noqa: E402
 from shorewall_nft.compile import load  # noqa: E402
-from shorewall_nft.emit import render, _match_addr_alts  # noqa: E402
+from shorewall_nft.emit import render, render_stop, _match_addr_alts  # noqa: E402
 from shorewall_nft.errors import ConfigError  # noqa: E402
 from shorewall_nft.lsm import Monitor, MonitorCfg, parse_lsm  # noqa: E402
 from shorewall_nft.parsers import parse_providers  # noqa: E402
@@ -117,6 +118,24 @@ i = text.find("set knoc_ssh {")
 decl = text[i:i + 200] if i >= 0 else ""
 (ok if "flags interval" in decl and "auto-merge" in decl
  else bad)("emit: external set is an interval set with auto-merge")
+stop_text = render_stop(cfg)
+(ok if "set knoc_ssh {" in stop_text
+ else bad)("emit: stop ruleset keeps external set declarations")
+
+# --- stop ruleset keeps referenced defined ipsets too ---
+tmp_conf = tempfile.mkdtemp(prefix="shorewall-nft-static-ipset-")
+try:
+    shutil.copytree(os.path.join(REPO, "tests/corpus/0039-ipset-dynamic/config"),
+                    tmp_conf, dirs_exist_ok=True)
+    with open(os.path.join(tmp_conf, "ipsets"), "w") as f:
+        f.write("create knoc_ssh hash:net\n")
+        f.write("add knoc_ssh 198.51.100.0/24\n")
+    cfg = load(tmp_conf, 4)
+    stop_text = render_stop(cfg)
+    (ok if "set knoc_ssh {" in stop_text and "198.51.100.0/24" in stop_text
+     else bad)("emit: stop ruleset keeps defined ipset declarations")
+finally:
+    shutil.rmtree(tmp_conf)
 
 # --- a mixed address column fans out into one match per group ---
 alts = _match_addr_alts("1.2.3.4,192.168.1.0/24,+knoc", "saddr", "ip", set())

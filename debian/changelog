@@ -1,3 +1,21 @@
+shorewall-nft (0.0.6+local1) UNRELEASED; urgency=medium
+
+  * Preserve Shorewall-referenced externally populated nft sets across
+    `shorewall stop`: snapshot them, declare them in the stopped-state table,
+    and restore their elements immediately after the table replacement.
+    Stop now atomically refreshes its generated wrapper first, preventing an
+    artifact left by an older package from retaining destructive stop logic.
+  * Implement `shorewall show routing` and `shorewall6 show routing` with
+    live policy rules and standard, provider, balance, and additional route
+    tables in Shorewall-style output.
+  * Implement `shorewall show accounting` for live named counters,
+    per-address counter sets, and accounting chains.
+  * Fall back to chunked kernel validation when `shorewall check` or
+    `shorewall migrate` hits the netlink transaction-size limit on a large
+    generated ruleset.
+
+ -- Lindsay Harvey <lindsay@harvey.id.au>  Sat, 11 Jul 2026 00:00:01 +0000
+
 shorewall-nft (0.0.6) unstable; urgency=medium
 
   * A source or destination column may again mix an address list with an

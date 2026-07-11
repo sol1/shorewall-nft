@@ -353,6 +353,19 @@ def _mark_match(mark):
     return f"meta mark {neg}{int(value, 0):#x}"
 
 
+def _acct_ident(name):
+    return name.replace("-", "_").replace(".", "_")
+
+
+def _acct_chain(name):
+    return "accounting" if name == "accounting" else \
+        f"acct_chain_{_acct_ident(name)}"
+
+
+def _acct_counter(name):
+    return f"acct_{_acct_ident(name)}"
+
+
 def _time_match(spec):
     """TIME column: &-separated timestart/timestop/weekdays/etc."""
     out = []
@@ -1007,23 +1020,8 @@ class Emitter:
             return
         ipkw = "ip6" if self.cfg.family == 6 else "ip"
         addr_type = "ipv6_addr" if self.cfg.family == 6 else "ipv4_addr"
-        self.out("")
-        counters = []
-        for idx, a in enumerate(self.cfg.accounting):
-            if a.net:
-                self.out(f"set acct_{a.table.replace('-', '_')}_{idx} {{", 1)
-                self.out(f"type {addr_type}; flags dynamic; counter; "
-                         "size 65535;", 2)
-                self.out("}", 1)
-            else:
-                name = f"acct_{a.table.replace('-', '_').replace('.', '_')}"
-                if name not in counters:
-                    counters.append(name)
-                    self.out(f"counter {name} {{", 1)
-                    self.out("}", 1)
-        self.out("chain accounting {", 1)
-        self.out("type filter hook forward priority filter - 5;", 2)
-        for idx, a in enumerate(self.cfg.accounting):
+
+        def match(a):
             m = []
             if a.in_iface:
                 m.append(f'iifname "{a.in_iface}"')
@@ -1033,16 +1031,60 @@ class Emitter:
                 m.append(f"{ipkw} saddr {_addr_set(a.saddr)}")
             if a.daddr:
                 m.append(f"{ipkw} daddr {_addr_set(a.daddr)}")
+            return m
+
+        def emit_stmt(chain, stmt, a, indent=2):
             comment = f' comment "{a.origin}"' if a.origin else ""
+            self.out(" ".join(match(a) + [stmt]).strip() + comment, indent)
+
+        def emit_chain_body(chain):
+            for idx, a in enumerate(self.cfg.accounting):
+                if a.action == "count-chain":
+                    if a.chain == chain and a.table != chain:
+                        emit_stmt(chain,
+                                  f"counter jump {_acct_chain(a.table)}", a)
+                    if a.table == chain:
+                        emit_stmt(chain, f'counter name "{_acct_counter(a.table)}"', a)
+                    continue
+                if a.chain != chain:
+                    continue
+                if a.net:
+                    name = f"acct_{_acct_ident(a.table)}_{idx}"
+                    for sel in (f"{ipkw} saddr", f"{ipkw} daddr"):
+                        emit_stmt(chain, f"{sel} {a.net} counter update "
+                                  f"@{name} {{ {sel} }}", a)
+                elif a.action == "done":
+                    emit_stmt(chain, "counter return", a)
+                elif a.action == "count":
+                    emit_stmt(chain, "counter", a)
+
+        self.out("")
+        counters = []
+        for idx, a in enumerate(self.cfg.accounting):
             if a.net:
-                name = f"acct_{a.table.replace('-', '_')}_{idx}"
-                for sel in (f"{ipkw} saddr", f"{ipkw} daddr"):
-                    self.out(" ".join(m) + f" {sel} {a.net} update "
-                             f"@{name} {{ {sel} }}{comment}", 2)
-            else:
-                name = f"acct_{a.table.replace('-', '_').replace('.', '_')}"
-                self.out(" ".join(m) +
-                         f' counter name "{name}"{comment}', 2)
+                self.out(f"set acct_{_acct_ident(a.table)}_{idx} {{", 1)
+                self.out(f"type {addr_type}; flags dynamic; counter; "
+                         "size 65535;", 2)
+                self.out("}", 1)
+            elif a.action == "count-chain":
+                name = _acct_counter(a.table)
+                if name not in counters:
+                    counters.append(name)
+                    self.out(f"counter {name} {{", 1)
+                    self.out("}", 1)
+        chains = set()
+        for a in self.cfg.accounting:
+            if a.chain != "accounting":
+                chains.add(a.chain)
+            if a.action == "count-chain":
+                chains.add(a.table)
+        for chain in sorted(chains):
+            self.out(f"chain {_acct_chain(chain)} {{", 1)
+            emit_chain_body(chain)
+            self.out("}", 1)
+        self.out("chain accounting {", 1)
+        self.out("type filter hook forward priority filter - 5;", 2)
+        emit_chain_body("accounting")
         self.out("}", 1)
 
     def _mangle_statement(self, r):
@@ -1579,6 +1621,46 @@ def render_stop(cfg):
         f"delete table {table}",
         f"table {table} {{",
     ]
+
+    # Keep every referenced set in the stopped table so stop does not remove
+    # objects live traffic policy depends on. Externally-filled sets are still
+    # snapshotted/restored by the lifecycle script; static sets carry their
+    # compiled elements as they do in the started table.
+    addr_type = "ipv6_addr" if cfg.family == 6 else "ipv4_addr"
+    sets = set()
+    _collect_sets(cfg, sets)
+    for name in sorted(sets):
+        if name.startswith("geoip:"):
+            lines.append(f"    set geoip_{name.split(':', 1)[1]} {{")
+            lines.append(f"        type {addr_type}; flags interval;")
+            lines.append("    }")
+            lines.append("")
+            continue
+        defn = cfg.ipsets.get(name)
+        static = bool(defn and defn.elements)
+        interval = defn is None or defn.settype == "hash:net"
+        timeout = defn.timeout if defn else 0
+        flags = ["interval"] if interval else []
+        if timeout:
+            flags.append("timeout")
+        declaration = f"type {addr_type};"
+        if flags:
+            declaration += " flags " + ", ".join(flags) + ";"
+        if interval:
+            declaration += " auto-merge;"
+        if timeout:
+            declaration += f" timeout {timeout}s;"
+        lines.append(f"    set {name} {{")
+        lines.append(f"        {declaration}")
+        if static:
+            lines.append("        elements = {")
+            elems = defn.elements
+            for i in range(0, len(elems), 8):
+                tail = "," if i + 8 < len(elems) else ""
+                lines.append("            " + ", ".join(elems[i:i + 8]) + tail)
+            lines.append("        }")
+        lines.append("    }")
+        lines.append("")
 
     def chain(name, policy, body):
         lines.append(f"    chain {name} {{")

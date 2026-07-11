@@ -205,6 +205,8 @@ class AcctRule:
     saddr: str = ""
     daddr: str = ""
     origin: str = ""
+    action: str = "account"   # account, count-chain, count or done
+    chain: str = "accounting"
 
 
 @dataclass

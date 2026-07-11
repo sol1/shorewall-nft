@@ -7,6 +7,7 @@ the gap. They must never succeed silently or die with a traceback.
 """
 import ipaddress
 import os
+import re
 import select
 import shutil
 import subprocess
@@ -14,7 +15,7 @@ import sys
 import tempfile
 import time
 
-from . import __version__, capabilities
+from . import __version__, capabilities, chunk
 from .compile import compile_config
 from .emit import table_for
 from .errors import ConfigError
@@ -152,6 +153,43 @@ def cmd_version(args, family):
     return 0
 
 
+def _check_ruleset(path, family):
+    """Ask the kernel to validate a ruleset in a disposable netns.
+
+    Prefer one check-only transaction.  Large rulesets can exceed the
+    netlink send buffer, so on E2BIG validate the same fail-closed skeleton
+    and chunks the runtime loader uses.  The chunked pass applies rules in
+    the private namespace because separate ``nft -c`` calls would not retain
+    the skeleton needed by later chunks.
+    """
+    nft_path = _nft()
+    result = subprocess.run(
+        ["unshare", "-r", "-n", nft_path, "-c", "-f", path],
+        capture_output=True, text=True)
+    if result.returncode == 0 or "Message too long" not in result.stderr:
+        return result
+
+    with open(path) as ruleset_file:
+        ruleset = ruleset_file.read()
+    skeleton, chunks = chunk.split(ruleset, table_for(family))
+    with tempfile.TemporaryDirectory(prefix="shorewall-nft-check-") as tmpdir:
+        paths = []
+        for number, text in enumerate([skeleton] + chunks):
+            chunk_path = os.path.join(tmpdir, f"{number:05d}.nft")
+            with open(chunk_path, "w") as chunk_file:
+                chunk_file.write(text)
+            paths.append(chunk_path)
+        # One unshare invocation keeps all chunk loads in the same disposable
+        # namespace. Arguments carry paths without interpolating them into sh.
+        command = (
+            'nft=$1; shift; for file do "$nft" -f "$file" || exit; done'
+        )
+        return subprocess.run(
+            ["unshare", "-r", "-n", "sh", "-c", command,
+             "shorewall-nft-check", nft_path] + paths,
+            capture_output=True, text=True)
+
+
 def cmd_check(args, family):
     directory, _, fam_flag, _ = _parse_compile_args(args)
     confdir = directory or _confdir(family)
@@ -160,8 +198,7 @@ def cmd_check(args, family):
         path = tmp.name
     try:
         compile_config(confdir, path, family)
-        nft = subprocess.run(["unshare", "-r", "-n", _nft(), "-c", "-f",
-                              path], capture_output=True, text=True)
+        nft = _check_ruleset(path, family)
         if nft.returncode != 0:
             print(nft.stderr, file=sys.stderr)
             print("   ERROR: nft rejected the generated ruleset",
@@ -204,8 +241,31 @@ def cmd_reload(args, family):
 def cmd_stop(args, family):
     vardir = _vardir(family)
     script = _script_path(vardir)
-    if not os.path.exists(script):
-        _compile_to(_confdir(family), family, script)
+    # A package upgrade can change stopped-state lifecycle semantics while an
+    # older generated wrapper remains in /var/lib. Compile a fresh wrapper
+    # before stopping so `stop` uses the installed implementation just as
+    # start/reload/restart do. Build beside the live artifact and replace it
+    # only after a complete successful compile; an invalid current config can
+    # therefore still be stopped with its last valid wrapper.
+    fd, candidate = tempfile.mkstemp(prefix="firewall.stop-", dir=vardir)
+    os.close(fd)
+    try:
+        try:
+            _compile_to(_confdir(family), family, candidate)
+        except (ConfigError, OSError) as error:
+            if not os.path.exists(script):
+                raise
+            print(f"shorewall-nft: could not refresh the stop artifact; "
+                  f"using the last compiled one: {error}", file=sys.stderr)
+        else:
+            os.replace(candidate + ".nft", script + ".nft")
+            os.replace(candidate, script)
+    finally:
+        for pathname in (candidate, candidate + ".nft"):
+            try:
+                os.unlink(pathname)
+            except OSError:
+                pass
     rc = _run_script(script, "stop")
     if rc == 0:
         _state(vardir, "Stopped")
@@ -353,6 +413,216 @@ def cmd_status(args, family):
     return 0
 
 
+def _accounting_listing(text):
+    """Extract live accounting objects from an ``nft list table`` result."""
+    objects = []
+    current = []
+    depth = 0
+    start = re.compile(
+        r"^\s*(?:counter\s+acct_|set\s+acct_|chain\s+(?:accounting|acct_chain_))"
+        r"[^\n{]*\{")
+    for line in text.splitlines():
+        if not current:
+            if not start.match(line):
+                continue
+            current = [line]
+            depth = line.count("{") - line.count("}")
+        else:
+            current.append(line)
+            depth += line.count("{") - line.count("}")
+        if current and depth == 0:
+            objects.append("\n".join(current))
+            current = []
+    return objects
+
+
+def _show_accounting(family):
+    table = table_for(family).split()
+    result = subprocess.run(
+        [_nft(), "list", "table", *table], capture_output=True, text=True)
+    if result.returncode:
+        if result.stderr:
+            print(result.stderr, end="", file=sys.stderr)
+        return result.returncode
+    objects = _accounting_listing(result.stdout)
+    chains = [obj for obj in objects
+              if obj.lstrip().startswith("chain ")]
+    if not objects:
+        print(f"No accounting objects in table {' '.join(table)}")
+        return 0
+    import socket
+    product = "Shorewall6" if family == 6 else "Shorewall"
+    now = time.strftime("%a %d %b %Y %H:%M:%S %Z")
+    print(f"{product}-nft {__version__} Accounting at {socket.gethostname()} "
+          f"- {now}\n")
+
+    named = {}
+    for obj in objects:
+        match = re.search(
+            r"^\s*counter\s+(acct_[\w.-]+)\s*\{.*?"
+            r"packets\s+(\d+)\s+bytes\s+(\d+)", obj, re.S)
+        if match:
+            named[match.group(1)] = (int(match.group(2)), int(match.group(3)))
+
+    references = {}
+    chains.sort(key=lambda obj: 0 if re.search(
+        r"^\s*chain\s+accounting\b", obj) else 1)
+    for obj in chains:
+        for target in re.findall(r"\bjump\s+acct_chain_([\w.-]+)", obj):
+            references[target] = references.get(target, 0) + 1
+    default_addr = "::/0" if family == 6 else "0.0.0.0/0"
+    printed = False
+    for obj in chains:
+        first = obj.splitlines()[0]
+        match = re.search(r"\bchain\s+(\S+)", first)
+        if not match:
+            continue
+        nft_chain = match.group(1)
+        chain = (nft_chain[len("acct_chain_"):] if
+                 nft_chain.startswith("acct_chain_") else nft_chain)
+        rows = []
+        for line in obj.splitlines()[1:-1]:
+            if "counter" not in line or line.strip().startswith("type "):
+                continue
+            packets = bytes_ = 0
+            count = re.search(r"\bcounter\s+packets\s+(\d+)\s+bytes\s+(\d+)",
+                              line)
+            named_count = re.search(r'\bcounter\s+name\s+"([^"]+)"', line)
+            if count:
+                packets, bytes_ = int(count.group(1)), int(count.group(2))
+            elif named_count:
+                packets, bytes_ = named.get(named_count.group(1), (0, 0))
+
+            jump = re.search(r"\bjump\s+acct_chain_([\w.-]+)", line)
+            update = re.search(r"\bupdate\s+@(acct_[\w.-]+)", line)
+            if jump:
+                target = jump.group(1)
+                detail = ""
+            elif update:
+                target = "ACCOUNT"
+                set_name = update.group(1)
+                table_name = re.sub(r"_\d+$", "", set_name[len("acct_"):])
+                address = re.search(r"\bip6?\s+[sd]addr\s+(\S+)", line)
+                detail = (f" ACCOUNT addr {address.group(1)} "
+                          f"tname {table_name}" if address else
+                          f" ACCOUNT tname {table_name}")
+            elif " return" in line:
+                target, detail = "DONE", ""
+            elif named_count:
+                target = named_count.group(1)[len("acct_"):]
+                detail = ""
+            else:
+                target, detail = "COUNT", ""
+
+            incoming = re.search(r'\biifname\s+"([^"]+)"', line)
+            outgoing = re.search(r'\boifname\s+"([^"]+)"', line)
+            source = re.search(r"\bip6?\s+saddr\s+(\S+)", line)
+            dest = re.search(r"\bip6?\s+daddr\s+(\S+)", line)
+            comment = re.search(r'\bcomment\s+"([^"]+)"', line)
+            rows.append((packets, bytes_, target,
+                         incoming.group(1) if incoming else "*",
+                         outgoing.group(1) if outgoing else "*",
+                         source.group(1) if source else default_addr,
+                         dest.group(1) if dest else default_addr,
+                         comment.group(1) if comment else "", detail))
+        if not rows:
+            continue
+        printed = True
+        refs = references.get(chain, 0)
+        suffix = f" ({refs} reference{'s' if refs != 1 else ''})" \
+            if nft_chain != "accounting" else ""
+        print(f"Chain {chain}{suffix}")
+        print(" pkts bytes target       prot opt in         out        "
+              "source               destination")
+        for packets, bytes_, target, incoming, outgoing, source, dest, \
+                comment, detail in rows:
+            note = f" /* {comment} */" if comment else ""
+            print(f"{_metric(packets):>5} {_metric(bytes_):>5} "
+                  f"{target:<12} all  --  {incoming:<10} {outgoing:<10} "
+                  f"{source:<20} {dest:<20}{note}{detail}")
+        print()
+    if not printed:
+        print("Accounting objects exist, but no live accounting rules were found.")
+    return 0
+
+
+def _metric(value):
+    """iptables-style compact packet/byte counter."""
+    units = ("", "K", "M", "G", "T", "P")
+    number = float(value)
+    unit = units[0]
+    for unit in units:
+        if number < 1000 or unit == units[-1]:
+            break
+        number /= 1000.0
+    if not unit:
+        return str(value)
+    return f"{number:.0f}{unit}" if number >= 10 else f"{number:.1f}{unit}"
+
+
+def _show_routing(family):
+    """Show live policy rules and every relevant route table."""
+    import socket
+    ip = _ip()
+    flag = "-6" if family == 6 else "-4"
+    product = "Shorewall6" if family == 6 else "Shorewall"
+    now = time.strftime("%a %d %b %Y %H:%M:%S %Z")
+    print(f"{product}-nft {__version__} Routing at {socket.gethostname()} "
+          f"- {now}\n")
+    print("Routing Rules\n")
+    rules = subprocess.run([ip, flag, "rule", "show"],
+                           capture_output=True, text=True)
+    if rules.stdout:
+        print(rules.stdout.rstrip())
+    if rules.returncode:
+        if rules.stderr:
+            print(rules.stderr, end="", file=sys.stderr)
+        return rules.returncode
+
+    # label -> kernel table selector. Provider names are the useful labels,
+    # while their numbers work even when /etc/iproute2/rt_tables lacks them.
+    tables = {"default": "253", "local": "255", "main": "254"}
+    number_labels = {"253": "default", "254": "main", "255": "local"}
+    try:
+        from .compile import load
+        cfg = load(_confdir(family), family)
+    except (ConfigError, OSError):
+        cfg = None
+    if cfg is not None:
+        for provider in cfg.providers:
+            tables[provider.name] = str(provider.number)
+            number_labels[str(provider.number)] = provider.name
+        if any(provider.balance for provider in cfg.providers):
+            tables["balance"] = "250"
+            number_labels["250"] = "balance"
+        for route in cfg.routes:
+            selector = str(route["table"])
+            label = number_labels.get(selector, selector)
+            tables.setdefault(label, selector)
+
+    # Include tables introduced outside Shorewall or by a stale/live rule.
+    for selector in re.findall(r"\b(?:lookup|table)\s+(\S+)", rules.stdout):
+        selector = selector.rstrip()
+        standard = {"local": "255", "main": "254", "default": "253",
+                    "balance": "250"}
+        query = standard.get(selector, selector)
+        label = number_labels.get(query, selector)
+        tables.setdefault(label, query)
+
+    for label in sorted(tables):
+        print(f"\nTable {label}:\n")
+        routes = subprocess.run(
+            [ip, flag, "route", "show", "table", tables[label]],
+            capture_output=True, text=True)
+        if routes.stdout:
+            print(routes.stdout.rstrip())
+        if routes.stderr:
+            print(routes.stderr.rstrip())
+        if not routes.stdout and not routes.stderr:
+            print("(empty)")
+    return 0
+
+
 def cmd_show(args, family):
     what = args[0] if args else "filter"
     if what in ("filter", "nat", "mangle", "raw", "rules"):
@@ -380,6 +650,10 @@ def cmd_show(args, family):
         return 0
     if what in ("providers", "provider"):
         return _show_providers(family)
+    if what == "accounting":
+        return _show_accounting(family)
+    if what == "routing":
+        return _show_routing(family)
     print(f"shorewall-nft: 'show {what}' is not implemented yet",
           file=sys.stderr)
     return 1
@@ -656,8 +930,7 @@ def cmd_migrate(args, family):
         except ConfigError as e:
             _fatal(f"configuration does not compile: {e}\n"
                    "Nothing changed. Resolve the above and run migrate again.")
-        nft = subprocess.run(["unshare", "-r", "-n", _nft(), "-c", "-f", path],
-                             capture_output=True, text=True)
+        nft = _check_ruleset(path, family)
         if nft.returncode != 0:
             print(nft.stderr, file=sys.stderr)
             _fatal("the generated ruleset was rejected by nft. Nothing "

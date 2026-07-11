@@ -1,4 +1,4 @@
-description = "An externally-filled ipset survives a cold stop and start, not just a reload. A knock daemon fills +knoc_ssh, the admin runs savesets, then stops and starts the firewall. The knocked-in entry must come back. Regression: on start the set snapshot was captured before the ruleset loaded, and a cold start (no live set) deleted the snapshot instead of keeping it, so the entry was lost across a stop or reboot. Ours-verified; nft sets are ours-specific runtime state."
+description = "An externally-filled ipset remains populated through stop and start, not just reload. A knock daemon fills +knoc_ssh, then stop snapshots and restores it into the stopped-state table automatically. The subsequent start must retain the entry without an explicit savesets command. Ours-verified; nft sets are ours-specific runtime state."
 family = 4
 mode = "script"
 no_upstream = true
@@ -34,13 +34,8 @@ proto = "tcp"
 port = 22
 expect = "allow"
 
-# Snapshot the live sets, as the admin does before a planned stop.
-[[events]]
-description = "savesets"
-run = "savesets"
-
-# Stop the firewall. The stop ruleset drops, so the set is gone from the
-# live table.
+# Stop the firewall. Its drop policy still blocks SSH, but the dynamic set
+# remains populated in the stopped-state table.
 [[events]]
 description = "stop"
 run = "stop"

@@ -932,6 +932,8 @@ def parse_conntrack(path, variables, interfaces):
 
 ACCT_RE = re.compile(r"^ACCOUNT\((?P<table>[\w.-]+),(?P<net>[^)]+)\)$")
 COUNT_RE = re.compile(r"^(?P<name>[\w.-]+):COUNT$")
+DONE_RE = re.compile(r"^DONE$")
+PLAIN_COUNT_RE = re.compile(r"^COUNT$")
 
 
 def parse_accounting(path, variables, interfaces):
@@ -941,13 +943,14 @@ def parse_accounting(path, variables, interfaces):
         cols = split_columns(line.text, line.path, line.lineno)
         m = ACCT_RE.match(cols[0])
         cm = COUNT_RE.match(cols[0])
-        if not m and not cm:
+        done = DONE_RE.match(cols[0])
+        count = PLAIN_COUNT_RE.match(cols[0])
+        if not m and not cm and not done and not count:
             raise line.error(f"unsupported accounting action {cols[0]}; "
-                             "ACCOUNT(table,net) and name:COUNT are "
-                             "supported")
+                             "ACCOUNT(table,net), name:COUNT, COUNT and "
+                             "DONE are supported")
         chain = cols[1] if len(cols) > 1 else "-"
-        if chain != "-":
-            raise line.error("accounting CHAIN column not supported yet")
+        chain = "accounting" if chain == "-" else chain
         source = cols[2] if len(cols) > 2 and cols[2] != "-" else ""
         dest = cols[3] if len(cols) > 3 and cols[3] != "-" else ""
         origin = f"{os.path.basename(line.path)}:{line.lineno}"
@@ -964,11 +967,22 @@ def parse_accounting(path, variables, interfaces):
             out.append(AcctRule(table=m.group("table"), net=m.group("net"),
                                 in_iface=s_iface or s_addr,
                                 out_iface=d_iface or d_addr,
-                                origin=origin))
-        else:
+                                origin=origin, chain=chain))
+        elif cm:
             out.append(AcctRule(table=cm.group("name"), net="",
                                 in_iface=s_iface, out_iface=d_iface,
-                                origin=origin, saddr=s_addr, daddr=d_addr))
+                                origin=origin, saddr=s_addr, daddr=d_addr,
+                                action="count-chain", chain=chain))
+        elif count:
+            out.append(AcctRule(table="", net="", in_iface=s_iface,
+                                out_iface=d_iface, origin=origin,
+                                saddr=s_addr, daddr=d_addr, action="count",
+                                chain=chain))
+        else:
+            out.append(AcctRule(table="", net="", in_iface=s_iface,
+                                out_iface=d_iface, origin=origin,
+                                saddr=s_addr, daddr=d_addr, action="done",
+                                chain=chain))
     return out
 
 

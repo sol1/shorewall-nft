@@ -606,7 +606,14 @@ case "$1" in
         ;;
     stop)
         run_stop
+        # Keep externally-filled sets live even in the stopped-state table.
+        # The stopped ruleset declares them empty; snapshot before replacing
+        # the table and restore their elements immediately afterwards.
+        save_dynamic_sets
         load_stop_ruleset || {{ echo "$0: stop ruleset load failed" >&2; exit 1; }}
+        for sf in "$STATE"/sets/*.nft; do
+            [ -e "$sf" ] && nft -f "$sf" 2>/dev/null || :
+        done
         clear_routing
         clear_tc
         clear_proxyarp
