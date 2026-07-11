@@ -193,6 +193,41 @@ def _match_addr(spec, side, ipkw, sets):
     return f"{ipkw} {side} {negate}{body}"
 
 
+def _match_addr_alts(spec, side, ipkw, sets):
+    """Return the match alternatives for one address column.
+
+    A column may hold plain addresses, +ipset references, ~MAC addresses
+    and ^geoip codes, mixed. nft can fold plain addresses into one
+    anonymous set and MACs into another, but a named set (@set) or a geoip
+    set cannot share an anonymous set with literals or with each other. So
+    a column that needs more than one nft match becomes several rules, one
+    per group, an OR. This is exactly how upstream fans a mixed column out
+    into one rule per element.
+
+    A column that is a single nft match stays a single alternative. A
+    negated column is an AND of exclusions, not an OR, so it also stays a
+    single alternative, but with one negated clause per group (upstream
+    builds an exclusion chain that returns on any of them).
+    """
+    negate = spec.startswith("!")
+    body = spec[1:] if negate else spec
+    parts = [p for p in body.split(",") if p]
+    addrs = [p for p in parts if p[0] not in "+^~"]
+    macs = [p for p in parts if p.startswith("~")]
+    setrefs = [p for p in parts if p.startswith("+")]
+    geoips = [p for p in parts if p.startswith("^")]
+    groups = ([",".join(addrs)] if addrs else []) \
+        + ([",".join(macs)] if macs else []) + setrefs + geoips
+    if len(groups) <= 1:
+        return [_match_addr(spec, side, ipkw, sets)]
+    if negate:
+        # An AND of exclusions, all in one rule: source is none of them.
+        return [" ".join(_match_addr("!" + g, side, ipkw, sets)
+                         for g in groups)]
+    # An OR, one rule per group.
+    return [_match_addr(g, side, ipkw, sets) for g in groups]
+
+
 _ADDR_OK = re.compile(r"^[0-9a-fA-F:.]+(/\d+)?(-[0-9a-fA-F:.]+)?$")
 
 
@@ -211,17 +246,23 @@ def _validate_addr(part):
 
 
 def _rule_match(rule, family=4, sets=None):
+    """Return the rule's match clauses as a list of alternatives, one nft
+    rule each. A rule with a mixed source or destination column fans out
+    into several (see _match_addr_alts); the common rule is a single
+    alternative. The list is never empty; a rule with no matches yields a
+    single empty string."""
     ipkw = "ip6" if family == 6 else "ip"
     sets = sets if sets is not None else set()
-    m = []
+    pre = []
     if rule.invalid:
-        m.append("ct state invalid")
-    if rule.saddr:
-        m.append(_match_addr(rule.saddr, "saddr", ipkw, sets))
-    if rule.daddr:
-        m.append(_match_addr(rule.daddr, "daddr", ipkw, sets))
+        pre.append("ct state invalid")
+    src_alts = (_match_addr_alts(rule.saddr, "saddr", ipkw, sets)
+                if rule.saddr else [None])
+    dst_alts = (_match_addr_alts(rule.daddr, "daddr", ipkw, sets)
+                if rule.daddr else [None])
+    post = []
     if rule.origdest:
-        m.append(f"ct original {ipkw} daddr {_addr_set(rule.origdest)}")
+        post.append(f"ct original {ipkw} daddr {_addr_set(rule.origdest)}")
     proto = rule.proto.lower()
     if proto in ("all", "any"):
         proto = ""
@@ -229,35 +270,38 @@ def _rule_match(rule, family=4, sets=None):
         proto = "ipv6-icmp"
     if "," in proto:
         protos = "{ " + ", ".join(proto.split(",")) + " }"
-        m.append(f"meta l4proto {protos}")
+        post.append(f"meta l4proto {protos}")
         if rule.sport:
-            m.append(f"th sport {_ports(rule.sport)}")
+            post.append(f"th sport {_ports(rule.sport)}")
         if rule.dport:
-            m.append(f"th dport {_ports(rule.dport)}")
-        return " ".join(m + _extra_matches(rule))
-    if proto in ("tcp", "udp"):
+            post.append(f"th dport {_ports(rule.dport)}")
+    elif proto in ("tcp", "udp"):
         if rule.sport:
-            m.append(f"{proto} sport {_ports(rule.sport)}")
+            post.append(f"{proto} sport {_ports(rule.sport)}")
         if rule.dport:
-            m.append(f"{proto} dport {_ports(rule.dport)}")
+            post.append(f"{proto} dport {_ports(rule.dport)}")
         elif not rule.sport:
-            m.append(f"meta l4proto {proto}")
+            post.append(f"meta l4proto {proto}")
     elif proto == "icmp":
         if rule.dport:
             icmp_type = ICMP_TYPES.get(rule.dport.lower(), rule.dport)
-            m.append(f"icmp type {icmp_type}")
+            post.append(f"icmp type {icmp_type}")
         else:
-            m.append("meta l4proto icmp")
+            post.append("meta l4proto icmp")
     elif proto in ICMP6_PROTOS:
         if rule.dport:
-            m.append(f"icmpv6 type {rule.dport.lower()}")
+            post.append(f"icmpv6 type {rule.dport.lower()}")
         else:
-            m.append("meta l4proto ipv6-icmp")
+            post.append("meta l4proto ipv6-icmp")
     elif proto:
-        m.append(f"meta l4proto {proto}")
-    for extra in _extra_matches(rule):
-        m.append(extra)
-    return " ".join(m)
+        post.append(f"meta l4proto {proto}")
+    post += _extra_matches(rule)
+    lines = []
+    for sa in src_alts:
+        for da in dst_alts:
+            addr = [a for a in (sa, da) if a]
+            lines.append(" ".join(pre + addr + post))
+    return lines
 
 
 _RATE_RE = re.compile(r"^(\d+)/(sec|second|min|minute|hour|day)(?::(\d+))?$")
@@ -859,15 +903,22 @@ class Emitter:
                 self.out(line, 2)
 
     def _rule_line(self, chain, rule, state=""):
-        match = _rule_match(rule, self.cfg.family, self.sets)
-        if state:
-            match = f"ct state {state} {match}".strip()
+        # A mixed source or destination column fans out into several rules,
+        # one per match alternative, all sharing this rule's verdict.
         comment = f' comment "{rule.origin}"' if rule.origin else ""
+        matches = _rule_match(rule, self.cfg.family, self.sets)
+
+        def with_state(match):
+            return f"ct state {state} {match}".strip() if state else match
+
         # A bare INLINE rule: the inline part is the whole body, matches
-        # and verdict, spliced in verbatim after any zone matches. The
-        # nft -c -f dry-run at load rejects a malformed body loudly.
+        # and verdict, spliced in verbatim after any zone matches. It has
+        # no parsed verdict. The nft -c -f dry-run at load rejects a
+        # malformed body loudly.
         if rule.inline_full:
-            self.out(f"{match} {rule.inline}{comment}".strip(), 2)
+            for match in matches:
+                self.out(f"{with_state(match)} {rule.inline}{comment}"
+                         .strip(), 2)
             return
         log = ""
         if rule.loglevel:
@@ -880,7 +931,9 @@ class Emitter:
         # Inline passthrough matches sit after the parsed matches and
         # before the verdict.
         extra = f"{rule.inline} " if rule.inline else ""
-        self.out(f"{match} {extra}{log}{verdict}{comment}".strip(), 2)
+        for match in matches:
+            self.out(f"{with_state(match)} {extra}{log}{verdict}{comment}"
+                     .strip(), 2)
 
     def _pair_chain(self, z1, z2):
         chain = f"{z1}2{z2}"
@@ -1287,11 +1340,8 @@ class Emitter:
         # blacklist only affects new connections, as upstream does.
         self.out("ct state established,related return", 2)
         for r in self.cfg.blrules:
-            m = self._zone_iface_match(r.source, "iifname")
-            m += self._zone_iface_match(r.dest, "oifname")
-            base = _rule_match(r, self.cfg.family, self.sets)
-            if base:
-                m.append(base)
+            zone = self._zone_iface_match(r.source, "iifname")
+            zone += self._zone_iface_match(r.dest, "oifname")
             action = r.action
             if action == "BLACKLIST":
                 action = disp
@@ -1300,7 +1350,10 @@ class Emitter:
                        "A_DROP": "drop", "REJECT": "jump reject_action",
                        "A_REJECT": "jump reject_action"}[action]
             comment = f' comment "{r.origin}"' if r.origin else ""
-            self.out(" ".join(m + [verdict]).strip() + comment, 2)
+            # A mixed column fans the rule out into several alternatives.
+            for base in _rule_match(r, self.cfg.family, self.sets):
+                m = zone + ([base] if base else [])
+                self.out(" ".join(m + [verdict]).strip() + comment, 2)
         self.out("}", 1)
 
     def _zone_iface_match(self, zone, key):

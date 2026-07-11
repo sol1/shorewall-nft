@@ -1,0 +1,67 @@
+description = "A source column that mixes an address list with an external set: ACCEPT net:10.0.1.0/24,+knoc_ssh. Upstream Shorewall fans a mixed column out into one rule per element, an OR. This checks the same: a source in the address list is accepted, a source in neither the list nor the set is dropped, and once the set is filled that source is accepted too. Ours-verified; the set is ours-specific runtime state upstream's ipset path does not mirror."
+family = 4
+mode = "script"
+no_upstream = true
+
+# Two clients in the net zone. client_a is inside 10.0.1.0/24 (the address
+# arm of the mixed column); client_b is not, so only the set arm can let
+# it in.
+[[links]]
+node_a = "client_a"
+dev_a = "c0"
+addr_a = "10.0.1.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.1.1/24"
+
+[[links]]
+node_a = "client_b"
+dev_a = "c1"
+addr_a = "172.16.9.2/24"
+node_b = "fw"
+dev_b = "eth1"
+addr_b = "172.16.9.1/24"
+
+# The address arm: client_a is in 10.0.1.0/24, so it is accepted even
+# though a set also sits in the column. This is the case the compiler used
+# to reject outright.
+[[probes]]
+id = "address-arm-accepts"
+from = "client_a"
+to = "fw"
+addr = "10.0.1.1"
+proto = "tcp"
+port = 22
+expect = "allow"
+
+# client_b is in neither the list nor the (empty) set: dropped.
+[[probes]]
+id = "neither-arm-drops"
+from = "client_b"
+to = "fw"
+addr = "172.16.9.1"
+proto = "tcp"
+port = 22
+expect = "drop"
+
+# Fill the set with client_b. The set arm now lets it in, with the address
+# arm unchanged.
+[[events]]
+description = "add client_b to the set"
+exec = "nft add element ip shorewall knoc_ssh { 172.16.9.2 }"
+[[events.probes]]
+id = "set-arm-accepts"
+from = "client_b"
+to = "fw"
+addr = "172.16.9.1"
+proto = "tcp"
+port = 22
+expect = "allow"
+[[events.probes]]
+id = "address-arm-still-accepts"
+from = "client_a"
+to = "fw"
+addr = "10.0.1.1"
+proto = "tcp"
+port = 22
+expect = "allow"

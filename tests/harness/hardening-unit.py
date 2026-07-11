@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                 "..", "..", "src"))
 from shorewall_nft import ipsets, lsm  # noqa: E402
 from shorewall_nft.compile import load  # noqa: E402
-from shorewall_nft.emit import render  # noqa: E402
+from shorewall_nft.emit import render, _match_addr_alts  # noqa: E402
 from shorewall_nft.errors import ConfigError  # noqa: E402
 from shorewall_nft.lsm import Monitor, MonitorCfg, parse_lsm  # noqa: E402
 from shorewall_nft.parsers import parse_providers  # noqa: E402
@@ -117,5 +117,20 @@ i = text.find("set knoc_ssh {")
 decl = text[i:i + 200] if i >= 0 else ""
 (ok if "flags interval" in decl and "auto-merge" in decl
  else bad)("emit: external set is an interval set with auto-merge")
+
+# --- a mixed address column fans out into one match per group ---
+alts = _match_addr_alts("1.2.3.4,192.168.1.0/24,+knoc", "saddr", "ip", set())
+(ok if alts == ["ip saddr { 1.2.3.4, 192.168.1.0/24 }", "ip saddr @knoc"]
+ else bad)("emit: address list plus a set fans out to two matches")
+alts = _match_addr_alts("+a,+b", "saddr", "ip", set())
+(ok if alts == ["ip saddr @a", "ip saddr @b"]
+ else bad)("emit: two sets fan out to two matches")
+alts = _match_addr_alts("1.2.3.4,10.0.0.0/8", "saddr", "ip", set())
+(ok if alts == ["ip saddr { 1.2.3.4, 10.0.0.0/8 }"]
+ else bad)("emit: a plain address list stays one match")
+# A negated mixed column is an AND of exclusions, kept in one rule.
+alts = _match_addr_alts("!1.2.3.4,+knoc", "saddr", "ip", set())
+(ok if alts == ["ip saddr != 1.2.3.4 ip saddr != @knoc"]
+ else bad)("emit: a negated mixed column excludes both in one match")
 
 sys.exit(1 if fails else 0)
