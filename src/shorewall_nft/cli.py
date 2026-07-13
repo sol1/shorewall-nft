@@ -454,7 +454,22 @@ def _show_accounting(family):
     product = "Shorewall6" if family == 6 else "Shorewall"
     now = time.strftime("%a %d %b %Y %H:%M:%S %Z")
     print(f"{product}-nft {__version__} Accounting at {socket.gethostname()} "
-          f"- {now}\n")
+          f"- {now}")
+    # The counters are zeroed whenever the ruleset is loaded, since start,
+    # reload and restart recreate the table. That is exactly when the state
+    # file was last written, so its mtime is the last clear. Report how long
+    # the counters have been accumulating.
+    try:
+        cleared = os.path.getmtime(os.path.join(_vardir(family), "state"))
+    except OSError:
+        cleared = None
+    if cleared is not None:
+        import datetime
+        stamp = time.strftime("%a %d %b %Y %H:%M:%S %Z",
+                              time.localtime(cleared))
+        ago = datetime.timedelta(seconds=int(time.time() - cleared))
+        print(f"Counters cleared {stamp} ({ago} ago)")
+    print()
 
     named = {}
     for obj in objects:
