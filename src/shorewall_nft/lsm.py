@@ -255,12 +255,25 @@ def build_monitors(confdir, family, probe=probe_once):
 
 
 def run(monitors, apply, status_dir=None, once=False,
-        sleep=time.sleep, clock=time.time):
+        sleep=time.sleep, clock=time.time, log=None):
     """The monitor loop. apply(name, state) drives the seam on a
-    transition. Injected sleep/clock/probe keep it testable."""
+    transition. It logs a startup line, every state change (through
+    apply), and a periodic heartbeat of each provider's state, latency and
+    loss, so the journal shows the monitor is alive even when nothing
+    changes. Injected sleep/clock/log keep it testable."""
     if not monitors:
         return
+    if log is None:
+        def log(msg):
+            print(msg, flush=True)
     interval = min(m.cfg.interval for m in monitors)
+    names = ", ".join(m.cfg.name for m in monitors)
+    log(f"lsm: monitoring {names}; probe interval {interval}s")
+    # Summarise at least once a minute, and never faster than the probe
+    # interval, so a long stable stretch still shows regular proof of life
+    # without flooding the journal on a fast interval.
+    heartbeat = max(60, interval)
+    last_beat = None
     while True:
         for m in monitors:
             change = m.check()
@@ -268,6 +281,12 @@ def run(monitors, apply, status_dir=None, once=False,
                 write_status(status_dir, m, clock())
             if change:
                 apply(m.cfg.name, change)
+        now = clock()
+        if last_beat is None or now - last_beat >= heartbeat:
+            for m in monitors:
+                rtt = f"{m.rtt:.1f}ms" if m.rtt is not None else "-"
+                log(f"lsm: {m.cfg.name} {m.state} rtt={rtt} loss={m.loss}%")
+            last_beat = now
         if once:
             return
         sleep(interval)

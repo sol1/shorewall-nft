@@ -101,7 +101,10 @@ Run it in the foreground for a look, or as the service:
 
 The service is shipped disabled. It writes each provider's state under
 `${STATE}/lsm`, which `shorewall status` and `shorewall show providers`
-report.
+report. It also logs to the journal: a line naming the providers it
+monitors at startup, a heartbeat of each provider's state, latency and
+loss at least once a minute, and every up or down transition. Follow it
+with `journalctl -u shorewall-lsm -f`.
 
 ## A worked example
 

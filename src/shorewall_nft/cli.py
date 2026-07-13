@@ -1204,6 +1204,13 @@ def cmd_lsm(args, family):
     accumulates across separate invocations."""
     from . import lsm
     once = "--once" in args
+    # systemd captures stdout as a pipe, where Python block-buffers by
+    # default, so log lines would sit unseen in the journal for a long
+    # time. Line-buffer so each line is flushed as it is written.
+    try:
+        sys.stdout.reconfigure(line_buffering=True)
+    except (AttributeError, ValueError):
+        pass
     script = _script_path(_vardir(family))
     if not os.path.exists(script):
         _fatal("no running firewall; run 'shorewall start' first")

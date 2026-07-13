@@ -7,7 +7,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                 "..", "..", "src"))
-from shorewall_nft.lsm import Monitor, MonitorCfg, parse_lsm  # noqa: E402
+from shorewall_nft.lsm import Monitor, MonitorCfg, parse_lsm, run  # noqa: E402
 
 fails = 0
 
@@ -87,5 +87,15 @@ os.unlink(path)
  else bad)("parse: gateway and interface defaults")
 (ok if mons["lte"].targets == ["1.1.1.1", "8.8.8.8"] and mons["lte"].metered
  else bad)("parse: explicit targets and metered flag")
+
+# 7. run() logs a startup line and a per-provider heartbeat even when no
+# state changes, so the journal shows the monitor is alive.
+logs = []
+hb = Monitor(cfg(name="isp1", targets=["a"]), probe=lambda *a: (True, 5.0, 0))
+run([hb], apply=lambda name, state: None, once=True, clock=lambda: 0.0,
+    log=logs.append)
+(ok if any("monitoring isp1" in m for m in logs)
+ and any("isp1 up" in m for m in logs)
+ else bad)("run: logs a startup line and a heartbeat")
 
 sys.exit(1 if fails else 0)
