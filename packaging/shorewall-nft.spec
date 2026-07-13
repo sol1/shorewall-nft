@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.0.8
+Version:        0.0.9
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -77,6 +77,11 @@ DESTDIR=%{buildroot} packaging/install.sh packaging/shorewallrc.redhat
 %systemd_postun shorewall-geoip-update.timer
 
 %changelog
+* Mon Jul 13 2026 Dave Kempe <dave@sol1.com.au> - 0.0.9-1
+- show accounting reports the time since the counters were last cleared.
+- The link monitor logs a startup line and a periodic heartbeat to the
+  journal, and line-buffers its output so logs appear promptly.
+
 * Mon Jul 13 2026 Dave Kempe <dave@sol1.com.au> - 0.0.8-1
 - The multi-ISP routing seam is family-aware. shorewall6 emitted ip -4
   commands for IPv6 providers, erroring on the v6 gateway and clobbering

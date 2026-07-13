@@ -1,3 +1,17 @@
+shorewall-nft (0.0.9) unstable; urgency=medium
+
+  * shorewall show accounting reports when the counters were last cleared
+    and how long they have been accumulating. The counters are zeroed
+    whenever the ruleset is loaded, which is the state file's mtime.
+  * The link monitor logs to the journal: a startup line naming the
+    monitored providers, a per-provider heartbeat (state, latency, loss)
+    at least once a minute, and every up or down transition. It also
+    line-buffers its output, so the logs reach the journal promptly
+    instead of sitting in a block buffer. Follow it with
+    `journalctl -u shorewall-lsm -f`.
+
+ -- Dave Kempe <dave@sol1.com.au>  Mon, 13 Jul 2026 00:00:02 +0000
+
 shorewall-nft (0.0.8) unstable; urgency=medium
 
   * The multi-ISP routing seam is now family-aware. shorewall6 emitted
