@@ -1,3 +1,17 @@
+shorewall-nft (0.0.8) unstable; urgency=medium
+
+  * The multi-ISP routing seam is now family-aware. shorewall6 emitted
+    `ip -4` commands for IPv6 providers, which errored on the IPv6 gateway
+    ("inet prefix is expected") and, because routing tables are per-family
+    but share numbers, flushed and could not rebuild the identically
+    numbered IPv4 provider and balance tables. A shorewall6 start or reload
+    therefore tore down a working IPv4 multi-ISP setup, sending traffic out
+    the wrong provider. The seam now uses `ip -6`, `::/0` and IPv6 gateway
+    detection for shorewall6, and saves the IPv6 default route on start.
+    IPv4 output is unchanged.
+
+ -- Dave Kempe <dave@sol1.com.au>  Mon, 13 Jul 2026 00:00:01 +0000
+
 shorewall-nft (0.0.7) unstable; urgency=medium
 
   * Build the .deb with gzip compression, not the builder's default zstd.

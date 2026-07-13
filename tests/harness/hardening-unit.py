@@ -17,6 +17,7 @@ from shorewall_nft.emit import render, render_stop, _match_addr_alts  # noqa: E4
 from shorewall_nft.errors import ConfigError  # noqa: E402
 from shorewall_nft.lsm import Monitor, MonitorCfg, parse_lsm  # noqa: E402
 from shorewall_nft.parsers import parse_providers  # noqa: E402
+from shorewall_nft.script import render_script  # noqa: E402
 
 REPO = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..")
 fails = 0
@@ -158,6 +159,31 @@ try:
      else bad)("emit: accounting DONE emits counter return")
 finally:
     shutil.rmtree(acct_conf)
+
+# --- the routing seam is family-aware: shorewall6 emits ip -6, not ip -4 ---
+# A shorewall6 provider gateway is IPv6, and its routing tables are the v6
+# tables. Emitting ip -4 there both errors on the v6 gateway and clobbers
+# the identically numbered IPv4 tables.
+prov_conf = tempfile.mkdtemp(prefix="shorewall-nft-v6prov-")
+try:
+    shutil.copytree(os.path.join(REPO,
+                                 "tests/corpus/0010-v6-two-interfaces/config"),
+                    prov_conf, dirs_exist_ok=True)
+    with open(os.path.join(prov_conf, "providers"), "w") as f:
+        f.write("isp1 1 1 - NET_IF 2001:db8:1::1 track,balance=1\n")
+        f.write("isp2 2 2 - LOC_IF 2001:db8:2::1 track,balance=1\n")
+    with open(os.path.join(prov_conf, "rtrules"), "w") as f:
+        f.write("LOC_IF - isp1 20510 -\n")
+        f.write("LOC_IF - isp2 21510 -\n")
+    cfg = load(prov_conf, 6)
+    wrapper = render_script(cfg, render(cfg), render_stop(cfg))
+    (ok if "ip -4" not in wrapper
+         and "ip -6 route replace default via 2001:db8:1::1" in wrapper
+     else bad)("script: shorewall6 routing seam uses ip -6, not ip -4")
+    (ok if "::/0" in wrapper and "0.0.0.0/0" not in wrapper
+     else bad)("script: shorewall6 routing seam uses the IPv6 any-address")
+finally:
+    shutil.rmtree(prov_conf)
 
 # --- a mixed address column fans out into one match per group ---
 alts = _match_addr_alts("1.2.3.4,192.168.1.0/24,+knoc", "saddr", "ip", set())
