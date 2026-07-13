@@ -1,0 +1,32 @@
+#!/bin/sh
+# Snapshot the live firewall before the distro shorewall packages are
+# removed to make way for us. Their prerm stops shorewall.service, whose
+# ExecStop is `shorewall clear`, which removes every rule and sets the
+# policies to ACCEPT. Our install is inert, so without this the box would
+# sit wide open until `shorewall migrate`. postinst restores the snapshot.
+#
+# This only helps if dpkg runs this preinst before that prerm. If it does
+# not, the snapshot is empty and postinst says so loudly rather than
+# leaving the box silently unprotected.
+set -e
+
+STASH=/var/lib/shorewall-nft/preswap
+mkdir -p "$STASH"
+
+snap() {   # $1 = save command, $2 = stash file
+    command -v "$1" >/dev/null 2>&1 || return 0
+    if "$1" > "$STASH/$2.new" 2>/dev/null && grep -q '^-A ' "$STASH/$2.new"; then
+        mv "$STASH/$2.new" "$STASH/$2"
+    else
+        # No real rules to save (empty ruleset, or our own nft firewall,
+        # whose rules do not appear in the iptables tables). Leave no stale
+        # snapshot behind.
+        rm -f "$STASH/$2.new" "$STASH/$2"
+    fi
+}
+
+snap iptables-save v4
+snap ip6tables-save v6
+
+#DEBHELPER#
+exit 0

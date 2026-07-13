@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.0.6
+Version:        0.0.7
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -77,6 +77,15 @@ DESTDIR=%{buildroot} packaging/install.sh packaging/shorewallrc.redhat
 %systemd_postun shorewall-geoip-update.timer
 
 %changelog
+* Mon Jul 13 2026 Dave Kempe <dave@sol1.com.au> - 0.0.7-1
+- shorewall show routing and show accounting; accounting CHAIN column,
+  COUNT, DONE and named accounting chains with per-direction counters;
+  externally filled sets preserved across stop; chunked kernel validation
+  fallback for check and migrate on large rulesets (Lindsay Harvey).
+- Debian-only packaging fixes (no RPM effect): gzip .deb compression for
+  Debian 11, and preserve the running firewall across the package swap
+  where the distro Shorewall clears every rule on removal.
+
 * Sat Jul 11 2026 Dave Kempe <dave@sol1.com.au> - 0.0.6-1
 - A source or destination column may again mix an address list with an
   ipset, MAC or geoip reference. Upstream fans a mixed column out into one

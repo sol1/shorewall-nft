@@ -137,6 +137,28 @@ try:
 finally:
     shutil.rmtree(tmp_conf)
 
+# --- accounting: ACCOUNT sets, named chains, COUNT and DONE ---
+acct_conf = tempfile.mkdtemp(prefix="shorewall-nft-acct-")
+try:
+    shutil.copytree(os.path.join(REPO, "tests/corpus/0002-one-interface/config"),
+                    acct_conf, dirs_exist_ok=True)
+    with open(os.path.join(acct_conf, "accounting"), "w") as f:
+        f.write("ACCOUNT(webtraffic,0.0.0.0/0)\t-\t-\teth0\n")
+        f.write("web:COUNT\t-\t-\t-\n")
+        f.write("COUNT\tweb\teth0\t-\n")
+        f.write("DONE\tweb\t-\t-\n")
+    text = render(load(acct_conf, 4))
+    (ok if "set acct_webtraffic_0 {" in text
+         and "counter update @acct_webtraffic_0" in text
+     else bad)("emit: ACCOUNT builds a per-address counter set")
+    (ok if "chain acct_chain_web {" in text
+         and "counter jump acct_chain_web" in text
+     else bad)("emit: name:COUNT builds a named accounting chain with a jump")
+    (ok if "counter return" in text
+     else bad)("emit: accounting DONE emits counter return")
+finally:
+    shutil.rmtree(acct_conf)
+
 # --- a mixed address column fans out into one match per group ---
 alts = _match_addr_alts("1.2.3.4,192.168.1.0/24,+knoc", "saddr", "ip", set())
 (ok if alts == ["ip saddr { 1.2.3.4, 192.168.1.0/24 }", "ip saddr @knoc"]

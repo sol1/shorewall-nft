@@ -1,20 +1,33 @@
-shorewall-nft (0.0.6+local1) UNRELEASED; urgency=medium
+shorewall-nft (0.0.7) unstable; urgency=medium
 
-  * Preserve Shorewall-referenced externally populated nft sets across
-    `shorewall stop`: snapshot them, declare them in the stopped-state table,
-    and restore their elements immediately after the table replacement.
-    Stop now atomically refreshes its generated wrapper first, preventing an
-    artifact left by an older package from retaining destructive stop logic.
-  * Implement `shorewall show routing` and `shorewall6 show routing` with
-    live policy rules and standard, provider, balance, and additional route
-    tables in Shorewall-style output.
+  * Build the .deb with gzip compression, not the builder's default zstd.
+    Debian 11 and other older releases ship a dpkg that cannot read a
+    zstd-compressed .deb and fail the install with "unknown compression
+    for member 'control.tar.zst'".
+  * On Debian 11, preserve the running firewall across the package swap.
+    The distro Shorewall 5.2.3.4 clears every rule when its package is
+    removed (its service ExecStop is `shorewall clear`), which our install
+    triggers, so the box would be left wide open until `shorewall migrate`.
+    preinst snapshots the live ruleset and postinst restores it, or warns
+    if it could not. Debian 12 and later dropped the clear-on-remove, so
+    this is a no-op there.
+  * Preserve externally populated nft sets across `shorewall stop` too, not
+    just reload and start: the stopped-state table declares them and their
+    elements are snapshotted and restored around the table replacement.
+    stop now recompiles a fresh wrapper first, so an older generated
+    artifact cannot retain destructive stop logic. (Lindsay Harvey)
+  * Implement `shorewall show routing` and `shorewall6 show routing`, with
+    the live policy rules and the standard, provider, balance and
+    additional route tables in Shorewall-style output. (Lindsay Harvey)
   * Implement `shorewall show accounting` for live named counters,
-    per-address counter sets, and accounting chains.
+    per-address counter sets and accounting chains. (Lindsay Harvey)
+  * Accounting supports the CHAIN column, plain COUNT and DONE, and named
+    accounting chains with per-direction counters. (Lindsay Harvey)
   * Fall back to chunked kernel validation when `shorewall check` or
     `shorewall migrate` hits the netlink transaction-size limit on a large
-    generated ruleset.
+    generated ruleset. (Lindsay Harvey)
 
- -- Lindsay Harvey <lindsay@harvey.id.au>  Sat, 11 Jul 2026 00:00:01 +0000
+ -- Dave Kempe <dave@sol1.com.au>  Mon, 13 Jul 2026 00:00:00 +0000
 
 shorewall-nft (0.0.6) unstable; urgency=medium
 

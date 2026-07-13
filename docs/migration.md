@@ -35,6 +35,15 @@ does not touch /etc/shorewall.
 Your old Shorewall package is replaced. Your /etc/shorewall is left
 exactly as it was.
 
+On Debian 11 the old Shorewall package clears the firewall when it is
+removed, which is what the install does to it, so on its own that would
+leave the box with no rules. shorewall-nft snapshots the live ruleset
+before the removal and restores it after, so the box stays protected on
+its existing rules until you hand over. If it cannot preserve them the
+install prints a warning; run `shorewall migrate` at once in that case.
+Debian 12 and later do not clear on removal, so this does not apply
+there.
+
 ## Hand over
 
 When you are ready:

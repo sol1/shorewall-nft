@@ -1,0 +1,41 @@
+#!/bin/sh
+# Restore the firewall snapshot that preinst took, if the distro
+# shorewall removal cleared the live ruleset. This keeps the box
+# protected on its existing rules until `shorewall migrate` performs the
+# real iptables-to-nftables handover. We restore only when the live
+# ruleset is empty, so we never disturb a firewall that is actually up.
+set -e
+
+STASH=/var/lib/shorewall-nft/preswap
+
+has_rules() {   # $1 = save command
+    command -v "$1" >/dev/null 2>&1 && "$1" 2>/dev/null | grep -q '^-A '
+}
+
+restore() {   # $1 = restore cmd, $2 = save cmd, $3 = stash file, $4 = label
+    f="$STASH/$3"
+    [ -s "$f" ] || return 0
+    command -v "$1" >/dev/null 2>&1 || return 0
+    has_rules "$2" && return 0     # something is already loaded; leave it
+    if "$1" < "$f" 2>/dev/null; then
+        echo "shorewall-nft: restored the $4 ruleset the shorewall removal" \
+             "cleared. It holds until you run 'shorewall migrate'."
+    fi
+}
+
+if [ "$1" = "configure" ]; then
+    restore iptables-restore iptables-save v4 IPv4
+    restore ip6tables-restore ip6tables-save v6 IPv6
+    # If the firewall is still empty and we had nothing to restore, the box
+    # is unprotected. Say so; do not leave it silent.
+    if [ -d /etc/shorewall ] && ! has_rules iptables-save \
+       && [ ! -s "$STASH/v4" ]; then
+        echo "shorewall-nft: WARNING: no firewall rules are loaded. The" \
+             "previous firewall was cleared and could not be preserved." \
+             "Run 'shorewall migrate' now to protect this box." >&2
+    fi
+    rm -f "$STASH/v4" "$STASH/v6"
+fi
+
+#DEBHELPER#
+exit 0
