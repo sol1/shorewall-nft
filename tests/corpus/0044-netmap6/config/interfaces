@@ -1,0 +1,5 @@
+?FORMAT 2
+net HE_IF physical=eth0
+loc LOC_IF physical=eth1
+net tpg
+net superloop

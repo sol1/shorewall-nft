@@ -1,0 +1,10 @@
+#TYPE   NET1                                           INTERFACE NET2
+SNAT:T  fd00:470:b:227::/64                            HE_IF     2001:470:b:227::/64
+DNAT:P  2001:470:b:227::/64!2001:470:b:227::/112,2001:470:b:227:1::/112\
+                                                        HE_IF     fd00:470:b:227::/64
+
+# Same internal prefix may map differently when the interface differs.
+SNAT:T  fd00:1330:44::/48       tpg        2405:800:1000::/48
+DNAT:P  2405:800:1000::/48      tpg        fd00:1330:44::/48
+SNAT:T  fd00:1330:44::/48       superloop   2403:f000:2000::/48
+DNAT:P  2403:f000:2000::/48     superloop   fd00:1330:44::/48

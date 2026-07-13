@@ -230,7 +230,7 @@ def load(confdir, family=4):
             _path(confdir, "mangle"), variables, cfg.interfaces, family)
     if os.path.exists(_path(confdir, "netmap")):
         cfg.netmap = parsers.parse_netmap(
-            _path(confdir, "netmap"), variables, cfg.interfaces)
+            _path(confdir, "netmap"), variables, cfg.interfaces, family)
     if os.path.exists(_path(confdir, "blrules")):
         cfg.blrules = parsers.parse_blrules(
             _path(confdir, "blrules"), variables, cfg.fw_zone, family)

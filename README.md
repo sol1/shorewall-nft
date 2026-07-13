@@ -97,7 +97,8 @@ exposed.
     tests/           Test corpus and harness.
 
 Key docs: docs/verifying.md (reproduce the tests), docs/internals.md (how the
-ruleset is generated), docs/coverage.md (what is supported), CONTRIBUTING.md.
+ruleset is generated), docs/coverage.md (what is supported), docs/netmap.md
+(legacy NETMAP compatibility), CONTRIBUTING.md.
 
 ## Install
 

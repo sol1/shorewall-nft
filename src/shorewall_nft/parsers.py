@@ -1,12 +1,14 @@
 """Parsers for the config files the MVP supports: zones, interfaces,
 policy, rules, snat. Anything not understood raises ConfigError."""
+import ipaddress
 import os
 import re
+import socket
 
 from . import macros
 from .errors import ConfigError
 from .model import (AcctRule, DnatRule, HelperRule, Interface, MangleRule,
-                    NatRule, Policy, Provider, RtRule, Rule, SnatRule,
+                    NatRule, NetmapRule, Policy, Provider, RtRule, Rule, SnatRule,
                     StopRule, TcClass, TcDevice, TcInterface, TcPri, Zone,
                     ZoneHost)
 from .reader import read_file, split_columns, split_inline
@@ -558,22 +560,266 @@ def parse_nat(path, variables, interfaces):
     return out
 
 
-def parse_netmap(path, variables, interfaces):
-    """The netmap file: one to one network mapping. TYPE NET1
-    INTERFACE NET2. DNAT rewrites destinations arriving on the
-    interface, SNAT rewrites sources leaving it."""
-    logical = {i.logical: i.physical for i in interfaces}
+_NETMAP_TYPES = {"SNAT", "DNAT", "SNAT:P", "SNAT:T", "DNAT:P", "DNAT:T"}
+
+
+def _netmap_network(spec, family, line, column, allow_zero=False,
+                    require_cidr=True):
+    if require_cidr and "/" not in spec:
+        raise line.error(f"{column} requires CIDR notation: {spec}")
+    try:
+        net = ipaddress.ip_network(spec, strict=True)
+    except ValueError as e:
+        raise line.error(f"invalid {column} prefix {spec}: {e}") from None
+    if net.version != family:
+        raise line.error(f"{column} is IPv{net.version}, but this is an "
+                         f"IPv{family} configuration")
+    if net.prefixlen == 0 and not allow_zero:
+        raise line.error(f"{column} /0 prefix is not supported")
+    return net
+
+
+def _netmap_net1(spec, family, line):
+    primary, bang, excluded = spec.partition("!")
+    if not primary or "," in primary or (bang and not excluded) or "!" in excluded:
+        raise line.error(f"invalid NET1 exclusion syntax: {spec}")
+    net = _netmap_network(primary, family, line, "NET1")
+    exclusions = []
+    if bang:
+        for item in excluded.split(","):
+            ex = _netmap_network(item, family, line, "NET1 exclusion",
+                                 allow_zero=True)
+            if not ex.subnet_of(net):
+                raise line.error(f"NET1 exclusion {ex} is outside {net}")
+            exclusions.append(ex)
+    return net, tuple(exclusions)
+
+
+def _netmap_net3(spec, family, line):
+    if not spec:
+        return (), ()
+    primary, bang, excluded = spec.partition("!")
+    if "!" in excluded or (bang and not excluded):
+        raise line.error(f"invalid NET3 exclusion syntax: {spec}")
+    positives = []
+    exclusions = []
+    # A leading ! is Shorewall's "all except this list" form.
+    if not primary and bang:
+        excluded = excluded
+    else:
+        for item in primary.split(","):
+            positives.append(_netmap_network(item, family, line, "NET3",
+                                             allow_zero=True,
+                                             require_cidr=False))
+    if bang:
+        for item in excluded.split(","):
+            ex = _netmap_network(item, family, line, "NET3 exclusion",
+                                 allow_zero=True, require_cidr=False)
+            if positives and not any(ex.subnet_of(net) for net in positives):
+                raise line.error(f"NET3 exclusion {ex} is outside its "
+                                 "qualifying network")
+            exclusions.append(ex)
+    return tuple(positives), tuple(exclusions)
+
+
+def _resolve_netmap_interface(spec, interfaces, line):
+    for iface in interfaces:
+        if spec == iface.logical or spec == iface.physical:
+            return iface.physical
+    # Shorewall permits a concrete reference to loosely match a declared
+    # physical wildcard, e.g. ppp0 against ppp+.
+    for iface in interfaces:
+        if iface.physical.endswith("+") \
+                and spec.startswith(iface.physical[:-1]) \
+                and not spec.endswith("+"):
+            return spec
+    raise line.error(f"netmap interface {spec} is not defined in interfaces")
+
+
+def _canonical_netmap_protocol(proto, family):
+    negate = proto.startswith("!")
+    body = proto[1:] if negate else proto
+    result = []
+    for p in body.lower().split(","):
+        p = {"6": "tcp", "17": "udp", "132": "sctp", "136": "udplite",
+             "58": "ipv6-icmp", "icmpv6": "ipv6-icmp"}.get(p, p)
+        result.append("ipv6-icmp" if family == 6 and p == "icmp" else p)
+    return ("!" if negate else "") + ",".join(result)
+
+
+def _validate_netmap_protocol(proto, dport, sport, family, line):
+    if not proto:
+        if dport or sport:
+            raise line.error("NETMAP DPORT or SPORT requires PROTO")
+        return
+    p = proto.lower()
+    negate = p.startswith("!")
+    items = (p[1:] if negate else p).split(",")
+    if any(not item for item in items):
+        raise line.error(f"invalid NETMAP protocol list {proto}")
+    for item in items:
+        if item.isdigit():
+            if not 0 <= int(item) <= 255:
+                raise line.error(f"invalid NETMAP protocol number {item}")
+        else:
+            lookup = ("ipv6-icmp" if item in ("icmpv6", "ipv6-icmp")
+                      else item)
+            try:
+                socket.getprotobyname(lookup)
+            except OSError:
+                raise line.error(f"invalid NETMAP protocol {item}") from None
+        if family == 4 and item in ("ipv6-icmp", "icmpv6", "58"):
+            raise line.error(f"protocol {item} is not valid in an IPv4 "
+                             "netmap file")
+        if family == 6 and item == "1":
+            raise line.error(f"protocol {item} is not valid in an IPv6 "
+                             "netmap file")
+    effective = _canonical_netmap_protocol(p, family)
+    effective_items = (effective[1:] if negate else effective).split(",")
+    port_protocols = {"tcp", "udp", "sctp", "udplite"}
+    dport_protocols = port_protocols | {"icmp", "ipv6-icmp"}
+    if (dport or sport) and negate:
+        raise line.error("complemented NETMAP PROTO cannot be used with ports")
+    if dport and any(item not in dport_protocols for item in effective_items):
+        raise line.error(f"DPORT is not valid with NETMAP protocol {proto}")
+    if sport and any(item not in port_protocols for item in effective_items):
+        raise line.error(f"SPORT is not valid with NETMAP protocol {proto}")
+    if dport and len(effective_items) > 1 \
+            and any(item in ("icmp", "ipv6-icmp") for item in effective_items):
+        raise line.error("ICMP DPORT cannot be combined with a protocol list")
+    if dport and effective_items[0] in port_protocols:
+        _validate_netmap_ports(dport, effective_items[0], line, "DPORT")
+    if sport:
+        _validate_netmap_ports(sport, effective_items[0], line, "SPORT")
+    if dport and effective_items[0] in ("icmp", "ipv6-icmp"):
+        for item in dport.split(","):
+            if "/" in item:
+                typ, code = item.split("/", 1)
+                if not (typ.isdigit() and code.isdigit()
+                        and 0 <= int(typ) <= 255 and 0 <= int(code) <= 255):
+                    raise line.error(f"invalid ICMP type/code {item}")
+            elif not re.fullmatch(r"[A-Za-z][A-Za-z0-9-]*|\d+", item):
+                raise line.error(f"invalid ICMP type {item}")
+
+
+def _validate_netmap_ports(spec, proto, line, column):
+    service_proto = {"6": "tcp", "17": "udp"}.get(proto, proto)
+    for item in spec.split(","):
+        if not item:
+            raise line.error(f"empty value in NETMAP {column}")
+        if ":" in item:
+            bounds = item.split(":", 1)
+        elif re.fullmatch(r"\d*-\d*", item):
+            bounds = item.split("-", 1)
+        else:
+            # Hyphens are common in service names (for example http-alt).
+            # Shorewall only permits '-' as the separator for numeric ranges.
+            bounds = [item]
+        for value in bounds:
+            if not value:       # open-ended Shorewall range
+                continue
+            if value.isdigit():
+                if not 0 <= int(value) <= 65535:
+                    raise line.error(f"invalid NETMAP {column} port {value}")
+            else:
+                try:
+                    socket.getservbyname(value, service_proto)
+                except OSError:
+                    raise line.error(f"unknown {column} service {value} for "
+                                     f"protocol {proto}") from None
+
+
+def _netmap_overlap(a, b):
+    anet, bnet = ipaddress.ip_network(a.net1), ipaddress.ip_network(b.net1)
+    if not anet.overlaps(bnet):
+        return False
+    intersection = anet if anet.subnet_of(bnet) else bnet
+    for exclusions in (a.exclusions, b.exclusions):
+        if any(intersection.subnet_of(ipaddress.ip_network(ex))
+               for ex in exclusions):
+            return False
+    return True
+
+
+def _validate_netmap_conflicts(rules, line_by_origin):
+    def iface_overlap(a, b):
+        if a == b:
+            return True
+        if a.endswith("+") and b.startswith(a[:-1]):
+            return True
+        return b.endswith("+") and a.startswith(b[:-1])
+
+    for index, rule in enumerate(rules):
+        for prior in rules[:index]:
+            same_match = (rule.kind, rule.net3,
+                          rule.net3_exclusions, rule.proto, rule.dport,
+                          rule.sport) == (prior.kind, prior.net3,
+                                         prior.net3_exclusions,
+                                         prior.proto, prior.dport, prior.sport)
+            if not same_match or not iface_overlap(rule.interface,
+                                                   prior.interface):
+                continue
+            line = line_by_origin[rule.origin]
+            identical = (rule.net1, rule.net2, rule.exclusions,
+                         rule.type_token) == (prior.net1, prior.net2,
+                                              prior.exclusions,
+                                              prior.type_token)
+            # SNAT and SNAT:T (likewise DNAT and DNAT:P) are effective
+            # synonyms in the nft backend, so they are duplicates too.
+            same_translation = (rule.net1, rule.net2, rule.exclusions) == \
+                (prior.net1, prior.net2, prior.exclusions)
+            if rule.interface == prior.interface and (identical or
+                                                       same_translation):
+                raise line.error(f"duplicate netmap entry (same as {prior.origin})")
+            if _netmap_overlap(rule, prior) and rule.net2 != prior.net2:
+                raise line.error(f"conflicting netmap entry overlaps {prior.origin} "
+                                 "with a different translated prefix")
+
+
+def parse_netmap(path, variables, interfaces, family=4):
+    """Parse the traditional eight-column Shorewall NETMAP file."""
     out = []
+    line_by_origin = {}
     for line in read_file(path, variables):
         cols = split_columns(line.text, line.path, line.lineno)
         if len(cols) < 4:
             raise line.error("netmap line needs TYPE NET1 INTERFACE NET2")
-        kind = cols[0]
-        if kind not in ("DNAT", "SNAT"):
-            raise line.error(f"unsupported netmap type {kind}")
-        iface = logical.get(cols[2], cols[2])
+        if len(cols) > 8:
+            raise line.error("netmap line has more than 8 columns")
+        cols += ["-"] * (8 - len(cols))
+        type_token = cols[0]
+        if type_token not in _NETMAP_TYPES:
+            raise line.error(f"unsupported netmap type {type_token}")
+        kind = type_token.split(":", 1)[0]
+        net1, exclusions = _netmap_net1(cols[1], family, line)
+        iface = _resolve_netmap_interface(cols[2], interfaces, line)
+        net2 = _netmap_network(cols[3], family, line, "NET2")
+        if net1.prefixlen != net2.prefixlen:
+            raise line.error(f"NET1 {net1} and NET2 {net2} must have equal "
+                             "prefix lengths")
+        net3, net3_exclusions = _netmap_net3(
+            "" if cols[4] == "-" else cols[4], family, line)
+        proto = "" if cols[5] == "-" else cols[5].lower()
+        dport = "" if cols[6] == "-" else cols[6].lower()
+        sport = "" if cols[7] == "-" else cols[7].lower()
+        _validate_netmap_protocol(proto, dport, sport, family, line)
+        proto = _canonical_netmap_protocol(proto, family) if proto else ""
         origin = f"{os.path.basename(line.path)}:{line.lineno}"
-        out.append((kind, cols[1], iface, cols[3], origin))
+        rule = NetmapRule(kind=kind, type_token=type_token,
+                          interface=iface, net1=str(net1), net2=str(net2),
+                          exclusions=tuple(str(n) for n in exclusions),
+                          net3=tuple(str(n) for n in net3),
+                          net3_exclusions=tuple(str(n) for n in net3_exclusions),
+                          proto=proto, dport=dport, sport=sport, origin=origin)
+        out.append(rule)
+        line_by_origin[origin] = line
+    _validate_netmap_conflicts(out, line_by_origin)
+    for rule in out:
+        if rule.type_token in ("SNAT:P", "DNAT:T"):
+            line = line_by_origin[rule.origin]
+            raise line.error(f"{rule.type_token} requires cross-hook stateless "
+                             "NETMAP, which is not currently supported by the "
+                             "nftables backend")
     return out
 
 

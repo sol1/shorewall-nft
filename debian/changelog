@@ -1,3 +1,23 @@
+shorewall-nft (0.0.10) unstable; urgency=medium
+
+  * Complete legacy Shorewall NETMAP compatibility for IPv4 and IPv6 using
+    stateful nftables prefix NAT. Existing eight-column netmap files retain
+    their TYPE, NET1, INTERFACE, NET2, NET3, PROTO, DPORT and SPORT layout.
+  * Support equal-length prefix mapping, NET1 exclusions, logical and wildcard
+    interfaces, optional packet qualifiers, service names, ICMP type/code
+    matches, and provider-specific mappings distinguished by interface.
+  * Validate address families, strict CIDR networks, prefix lengths,
+    exclusions, interfaces, protocols, ports, duplicates and conflicting
+    mappings before replacing the active ruleset.
+  * Support SNAT, DNAT, SNAT:T and DNAT:P. Reject the historical cross-hook
+    stateless SNAT:P and DNAT:T forms explicitly rather than silently changing
+    their semantics. Document the conntrack and provider-failover differences
+    from historical stateless Shorewall6 NETMAP.
+  * Add parser, compiler, nft syntax and network-namespace behavioral tests,
+    plus shorewall-netmap(5) and shorewall6-netmap(5) documentation.
+
+ -- Dave Kempe <dave@sol1.com.au>  Mon, 13 Jul 2026 23:11:41 +1000
+
 shorewall-nft (0.0.9) unstable; urgency=medium
 
   * shorewall show accounting reports when the counters were last cleared

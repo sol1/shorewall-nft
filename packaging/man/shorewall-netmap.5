@@ -1,0 +1,55 @@
+.TH SHOREWALL-NETMAP 5 "July 2026" "shorewall-nft" "Configuration Files"
+.SH NAME
+shorewall-netmap \- legacy Shorewall NETMAP definition file
+.SH SYNOPSIS
+.B /etc/shorewall/netmap
+.br
+.B /etc/shorewall6/netmap
+.SH DESCRIPTION
+Maps addresses in one prefix to corresponding addresses in another prefix.
+shorewall-nft retains the traditional file format and implements supported
+entries with stateful nftables prefix NAT.
+.PP
+The columns are:
+.PP
+.B TYPE NET1 INTERFACE NET2 [NET3 [PROTO [DPORT [SPORT]]]]
+.TP
+.B TYPE
+SNAT or SNAT:T performs source prefix translation in postrouting. DNAT or
+DNAT:P performs destination prefix translation in prerouting. Historical
+cross-hook SNAT:P and DNAT:T entries are diagnosed but are not supported by
+the nftables backend.
+.TP
+.B NET1
+Strict CIDR prefix matched before translation. A suffix such as
+.B !2001:db8::/112
+excludes a contained prefix from matching.
+.TP
+.B INTERFACE
+Logical or physical interface defined in the interfaces file. DNAT matches the
+input interface; SNAT matches the output interface. Shorewall wildcard matching
+is retained.
+.TP
+.B NET2
+Strict translated CIDR prefix. It must have the same family and prefix length
+as NET1. Address bits below that prefix length are preserved.
+.TP
+.B NET3
+Optional source qualifier for DNAT or destination qualifier for SNAT.
+.TP
+.B PROTO, DPORT, SPORT
+Optional packet qualifiers. Protocol names/numbers, service names, port lists
+and ranges are accepted. With ICMP or ICMPv6, DPORT is a type or type/code.
+.SH STATEFUL BEHAVIOR
+nftables NAT uses conntrack. The first packet establishes the prefix-NAT
+binding and later packets reuse it. Existing connections can retain an old
+mapping after provider failover. This is not the stateless Rawpost behavior of
+historical Shorewall6 and is not stateless RFC 6296 NPTv6. shorewall-nft does
+not flush conntrack during lifecycle or provider events.
+.SH FILES
+.B /etc/shorewall/netmap
+.br
+.B /etc/shorewall6/netmap
+.SH SEE ALSO
+.BR shorewall (8),
+.BR shorewall-interfaces (5)

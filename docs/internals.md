@@ -34,6 +34,11 @@ at the same hook. The compiler uses the standard priorities:
 | postrouting (nat) | postrouting | srcnat (100) | SNAT and masquerade |
 | nat_one2one_*, netmap_* | prerouting/postrouting | dstnat/srcnat -10 | static NAT |
 
+NETMAP rules use nftables' `snat/dnat ... prefix ... map` expression. The
+matched prefix remains separate from its exclusions so exclusions only limit
+which packets reach the expression; they never alter the prefix-map arithmetic.
+These are NAT base chains and therefore use conntrack, including for IPv6.
+
 ## The filter path
 
 The three filter base chains all have `policy drop`. A packet that is

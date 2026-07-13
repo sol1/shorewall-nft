@@ -1,0 +1,51 @@
+description = "Legacy Shorewall6 SNAT:T and DNAT:P exclusion compile as nft prefix NAT."
+family = 6
+no_upstream = true
+
+[[links]]
+node_a = "server"
+dev_a = "s0"
+addr_a = "2001:db8:feed::27/64"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "2001:db8:feed::1/64"
+
+[[links]]
+node_a = "client"
+dev_a = "c0"
+addr_a = "fd00:470:b:227:1111:2222:3333:4444/64"
+node_b = "fw"
+dev_b = "eth1"
+addr_b = "fd00:470:b:227::1/64"
+
+[routes]
+server = "2001:db8:feed::1"
+client = "fd00:470:b:227::1"
+
+[[probes]]
+id = "ipv6-host-bits-preserved"
+from = "client"
+to = "server"
+addr = "2001:db8:feed::27"
+proto = "tcp"
+port = 80
+expect = "allow"
+peer = "2001:470:b:227:1111:2222:3333:4444"
+
+[[probes]]
+id = "non-excluded-public-destination-maps-inbound"
+from = "server"
+to = "client"
+addr = "2001:470:b:227:1111:2222:3333:4444"
+proto = "tcp"
+port = 80
+expect = "allow"
+
+[[probes]]
+id = "excluded-public-destination-does-not-map"
+from = "server"
+to = "client"
+addr = "2001:470:b:227::4444"
+proto = "tcp"
+port = 80
+expect = "reject"

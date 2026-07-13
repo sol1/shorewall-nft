@@ -185,6 +185,23 @@ class NatRule:
 
 
 @dataclass
+class NetmapRule:
+    """A legacy netmap entry compiled as nftables prefix NAT."""
+    kind: str                    # SNAT or DNAT
+    type_token: str              # original TYPE, including :P/:T
+    interface: str               # resolved physical interface or wildcard
+    net1: str                    # canonical prefix matched before translation
+    net2: str                    # canonical translated prefix
+    exclusions: tuple = ()       # NET1 exclusions; do not change map arithmetic
+    net3: tuple = ()             # additional opposite-address qualifiers
+    net3_exclusions: tuple = ()
+    proto: str = ""
+    dport: str = ""
+    sport: str = ""
+    origin: str = ""
+
+
+@dataclass
 class HelperRule:
     """A conntrack helper assignment."""
     helper: str               # kernel helper name, e.g. ftp
