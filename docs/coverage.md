@@ -26,7 +26,7 @@ parsers, and by test.
 | tcdevices | HTB root and device ceiling. |
 | tcclasses | HTB classes with rates, ceilings, priorities, marks. |
 | tunnels | All 14 types: ipsec, openvpn variants, gre, l2tp, pptp, tinc and the rest. |
-| netmap | One-to-one network mapping as nft prefix NAT. |
+| netmap | Traditional 8-column IPv4/IPv6 NETMAP format, including exclusions, NET3, protocol/ports, logical/wildcard interfaces and normal chain designators, emitted as stateful nft prefix NAT. Cross-hook `SNAT:P` and `DNAT:T` fail explicitly. See [netmap.md](netmap.md). |
 | lsm | Link monitor config (shorewall-nft extension): per-provider probe method, targets, interval, up/down thresholds, latency limit. Drives failover via enable/disable. |
 | ipsets | `+name` becomes a native nft set. A set in /etc/shorewall/ipsets is baked with its elements; a set referenced but not defined there is declared empty and preserved across reloads, so an external tool (a port-knock or ban daemon) can fill it directly with `nft add element`. REQUIRE_IPSETS=No downgrades an unsupported ipset from a compile error to a warning. |
 | blrules | Blacklist and whitelist rules, checked before the regular rules on new connections. |

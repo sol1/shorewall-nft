@@ -53,6 +53,7 @@ DESTDIR=%{buildroot} packaging/install.sh packaging/shorewallrc.redhat
 %{_unitdir}/shorewall-geoip-update.service
 %{_unitdir}/shorewall-geoip-update.timer
 %{_mandir}/man8/shorewall*.8*
+%{_mandir}/man5/shorewall*netmap.5*
 %dir %{_localstatedir}/lib/shorewall-nft
 # /etc/shorewall is the administrator's, never owned by this package.
 

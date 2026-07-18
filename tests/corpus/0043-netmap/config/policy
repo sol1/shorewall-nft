@@ -1,0 +1,2 @@
+loc net ACCEPT
+all all DROP

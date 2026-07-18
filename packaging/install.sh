@@ -73,12 +73,17 @@ install -d "$DESTDIR$VARDIR"
 # Man pages.
 if [ -n "$MANDIR" ]; then
     install -d "$DESTDIR$MANDIR/man8"
+    install -d "$DESTDIR$MANDIR/man5"
     install -m 0644 "$here/packaging/man/shorewall.8" \
         "$DESTDIR$MANDIR/man8/shorewall.8"
     # shorewall6 shares the page; a .so redirect keeps `man shorewall6`
     # working without a second copy.
     echo '.so man8/shorewall.8' > "$DESTDIR$MANDIR/man8/shorewall6.8"
-    say "man pages -> $MANDIR/man8/shorewall.8, shorewall6.8"
+    install -m 0644 "$here/packaging/man/shorewall-netmap.5" \
+        "$DESTDIR$MANDIR/man5/shorewall-netmap.5"
+    echo '.so man5/shorewall-netmap.5' > \
+        "$DESTDIR$MANDIR/man5/shorewall6-netmap.5"
+    say "man pages -> $MANDIR/man8 and $MANDIR/man5"
 fi
 
 # Service units, installed disabled.

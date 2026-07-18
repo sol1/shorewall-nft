@@ -76,6 +76,74 @@ def _ports(spec):
     return "{ " + ", ".join(parts) + " }"
 
 
+def _netmap_proto_matches(rule, family):
+    """Return protocol/port alternatives for a NETMAP rule."""
+    proto = rule.proto.lower()
+    if not proto:
+        return [""]
+    if proto.startswith("!") or "," in proto:
+        negate = proto.startswith("!")
+        items = (proto[1:] if negate else proto).split(",")
+        body = items[0] if len(items) == 1 \
+            else "{ " + ", ".join(items) + " }"
+        clauses = [f"meta l4proto {'!= ' if negate else ''}{body}"]
+        if rule.sport:
+            clauses.append(f"th sport {_ports(rule.sport)}")
+        if rule.dport:
+            clauses.append(f"th dport {_ports(rule.dport)}")
+        return [" ".join(clauses)]
+    if family == 6 and proto == "icmp":
+        proto = "ipv6-icmp"
+    icmp6 = proto in ICMP6_PROTOS
+    if proto in ("icmp", "1") or icmp6:
+        name = "icmpv6" if icmp6 else "icmp"
+        l4name = "ipv6-icmp" if icmp6 else "icmp"
+        if not rule.dport:
+            return [f"meta l4proto {l4name}"]
+        alternatives = []
+        plain = []
+        for item in rule.dport.split(","):
+            if "/" in item:
+                typ, code = item.split("/", 1)
+                alternatives.append(f"{name} type {typ} {name} code {code}")
+            else:
+                value = item.lower()
+                plain.append(ICMP_TYPES.get(value, value)
+                             if not value.isdigit() else value)
+        if plain:
+            types = plain[0] if len(plain) == 1 \
+                else "{ " + ", ".join(plain) + " }"
+            alternatives.insert(0, f"{name} type {types}")
+        return alternatives
+    port_proto = {"6": "tcp", "17": "udp", "132": "sctp",
+                  "136": "udplite"}.get(proto, proto)
+    clauses = [f"meta l4proto {port_proto}"]
+    if rule.sport:
+        if port_proto in ("tcp", "udp"):
+            clauses.append(f"{port_proto} sport {_ports(rule.sport)}")
+        else:
+            clauses.append(f"th sport {_ports(rule.sport)}")
+    if rule.dport:
+        if port_proto in ("tcp", "udp"):
+            clauses.append(f"{port_proto} dport {_ports(rule.dport)}")
+        else:
+            clauses.append(f"th dport {_ports(rule.dport)}")
+    return [" ".join(clauses)]
+
+
+def _netmap_addr_clauses(networks, exclusions, side, ipkw):
+    clauses = []
+    if networks:
+        body = networks[0] if len(networks) == 1 \
+            else "{ " + ", ".join(networks) + " }"
+        clauses.append(f"{ipkw} {side} {body}")
+    if exclusions:
+        body = exclusions[0] if len(exclusions) == 1 \
+            else "{ " + ", ".join(exclusions) + " }"
+        clauses.append(f"{ipkw} {side} != {body}")
+    return clauses
+
+
 TOS_NAMES = {"minimize-delay": 0x10, "maximize-throughput": 0x08,
              "maximize-reliability": 0x04, "minimize-cost": 0x02,
              "normal-service": 0x00}
@@ -1479,20 +1547,40 @@ class Emitter:
             self.out("")
             self.out("chain netmap_pre {", 1)
             self.out("type nat hook prerouting priority dstnat - 5;", 2)
-            for kind, net1, iface, net2, origin in self.cfg.netmap:
-                if kind == "DNAT":
-                    self.out(f'iifname "{iface}" {ipkw6} daddr {net1} '
-                             f"dnat {ipkw6} prefix to {ipkw6} daddr map "
-                             f'{{ {net1} : {net2} }} comment "{origin}"', 2)
+            for n in self.cfg.netmap:
+                if n.kind == "DNAT":
+                    iface = _iface_glob(n.interface) \
+                        if n.interface.endswith("+") else n.interface
+                    common = [f'iifname "{iface}"']
+                    common += _netmap_addr_clauses(
+                        (n.net1,), n.exclusions, "daddr", ipkw6)
+                    common += _netmap_addr_clauses(
+                        n.net3, n.net3_exclusions, "saddr", ipkw6)
+                    action = (f"dnat {ipkw6} prefix to {ipkw6} daddr map "
+                              f"{{ {n.net1} : {n.net2} }}")
+                    for proto in _netmap_proto_matches(n, self.cfg.family):
+                        parts = common + ([proto] if proto else []) + [action]
+                        self.out(" ".join(parts)
+                                 + f' comment "{n.origin}"', 2)
             self.out("}", 1)
             self.out("")
             self.out("chain netmap_post {", 1)
             self.out("type nat hook postrouting priority srcnat - 5;", 2)
-            for kind, net1, iface, net2, origin in self.cfg.netmap:
-                if kind == "SNAT":
-                    self.out(f'oifname "{iface}" {ipkw6} saddr {net1} '
-                             f"snat {ipkw6} prefix to {ipkw6} saddr map "
-                             f'{{ {net1} : {net2} }} comment "{origin}"', 2)
+            for n in self.cfg.netmap:
+                if n.kind == "SNAT":
+                    iface = _iface_glob(n.interface) \
+                        if n.interface.endswith("+") else n.interface
+                    common = [f'oifname "{iface}"']
+                    common += _netmap_addr_clauses(
+                        (n.net1,), n.exclusions, "saddr", ipkw6)
+                    common += _netmap_addr_clauses(
+                        n.net3, n.net3_exclusions, "daddr", ipkw6)
+                    action = (f"snat {ipkw6} prefix to {ipkw6} saddr map "
+                              f"{{ {n.net1} : {n.net2} }}")
+                    for proto in _netmap_proto_matches(n, self.cfg.family):
+                        parts = common + ([proto] if proto else []) + [action]
+                        self.out(" ".join(parts)
+                                 + f' comment "{n.origin}"', 2)
             self.out("}", 1)
         if self.cfg.dnat:
             self.out("")
