@@ -603,10 +603,9 @@ def _netmap_net3(spec, family, line):
         raise line.error(f"invalid NET3 exclusion syntax: {spec}")
     positives = []
     exclusions = []
-    # A leading ! is Shorewall's "all except this list" form.
-    if not primary and bang:
-        excluded = excluded
-    else:
+    # A leading ! is Shorewall's "all except this list" form: no positive
+    # networks, only the exclusion list parsed below.
+    if primary:
         for item in primary.split(","):
             positives.append(_netmap_network(item, family, line, "NET3",
                                              allow_zero=True,

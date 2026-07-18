@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.0.9
+Version:        0.0.10
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -78,6 +78,12 @@ DESTDIR=%{buildroot} packaging/install.sh packaging/shorewallrc.redhat
 %systemd_postun shorewall-geoip-update.timer
 
 %changelog
+* Mon Jul 13 2026 Dave Kempe <dave@sol1.com.au> - 0.0.10-1
+- Complete legacy Shorewall NETMAP compatibility for IPv4 and IPv6 using
+  stateful nftables prefix NAT: eight-column netmap files, exclusions,
+  NET3, protocol and port qualifiers, and provider-specific mappings.
+  SNAT:P and DNAT:T are rejected explicitly (nftables cannot do them).
+
 * Mon Jul 13 2026 Dave Kempe <dave@sol1.com.au> - 0.0.9-1
 - show accounting reports the time since the counters were last cleared.
 - The link monitor logs a startup line and a periodic heartbeat to the
