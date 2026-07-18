@@ -120,6 +120,16 @@ and enables nothing, and never touches /etc/shorewall. Then:
 See docs/migration.md for moving a live Shorewall box, and
 docs/packaging.md for the packaging design.
 
+## Supported platforms
+
+The packages install and run on any distribution with Python 3.7 or later
+and nftables: Debian 10 and up, Ubuntu 20.04 and up, RHEL, Rocky and
+AlmaLinux 9 and up, Fedora, and their derivatives. The `.deb` is
+`Architecture: all` and the `.rpm` is `noarch`, so one build serves every
+release. Releases older than these ship Python below 3.7 and are not
+supported. The Compat CI workflow install-tests the packages on each of
+these on every change.
+
 ## Multi-ISP and failover
 
 The `providers` and `rtrules` files are read unchanged. On top of them

@@ -1,0 +1,120 @@
+name: Compat
+
+# Install-compatibility matrix: build the .deb and .rpm once, then install
+# and smoke-test them across Debian, Ubuntu and Red Hat family releases.
+# The clean floor is Python 3.7 (Debian 11+, Ubuntu 20.04+, RHEL/Rocky 9+);
+# older releases are tested too but allowed to fail, since the code needs
+# 3.7 (dataclasses, stdout.reconfigure) and their python3 is older.
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    paths:
+      - 'debian/**'
+      - 'packaging/**'
+      - 'src/**'
+      - '.github/workflows/compat.yml'
+  workflow_dispatch:
+
+jobs:
+  build-deb:
+    name: Build .deb
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential debhelper dpkg-dev
+      - name: Build
+        run: dpkg-buildpackage -b -us -uc
+      - name: Collect
+        run: mkdir -p dist && mv ../shorewall-nft_*_all.deb dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb
+          path: dist/*.deb
+
+  build-rpm:
+    name: Build .rpm
+    runs-on: ubuntu-latest
+    container: fedora:41
+    steps:
+      - name: Install git
+        run: dnf -y install git
+      - uses: actions/checkout@v4
+      - name: Install build tools
+        run: dnf -y install rpm-build rpmdevtools systemd-rpm-macros python3 nftables
+      - name: Build
+        run: |
+          rpmdev-setuptree
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          v=$(awk '/^Version:/{print $2}' packaging/shorewall-nft.spec)
+          git archive --format=tar.gz --prefix="shorewall-nft-$v/" \
+            -o "$HOME/rpmbuild/SOURCES/shorewall-nft-$v.tar.gz" HEAD
+          rpmbuild -bb packaging/shorewall-nft.spec
+          mkdir -p dist && cp "$HOME"/rpmbuild/RPMS/noarch/*.rpm dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rpm
+          path: dist/*.rpm
+
+  deb-compat:
+    name: "deb: ${{ matrix.image }}"
+    needs: build-deb
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.allow || false }}
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - debian:11
+          - debian:12
+          - debian:13
+          - ubuntu:20.04
+          - ubuntu:22.04
+          - ubuntu:24.04
+        include:
+          # Older than the Python 3.7 floor, kept for the record.
+          - { image: 'debian:10',   allow: true }
+          - { image: 'debian:9',    allow: true }
+          - { image: 'debian:8',    allow: true }
+          - { image: 'ubuntu:18.04', allow: true }
+          - { image: 'ubuntu:16.04', allow: true }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: deb
+          path: dist
+      - name: Install and smoke-test
+        run: |
+          docker run --rm -v "$PWD":/work -w /work "${{ matrix.image }}" \
+            sh packaging/ci-install-test.sh deb
+
+  rpm-compat:
+    name: "rpm: ${{ matrix.image }}"
+    needs: build-rpm
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.allow || false }}
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - rockylinux:9
+          - almalinux:9
+          - fedora:41
+        include:
+          # RHEL 8's default python3 is 3.6, below the floor.
+          - { image: 'rockylinux:8', allow: true }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: rpm
+          path: dist
+      - name: Install and smoke-test
+        run: |
+          docker run --rm -v "$PWD":/work -w /work "${{ matrix.image }}" \
+            sh packaging/ci-install-test.sh rpm
