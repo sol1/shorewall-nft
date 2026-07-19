@@ -803,7 +803,12 @@ class Emitter:
         p = self._policy_for(z1, z2)
         if p.source == z1 and p.dest == z2:
             return f"{z1}2{z2}"
-        return f"{p.source}2{p.dest}"
+        # A shared catch-all chain is named after the policy's zones. The +
+        # of an all+/any+ form is not a legal nft chain-name character, so
+        # spell it "plus" (allplus2allplus), still distinct from all2all.
+        src = p.source.replace("+", "plus")
+        dst = p.dest.replace("+", "plus")
+        return f"{src}2{dst}"
 
     def _default_action(self, disposition):
         """The default action chain name for a disposition, from
@@ -856,19 +861,23 @@ class Emitter:
         self.out("")
 
     def _policy_for(self, z1, z2):
-        """Resolve the policy for a zone pair, first match in file order
-        as upstream does. Intra-zone traffic has an implicit ACCEPT that
-        a wildcard all policy does not override; only a policy naming the
-        zone on both sides does."""
+        """Resolve the policy for a zone pair, first match in file order as
+        upstream does. Intra-zone traffic has an implicit ACCEPT: a plain
+        all/any catch-all does not override it, but the all+/any+ forms and a
+        policy naming the zone on both sides do (shorewall-policy(5))."""
+        catchall = ("all", "any", "all+", "any+")
         intra = z1 == z2
         for p in self.cfg.policies:
-            src_ok = p.source in (z1, "all")
-            dst_ok = p.dest in (z2, "all")
+            src_ok = p.source == z1 or p.source in catchall
+            dst_ok = p.dest == z2 or p.dest in catchall
             if not (src_ok and dst_ok):
                 continue
-            if intra and (p.source == "all" or p.dest == "all"):
-                # A catch-all does not override the intra-zone accept.
-                continue
+            if intra:
+                plain = p.source in ("all", "any") or p.dest in ("all", "any")
+                plus = p.source in ("all+", "any+") or p.dest in ("all+", "any+")
+                if plain and not plus:
+                    # A plain catch-all does not override the intra-zone accept.
+                    continue
             return p
         if intra:
             return Policy(source=z1, dest=z2, policy="ACCEPT", loglevel="")

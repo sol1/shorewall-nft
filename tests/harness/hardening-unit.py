@@ -660,6 +660,22 @@ at = render(acct_addr)
 (ok if load_with({"policy": "all+ all+ REJECT\nall all DROP\n"})
  else bad)("policy: all+/any+ catch-all still compiles")
 
+
+# all+ overrides the implicit intra-zone accept (shorewall-policy(5)); plain
+# all does not. With a routeback zone the intra pair (eth1.eth1) is emitted.
+def _intra_policy(pol):
+    return render(load_with({
+        "zones": "fw firewall\nnet ipv4\nloc ipv4\n",
+        "interfaces": "?FORMAT 2\nnet eth0\nloc eth1 routeback\n",
+        "policy": pol, "rules": "?SECTION NEW\n"}))
+
+
+(ok if '"eth1" . "eth1" : jump allplus2allplus'
+        in _intra_policy("all+ all+ DROP\n")
+ else bad)("policy: all+ overrides the intra-zone accept")
+(ok if '"eth1" . "eth1" : jump loc2loc' in _intra_policy("all all DROP\n")
+ else bad)("policy: plain all does not override the intra-zone accept")
+
 # Problem 3: a named default-action suffix (DROP:Reject) still compiles.
 (ok if load_with({"policy": "net fw DROP:Reject\nall all ACCEPT\n"})
  else bad)("policy: a named default-action suffix still compiles")
