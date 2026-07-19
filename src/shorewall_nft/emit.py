@@ -552,11 +552,15 @@ def _extra_matches(rule):
         cl = rule.connlimit
         if cl.startswith("d:"):
             cl = cl[2:]
-        neg = "over"
+        # Upstream: a plain limit matches at or below N (connlimit-at-or-below,
+        # Chains.pm do_connlimit), a !limit matches above N. nft's bare
+        # `ct count N` matches at or below (inv=false); `ct count over N`
+        # matches above (inv=true). There is no `until` keyword.
+        over = ""
         if cl.startswith("!"):
-            neg, cl = "until", cl[1:]
+            over, cl = "over ", cl[1:]
         count = cl.split(":")[0]
-        out.append(f"ct count {neg} {int(count)}")
+        out.append(f"ct count {over}{int(count)}")
     if rule.time:
         out.append(_time_match(rule.time))
     return out

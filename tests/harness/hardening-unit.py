@@ -675,6 +675,17 @@ for spec, label in (("10:24", "limit:mask"), ("d:10", "d: prefix"),
     (ok if cfg and "ct count" in render(cfg)
      else bad)(f"rules: CONNLIMIT {label} compiles to a ct count")
 
+# CONNLIMIT direction matches upstream: a plain limit matches at or below N
+# (nft bare `ct count N`), a negated limit matches above N (`ct count over N`).
+c_plain = render(load_with({"rules": "?SECTION NEW\n"
+                            "DROP net $FW tcp 22 - - - - - 10\n"}))
+(ok if "ct count 10" in c_plain and "ct count over" not in c_plain
+ else bad)("rules: a plain CONNLIMIT matches at or below (bare ct count N)")
+c_neg = render(load_with({"rules": "?SECTION NEW\n"
+                          "DROP net $FW tcp 22 - - - - - !10\n"}))
+(ok if "ct count over 10" in c_neg
+ else bad)("rules: a negated CONNLIMIT matches above (ct count over N)")
+
 # A large geoip set is split into transactions under the netlink budget (a
 # single transaction would overflow it) with every element preserved.
 big_cidrs = [f"10.{i // 256}.{i % 256}.0/24" for i in range(8000)]
