@@ -277,6 +277,13 @@ finally:
  else bad)("emit: an invalid time value is a config error")
 (ok if raises_config_error(lambda: _time_match("timestart=08:00"))
  else bad)("emit: a time range with no stop is a config error")
+# int() would accept a sign or underscore; the time must be plain digits.
+(ok if raises_config_error(
+    lambda: _time_match("timestart=+8:00&timestop=17:00"))
+ else bad)("emit: a signed time is a config error")
+(ok if raises_config_error(
+    lambda: _time_match("timestart=1_0:00&timestop=17:00"))
+ else bad)("emit: an underscore in a time is a config error")
 
 # --- bad numbers and directives are ConfigError, not a raw traceback (#6) ---
 # main() catches ConfigError and exits cleanly; a bare ValueError/IndexError
@@ -574,6 +581,15 @@ dnat_hostonly = load_with({
 ho_text = render(dnat_hostonly)
 (ok if "ip saddr 10.0.0.0/24" in ho_text and "dnat ip to 1.2.3.4" in ho_text
  else bad)("emit: DNAT from a hosts-only zone is scoped by its addresses")
+
+# A DNAT from a zone with no interface and no host cannot match, so it is a
+# located error rather than a silently dropped rule.
+(ok if raises_config_error(lambda: render(load_with({
+    "zones": "fw firewall\nnet ipv4\nempty ipv4\n",
+    "interfaces": "?FORMAT 2\nnet eth0\n",
+    "rules": "?SECTION NEW\nDNAT empty net:1.2.3.4 tcp 80\n",
+    "policy": "all all ACCEPT\n"})))
+ else bad)("emit: DNAT from an empty zone is a config error, not dropped")
 
 # A blacklist rule on a wildcard-interface zone globs it; the literal ppp+
 # (which nft never matches) must appear nowhere in the ruleset.

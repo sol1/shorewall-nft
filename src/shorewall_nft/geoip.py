@@ -92,28 +92,42 @@ def fetch(cc, family, source_dir=None, timeout=30):
     return cidrs
 
 
+def _apply_refill(nft, table, setname, lines):
+    """Flush the set and apply its add-element batches. When the whole set
+    fits in one batch, flush and refill in one transaction so the set is never
+    transiently empty. A larger set exceeds a single netlink transaction, so
+    its batches are applied one per transaction."""
+    flush = f"flush set {table} {setname}\n"
+    if len(lines) <= 1:
+        script = flush + ("".join(stmt + "\n" for stmt in lines))
+        subprocess.run([nft, "-f", "-"], input=script, text=True, check=True)
+        return
+    subprocess.run([nft, "-f", "-"], input=flush + lines[0] + "\n",
+                   text=True, check=True)
+    for stmt in lines[1:]:
+        subprocess.run([nft, "-f", "-"], input=stmt + "\n", text=True,
+                       check=True)
+
+
 def _load_set(nft, table, setname, cidrs, geodir):
     """Flush and refill a set from the live table, then write a reload file so
-    the wrapper can repopulate it on a restart without the network. The refill
-    is applied in transactions kept under the netlink budget: a large country
-    exceeds a single transaction. If a batch fails, the set is restored from
-    the last good reload file rather than left empty, which would fail a geoip
-    rule open."""
+    the wrapper can repopulate it on a restart without the network. A small
+    set is refilled atomically; a large one is chunked under the netlink
+    budget. If the refill fails, the set is restored from the last good reload
+    file rather than left empty, which would fail a geoip rule open."""
     lines = _add_batches(table, setname, cidrs)
     reload_file = os.path.join(geodir, f"{setname}.nft")
-    first = f"flush set {table} {setname}\n" + (lines[0] + "\n" if lines else "")
     try:
-        subprocess.run([nft, "-f", "-"], input=first, text=True, check=True)
-        for stmt in lines[1:]:
-            subprocess.run([nft, "-f", "-"], input=stmt + "\n", text=True,
-                           check=True)
+        _apply_refill(nft, table, setname, lines)
     except subprocess.CalledProcessError:
         # Roll back to the previous contents so the set is never left empty.
         if os.path.isfile(reload_file):
             with open(reload_file) as f:
-                subprocess.run([nft, "-f", "-"],
-                               input=f"flush set {table} {setname}\n" + f.read(),
-                               text=True)
+                old = [ln for ln in f.read().splitlines() if ln.strip()]
+            try:
+                _apply_refill(nft, table, setname, old)
+            except subprocess.CalledProcessError:
+                pass
         raise
     os.makedirs(geodir, exist_ok=True)
     with open(reload_file, "w") as f:

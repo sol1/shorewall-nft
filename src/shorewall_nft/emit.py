@@ -492,10 +492,11 @@ def _time_hhmm(t):
         raise ConfigError(f"invalid time {t!r}")
     nums = []
     for p in parts:
-        try:
-            nums.append(int(p, 10))
-        except ValueError:
+        # Plain ASCII digits only: isascii rejects a Unicode digit and
+        # isdigit rejects a sign or underscore that int() would accept.
+        if not (p.isascii() and p.isdigit()):
             raise ConfigError(f"invalid time {t!r}")
+        nums.append(int(p))
     h = nums[0]
     m = nums[1] if len(nums) > 1 else 0
     s = nums[2] if len(nums) > 2 else 0
@@ -1775,8 +1776,14 @@ class Emitter:
                     # Scope by every claim the source zone has: its interfaces
                     # and its hosts-file address ranges. A hosts-only zone has
                     # no interface of its own but must still be scoped by its
-                    # addresses, not left open.
-                    for iface, nets in self._zone_sources(d.source):
+                    # addresses, not left open. A zone with neither cannot
+                    # match anything, so say so rather than drop the rule.
+                    sources = self._zone_sources(d.source)
+                    if not sources:
+                        raise ConfigError(
+                            f"DNAT source zone {d.source} has no interface or "
+                            f"host to match ({d.origin})")
+                    for iface, nets in sources:
                         ifm = _if_match("iifname", iface)
                         parts = ([ifm] if ifm else [])
                         if nets:

@@ -626,7 +626,13 @@ case "$1" in
         # and no ruleset.
         apply_sysctls
         for gf in "$VARDIR"/geoip/*.nft; do
-            [ -e "$gf" ] && nft -f "$gf" 2>/dev/null || :
+            [ -e "$gf" ] || continue
+            # Apply each batch line as its own transaction; a large country's
+            # set exceeds a single netlink transaction.
+            while IFS= read -r gline; do
+                [ -n "$gline" ] && printf '%s\n' "$gline" | nft -f - \
+                    2>/dev/null || :
+            done < "$gf"
         done
         for sf in "$VARDIR"/sets/*.nft; do
             [ -e "$sf" ] && nft -f "$sf" 2>/dev/null || :
