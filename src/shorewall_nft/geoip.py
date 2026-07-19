@@ -79,14 +79,16 @@ def _load_set(nft, table, setname, cidrs, geodir):
     """Flush and refill a set from the live table, then write a reload
     file so the wrapper can repopulate it on a restart without the
     network. Elements are added in chunks to stay under the arg limit."""
-    tbl = table.split()
-    subprocess.run([nft, "flush", "set", *tbl, setname], check=True)
     lines = []
     for i in range(0, len(cidrs), 500):
         chunk = ", ".join(cidrs[i:i + 500])
-        subprocess.run([nft, "add", "element", *tbl, setname,
-                        "{ " + chunk + " }"], check=True)
         lines.append(f"add element {table} {setname} {{ {chunk} }}")
+    # Apply the flush and the refill as one transaction. If any chunk is
+    # rejected the whole transaction rolls back and the set keeps its old
+    # contents, so a bad update never leaves a geoip rule matching an empty
+    # set (which would fail open).
+    script = f"flush set {table} {setname}\n" + "\n".join(lines) + "\n"
+    subprocess.run([nft, "-f", "-"], input=script, text=True, check=True)
     os.makedirs(geodir, exist_ok=True)
     with open(os.path.join(geodir, f"{setname}.nft"), "w") as f:
         f.write("\n".join(lines) + "\n")

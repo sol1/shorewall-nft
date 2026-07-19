@@ -10,7 +10,7 @@ class Zone:
 
 @dataclass
 class Interface:
-    zone: str                 # zone name or None for ignored interfaces
+    zone: str                 # zone name, or None for a '-' zone interface
     logical: str
     physical: str
     options: dict = field(default_factory=dict)
@@ -37,6 +37,7 @@ class Policy:
     policy: str
     loglevel: str = ""
     param: str = ""           # queue number for NFQUEUE policy
+    default_action: str = ""  # "none" overrides the global default action
 
 
 @dataclass

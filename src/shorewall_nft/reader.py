@@ -152,8 +152,8 @@ def read_file(path, variables):
             continue
         if not live:
             continue
-        if text == "INCLUDE" or text.startswith("INCLUDE "):
-            parts = text.split(None, 1)
+        parts = text.split(None, 1)
+        if parts[0] == "INCLUDE":
             if len(parts) < 2 or not parts[1].strip():
                 raise ConfigError("INCLUDE needs a file name", path, buf_start)
             inc = expand(parts[1].strip(), variables, path, buf_start)

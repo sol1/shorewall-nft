@@ -760,7 +760,8 @@ class Emitter:
 
     def _emit_disposition(self, chain, policy):
         """The tail of a policy chain: default action, log, verdict."""
-        default = self._default_action(policy.policy)
+        default = (None if policy.default_action == "none"
+                   else self._default_action(policy.policy))
         if default:
             name = self._default_chains.get(default)
             if name:
@@ -1459,7 +1460,11 @@ class Emitter:
         ipkw = "ip6" if self.cfg.family == 6 else "ip"
         disp = self.cfg.variables.get("MACLIST_DISPOSITION", "REJECT").upper()
         verdict = {"ACCEPT": "return", "DROP": "drop",
-                   "REJECT": "jump reject_action"}
+                   "REJECT": "jump reject_action",
+                   "A_DROP": "log level audit drop",
+                   "A_REJECT": "log level audit jump reject_action"}
+        if disp not in verdict:
+            raise ConfigError(f"unsupported MACLIST_DISPOSITION {disp}")
         self.out("")
         self.out("chain maclist {", 1)
         for m in self.cfg.maclist:
@@ -1495,8 +1500,9 @@ class Emitter:
                 action = disp
             verdict = {"WHITELIST": "return", "ACCEPT": "accept",
                        "CONTINUE": "return", "DROP": "drop",
-                       "A_DROP": "drop", "REJECT": "jump reject_action",
-                       "A_REJECT": "jump reject_action"}[action]
+                       "A_DROP": "log level audit drop",
+                       "REJECT": "jump reject_action",
+                       "A_REJECT": "log level audit jump reject_action"}[action]
             comment = f' comment "{r.origin}"' if r.origin else ""
             # A mixed column fans the rule out into several alternatives.
             for base in _rule_match(r, self.cfg.family, self.sets):

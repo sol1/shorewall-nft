@@ -76,6 +76,11 @@ def parse_lsm(path, providers):
                     raise ConfigError("lsm: ?PROVIDER needs a provider name",
                                       path, lineno)
                 cur = toks[1]
+                # The name becomes a status file name; a '/' or '..' would
+                # escape the status directory.
+                if not re.match(r"^[A-Za-z][A-Za-z0-9_]*$", cur):
+                    raise ConfigError(f"lsm: invalid provider name {cur!r}",
+                                      path, lineno)
                 blocks[cur] = dict(DEFAULTS)
                 continue
             if cur is None:
@@ -145,7 +150,8 @@ def probe_once(target, interface, timeout, count=1):
     cmd = ["ping", "-n", "-c", str(count), "-W", str(timeout)]
     if interface:
         cmd += ["-I", interface]
-    cmd.append(target)
+    # -- so a target beginning with '-' is never read as a ping option.
+    cmd += ["--", target]
     r = subprocess.run(cmd, capture_output=True, text=True)
     ok = r.returncode == 0
     m = re.search(r"(\d+)% packet loss", r.stdout)

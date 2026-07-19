@@ -11,7 +11,7 @@ import tempfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                 "..", "..", "src"))
-from shorewall_nft import ipsets, lsm  # noqa: E402
+from shorewall_nft import capabilities, ipsets, lsm  # noqa: E402
 from shorewall_nft.compile import load  # noqa: E402
 from shorewall_nft.emit import (  # noqa: E402
     render, render_stop, _match_addr_alts, _time_match)
@@ -19,7 +19,7 @@ from shorewall_nft.errors import ConfigError  # noqa: E402
 from shorewall_nft.lsm import Monitor, MonitorCfg, parse_lsm  # noqa: E402
 from shorewall_nft.parsers import (  # noqa: E402
     parse_providers, parse_tcpri, parse_tcdevices, parse_tcclasses,
-    parse_rtrules)
+    parse_rtrules, parse_policy)
 from shorewall_nft.reader import read_file  # noqa: E402
 from shorewall_nft.script import render_script  # noqa: E402
 
@@ -332,5 +332,54 @@ try:
      else bad)("parse: non-numeric interface mss is a config error")
 finally:
     shutil.rmtree(iface_conf)
+
+# --- correctness cleanups (#7) ---
+# AUDIT_TARGET is available on nftables (log level audit), so ?IF selects
+# the audit branch.
+(ok if capabilities.lookup("AUDIT_TARGET") is True
+ else bad)("capabilities: AUDIT_TARGET is true")
+
+# An IPv6 rtrules source is a source address, not iface:addr.
+rules = parse_rtrules(_tmp("2001:db8::1 - main 1000\n", ".rtrules"),
+                      {}, [], [])
+(ok if rules and rules[0].source == "2001:db8::1" and not rules[0].iif
+ else bad)("rtrules: a bare IPv6 source is a source, not iface:addr")
+# The interface:address form still splits, for v4 and v6.
+rules = parse_rtrules(_tmp("eth0:2001:db8::1 - main 1000\n", ".rtrules"),
+                      {}, [], [])
+(ok if rules and rules[0].iif == "eth0" and rules[0].source == "2001:db8::1"
+ else bad)("rtrules: iface:addr still splits for an IPv6 address")
+
+# A policy default-action suffix is honored for none and rejected otherwise.
+pols = parse_policy(_tmp("net all DROP:none\n", ".policy"), {})
+(ok if pols and pols[0].default_action == "none"
+ else bad)("policy: DROP:none records a default-action override")
+(ok if raises_config_error(
+    lambda: parse_policy(_tmp("net all DROP:MyAction\n", ".policy"), {}))
+ else bad)("policy: a named default action is a config error, not ignored")
+
+# A lsm provider name that would escape the status directory is rejected.
+(ok if raises_config_error(
+    lambda: parse_lsm_str("?PROVIDER ../../etc/x\ncheck 1.1.1.1\n"))
+ else bad)("lsm: a provider name with a path separator is a config error")
+
+# MACLIST audit dispositions render the audit log, no KeyError.
+mac_conf = tempfile.mkdtemp(prefix="shorewall-nft-mac-")
+try:
+    shutil.copytree(os.path.join(REPO, "tests/corpus/0002-one-interface/config"),
+                    mac_conf, dirs_exist_ok=True)
+    with open(os.path.join(mac_conf, "interfaces"), "w") as f:
+        f.write("?FORMAT 2\nnet eth0 maclist\n")
+    with open(os.path.join(mac_conf, "maclist"), "w") as f:
+        f.write("A_DROP eth0 00:11:22:33:44:55\n")
+    with open(os.path.join(mac_conf, "shorewall.conf"), "a") as f:
+        f.write("\nMACLIST_DISPOSITION=A_REJECT\n")
+    text = render(load(mac_conf, 4))
+    (ok if "log level audit drop" in text
+     else bad)("emit: maclist A_DROP entry renders an audit drop")
+    (ok if "log level audit jump reject_action" in text
+     else bad)("emit: MACLIST_DISPOSITION A_REJECT renders an audit reject")
+finally:
+    shutil.rmtree(mac_conf)
 
 sys.exit(1 if fails else 0)

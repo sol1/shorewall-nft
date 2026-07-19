@@ -13,6 +13,18 @@ from .model import (AcctRule, DnatRule, HelperRule, Interface, MangleRule,
                     ZoneHost)
 from .reader import read_file, split_columns, split_inline
 
+
+def _is_ip(spec):
+    """True for a bare host address or CIDR network, v4 or v6. Used to tell
+    an IPv6 rtrules source from the interface:address form, since both hold
+    colons."""
+    try:
+        ipaddress.ip_network(spec, strict=False)
+        return True
+    except ValueError:
+        return False
+
+
 # Builtin actions. Invalid(P) matches ct state invalid, disposition P.
 STATE_ACTIONS = {"Invalid": "invalid"}
 
@@ -142,7 +154,10 @@ def parse_interfaces(path, variables):
         mss = options.get("mss")
         if isinstance(mss, str) and not mss.isdigit():
             raise line.error(f"interface mss must be a number, not {mss!r}")
-        if options.get("ignore") is True or zone is None:
+        # An ignore interface is not managed at all. A '-' zone interface is
+        # kept: it belongs to no zone but its options (dhcp, tcpflags, mss)
+        # and its logical-to-physical mapping still apply.
+        if options.get("ignore") is True:
             continue
         physical = options.get("physical", logical)
         # These names reach sysctl and nft; a metacharacter here would
@@ -160,14 +175,24 @@ def parse_policy(path, variables):
         cols = split_columns(line.text, line.path, line.lineno)
         if len(cols) < 3:
             raise line.error("policy line needs SOURCE DEST POLICY")
-        # The POLICY token may name a default action after a colon, or
-        # carry :audit, and NFQUEUE may carry a queue number.
-        token = cols[2].split(":")[0]
-        policy, _, param = token.partition("(")
+        # The POLICY token is POLICY[:suffix]. The suffix names a default
+        # action for this line, overriding the global default. Only 'none'
+        # (suppress the default action) is supported; a named default action
+        # is rejected rather than silently ignored.
+        verb, _, suffix = cols[2].partition(":")
+        policy, _, param = verb.partition("(")
         param = param.rstrip(")")
         if policy not in ("ACCEPT", "DROP", "REJECT", "CONTINUE", "NONE",
                           "QUEUE", "NFQUEUE"):
             raise line.error(f"unsupported policy {cols[2]}")
+        default_action = ""
+        if suffix:
+            if suffix.lower() in ("none", "-"):
+                default_action = "none"
+            else:
+                raise line.error(f"policy suffix {suffix!r} not supported yet; "
+                                 "only ':none' is, and a log level belongs in "
+                                 "the LOGLEVEL column")
         loglevel = cols[3] if len(cols) > 3 and cols[3] != "-" else ""
         if ":" in loglevel:
             raise line.error("policy log tags not supported yet")
@@ -177,7 +202,7 @@ def parse_policy(path, variables):
             raise line.error("policy CONNLIMIT column not supported yet")
         policies.append(Policy(source=cols[0], dest=cols[1],
                                policy=policy, loglevel=loglevel,
-                               param=param))
+                               param=param, default_action=default_action))
     return policies
 
 
@@ -1101,6 +1126,10 @@ def parse_rtrules(path, variables, interfaces, providers):
                     pass
                 elif source.startswith("&"):
                     r.runtime_iface = logical.get(source[1:], source[1:])
+                elif _is_ip(source):
+                    # A bare address or network, v4 or v6. Checked before the
+                    # colon split so an IPv6 source is not read as iface:addr.
+                    r.source = source
                 elif ":" in source:
                     iface, _, addr = source.partition(":")
                     r.iif = logical.get(iface, iface)
@@ -1133,7 +1162,7 @@ def parse_maclist(path, variables, interfaces):
         if len(cols) < 3:
             raise line.error("maclist needs DISPOSITION INTERFACE MAC")
         disp, _, level = cols[0].partition(":")
-        if disp not in ("ACCEPT", "DROP", "REJECT"):
+        if disp not in ("ACCEPT", "DROP", "REJECT", "A_DROP", "A_REJECT"):
             raise line.error(f"unsupported maclist disposition {disp}")
         out.append({"disposition": disp, "loglevel": level.lower(),
                     "interface": logical.get(cols[1], cols[1]),

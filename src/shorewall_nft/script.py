@@ -390,7 +390,8 @@ def _tc(cfg):
         handle = 2
         for c in classes:
             rate = c.rate
-            ceil = dev.out_bw if c.ceil in ("full", "-", "") else c.ceil
+            # out_bw carries the device default when the class ceil is full.
+            ceil = out_bw if c.ceil in ("full", "-", "") else c.ceil
             qbase = max(_rate_kbit(rate, c.origin) * 1000 // 8 // 250, 1)
             minor = 10 + c.num
             up.append(f"    QUANTUM={qbase}")

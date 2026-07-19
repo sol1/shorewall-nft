@@ -21,7 +21,7 @@ CAPABILITIES = {
     "SNMP_HELPER": True,
     "TFTP_HELPER": True,
     "TFTP0_HELPER": True,
-    "AUDIT_TARGET": False,
+    "AUDIT_TARGET": True,
     "ULOG_TARGET": False,
     "NFLOG_TARGET": True,
     "MANGLE_ENABLED": True,

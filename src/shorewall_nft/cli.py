@@ -821,9 +821,18 @@ def _show_providers(family):
     return 0
 
 
+def _saved_name(name):
+    """A save file name is a plain filename in the state directory. Reject
+    a path separator or .. so save/restore/forget cannot reach outside it;
+    restore runs the file as root."""
+    if name in (".", "..") or "/" in name or not name:
+        _fatal(f"invalid save name {name!r}")
+    return name
+
+
 def cmd_save(args, family):
     vardir = _vardir(family)
-    name = args[0] if args else "restore"
+    name = _saved_name(args[0]) if args else "restore"
     script = _script_path(vardir)
     if not os.path.exists(script):
         _fatal("no compiled firewall to save; start the firewall first")
@@ -834,7 +843,7 @@ def cmd_save(args, family):
 
 def cmd_restore(args, family):
     vardir = _vardir(family)
-    name = args[0] if args else "restore"
+    name = _saved_name(args[0]) if args else "restore"
     saved = os.path.join(vardir, name)
     if not os.path.exists(saved):
         _fatal(f"restore file {saved} does not exist")
@@ -847,7 +856,7 @@ def cmd_restore(args, family):
 
 def cmd_forget(args, family):
     vardir = _vardir(family)
-    name = args[0] if args else "restore"
+    name = _saved_name(args[0]) if args else "restore"
     saved = os.path.join(vardir, name)
     if os.path.exists(saved):
         os.unlink(saved)
