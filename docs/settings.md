@@ -26,6 +26,7 @@ These are read and acted on.
 | TCP_FLAGS_LOG_LEVEL | Log level for the tcp-flags check. |
 | ADMINISABSENTMINDED | Affects the stopped-state policy. |
 | REQUIRE_IPSETS | Yes (default): an unsupported ipset is a compile error. No: warn and skip it, so one odd set does not fail the whole ruleset. |
+| REQUIRE_SECURE_CONFIG | No (default): warn if /etc/shorewall is group- or world-writable, or (when run as root) not owned by root. Yes: make it a compile error. A less-privileged user who can edit the config can have their input run as root at start. This is a shorewall-nft addition; upstream did not check. |
 
 ## Rejected loud if set to a non-default value
 

@@ -8,11 +8,18 @@ ipset-translate, done at compile time.
 Supported set types: hash:ip, hash:net (interval sets). Anything else
 fails loudly at the point of use.
 """
+import ipaddress
 import os
+import re
 import sys
 from dataclasses import dataclass, field
 
 from .errors import ConfigError
+
+# ipset names and elements are emitted into the nft ruleset; validate them
+# so a malformed dump fails loud with a location rather than producing an
+# unloadable ruleset or dropping elements.
+_SETNAME = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]*$")
 
 
 @dataclass
@@ -44,6 +51,9 @@ def parse(path, strict=True):
                     raise ConfigError("ipset create needs NAME TYPE",
                                       path, lineno)
                 name, settype = parts[1], parts[2]
+                if not _SETNAME.match(name):
+                    raise ConfigError(f"invalid ipset name {name!r}",
+                                      path, lineno)
                 if settype not in ("hash:ip", "hash:net"):
                     if strict:
                         raise ConfigError(
@@ -78,13 +88,22 @@ def parse(path, strict=True):
                 sets[name] = IpsetDef(name=name, settype=settype, family=fam,
                                       timeout=timeout)
             elif parts[0] == "add":
+                if len(parts) < 3:
+                    raise ConfigError("ipset add needs NAME ELEMENT",
+                                      path, lineno)
                 name = parts[1]
                 if name in skipped:
                     continue
                 if name not in sets:
                     raise ConfigError(f"add to unknown ipset {name}",
                                       path, lineno)
-                sets[name].elements.append(parts[2])
+                element = parts[2]
+                try:
+                    ipaddress.ip_network(element, strict=False)
+                except ValueError:
+                    raise ConfigError(f"ipset {name}: invalid element "
+                                      f"{element!r}", path, lineno)
+                sets[name].elements.append(element)
             elif parts[0] in ("flush", "destroy", "swap"):
                 continue
             else:

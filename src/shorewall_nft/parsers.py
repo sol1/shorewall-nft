@@ -5,7 +5,7 @@ import os
 import re
 import socket
 
-from . import macros
+from . import macros, valid
 from .errors import ConfigError
 from .model import (AcctRule, DnatRule, HelperRule, Interface, MangleRule,
                     NatRule, NetmapRule, Policy, Provider, RtRule, Rule, SnatRule,
@@ -141,6 +141,10 @@ def parse_interfaces(path, variables):
         if options.get("ignore") is True or zone is None:
             continue
         physical = options.get("physical", logical)
+        # These names reach sysctl and nft; a metacharacter here would
+        # inject into the root script or the ruleset.
+        valid.interface(logical, line, "interface")
+        valid.interface(physical, line, "interface")
         interfaces.append(Interface(zone=zone, logical=logical,
                                     physical=physical, options=options))
     return interfaces
@@ -876,7 +880,14 @@ def parse_tcdevices(path, variables, interfaces):
         if len(cols) > 3 and cols[3] != "-":
             raise line.error("tcdevices OPTIONS not supported yet")
         origin = f"{os.path.basename(line.path)}:{line.lineno}"
-        out.append(TcDevice(interface=logical.get(iface, iface),
+        iface = logical.get(iface, iface)
+        # interface and bandwidths are interpolated into tc commands.
+        valid.interface(iface, line, "tcdevices interface")
+        if in_bw:
+            valid.rate(in_bw, line, "bandwidth")
+        if out_bw:
+            valid.rate(out_bw, line, "bandwidth")
+        out.append(TcDevice(interface=iface,
                             number=number, in_bw=in_bw, out_bw=out_bw,
                             origin=origin))
     return out
@@ -911,7 +922,13 @@ def parse_tcclasses(path, variables, interfaces):
             if key == "default":
                 default = True
         origin = f"{os.path.basename(line.path)}:{line.lineno}"
-        out.append(TcClass(interface=logical.get(iface, iface), num=num,
+        iface = logical.get(iface, iface)
+        # interface, rate and ceil are interpolated into tc class commands.
+        valid.interface(iface, line, "tcclasses interface")
+        valid.rate(cols[2], line, "rate")
+        if cols[3] not in ("-", ""):
+            valid.rate(cols[3], line, "ceil")
+        out.append(TcClass(interface=iface, num=num,
                            mark=mark, rate=cols[2], ceil=cols[3],
                            prio=int(cols[4]) if cols[4] != "-" else 1,
                            default=default, origin=origin))
@@ -984,6 +1001,12 @@ def parse_providers(path, variables, interfaces):
         gateway = cols[5]
         if gateway == "-":
             gateway = ""
+        # name and interface reach the shell (provider_usable, ip route);
+        # the gateway is interpolated into ip route unless it is detected.
+        valid.identifier(name, line, "provider name")
+        valid.interface(interface, line, "provider interface")
+        if gateway and gateway != "detect":
+            valid.address(gateway, line, "provider gateway")
         try:
             num = int(number)
         except ValueError:
@@ -1076,6 +1099,15 @@ def parse_rtrules(path, variables, interfaces, providers):
                     r.source = source
                 else:
                     r.iif = logical.get(source, source)
+                # Every field here is interpolated into an ip rule command.
+                if r.iif:
+                    valid.interface(r.iif, line, "rtrules interface")
+                if r.runtime_iface:
+                    valid.interface(r.runtime_iface, line, "rtrules interface")
+                if r.source:
+                    valid.network(r.source, line, "rtrules source")
+                if r.dest:
+                    valid.network(r.dest, line, "rtrules dest")
                 out.append(r)
     return out
 
@@ -1112,9 +1144,15 @@ def parse_proxyarp(path, variables, interfaces):
         if len(cols) < 3:
             raise line.error("proxyarp needs ADDRESS INTERFACE EXTERNAL")
         haveroute = _yes(cols[3]) if len(cols) > 3 and cols[3] != "-" else False
+        interface = logical.get(cols[1], cols[1])
+        external = logical.get(cols[2], cols[2])
+        # Interpolated into ip route / ip neigh commands.
+        valid.address(cols[0], line, "proxyarp address")
+        valid.interface(interface, line, "proxyarp interface")
+        valid.interface(external, line, "proxyarp external")
         out.append({"address": cols[0],
-                    "interface": logical.get(cols[1], cols[1]),
-                    "external": logical.get(cols[2], cols[2]),
+                    "interface": interface,
+                    "external": external,
                     "haveroute": haveroute,
                     "origin": f"{os.path.basename(line.path)}:{line.lineno}"})
     return out
@@ -1138,9 +1176,17 @@ def parse_routes(path, variables, interfaces, providers):
         device = cols[3] if len(cols) > 3 and cols[3] != "-" else ""
         if gateway and device:
             raise line.error("a gateway route may not specify a device")
+        device = logical.get(device, device)
+        # dest, gateway and device are interpolated into ip route.
+        if cols[1] != "default":
+            valid.network(cols[1], line, "routes destination")
+        if gateway:
+            valid.address(gateway, line, "routes gateway")
+        if device:
+            valid.interface(device, line, "routes device")
         out.append({"table": numbers.get(provider, provider),
                     "dest": cols[1], "gateway": gateway,
-                    "device": logical.get(device, device),
+                    "device": device,
                     "origin": f"{os.path.basename(line.path)}:{line.lineno}"})
     return out
 

@@ -134,12 +134,48 @@ def _has_content(path, variables):
         return True
 
 
+def _check_config_security(confdir, variables):
+    """Warn, or with REQUIRE_SECURE_CONFIG=Yes refuse, if the configuration
+    is writable by anyone but its owner, or, when running as root, not
+    owned by root. A less-privileged user who can edit /etc/shorewall can
+    have their input run as root at start. Input validation blocks
+    injection; this is defence in depth against a misconfigured directory.
+    Off by parity with upstream, which did not check, so it only warns
+    unless the operator opts into strict mode."""
+    strict = variables.get("REQUIRE_SECURE_CONFIG", "No").lower() in (
+        "yes", "1", "true", "on")
+    as_root = hasattr(os, "geteuid") and os.geteuid() == 0
+    problems = []
+    for base, _dirs, files in os.walk(confdir):
+        for path in [base] + [os.path.join(base, f) for f in files]:
+            try:
+                st = os.stat(path)
+            except OSError:
+                continue
+            if st.st_mode & 0o022:
+                problems.append(f"{path} is group- or world-writable")
+            elif as_root and st.st_uid != 0:
+                problems.append(f"{path} is not owned by root")
+    if not problems:
+        return
+    detail = "; ".join(problems[:5])
+    if len(problems) > 5:
+        detail += f"; and {len(problems) - 5} more"
+    if strict:
+        raise ConfigError(f"insecure configuration permissions: {detail}. "
+                          "A less-privileged user could alter the firewall.")
+    print(f"shorewall-nft: warning: {detail}. A less-privileged user could "
+          "alter the firewall; fix the permissions, or set "
+          "REQUIRE_SECURE_CONFIG=Yes to make this an error.", file=sys.stderr)
+
+
 def load(confdir, family=4):
     cfg = Config(confdir, family)
     variables = {}
     conf = "shorewall6.conf" if family == 6 else "shorewall.conf"
     variables.update(read_simple_vars(_path(confdir, conf)))
     variables.update(read_simple_vars(_path(confdir, "params")))
+    _check_config_security(confdir, variables)
 
     cfg.zones = parsers.parse_zones(_path(confdir, "zones"), variables)
     fw = [z.name for z in cfg.zones if z.type == "firewall"]
