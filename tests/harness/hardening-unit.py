@@ -307,6 +307,8 @@ def parses(fn, text, suffix):
  else bad)("reader: INCLUDE of a missing file is a config error")
 (ok if raises_config_error(lambda: reads("?IF &&\n?ENDIF\n", ".conf"))
  else bad)("reader: a malformed ?IF expression is a config error")
+(ok if raises_config_error(lambda: reads("?IF $A($A)\n?ENDIF\n", ".conf"))
+ else bad)("reader: a ?IF that eval rejects (TypeError) is a config error")
 (ok if raises_config_error(lambda: parses(parse_tcpri, "x - - - - eth0\n",
                                           ".tcpri"))
  else bad)("tcpri: non-numeric band is a config error")

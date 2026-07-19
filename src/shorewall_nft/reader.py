@@ -47,7 +47,9 @@ def evaluate(expr, variables, path, lineno):
                           path, lineno)
     try:
         return bool(eval(text, {"__builtins__": {}}))  # noqa: S307
-    except SyntaxError:
+    except (SyntaxError, TypeError):
+        # The token whitelist admits shapes eval still rejects, e.g. a value
+        # next to a parenthesis ("True(True)") raising TypeError.
         raise ConfigError(f"cannot evaluate ?IF expression: {expr}",
                           path, lineno)
 
