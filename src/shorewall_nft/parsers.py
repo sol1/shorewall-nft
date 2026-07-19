@@ -4,6 +4,7 @@ import ipaddress
 import os
 import re
 import socket
+import sys
 
 from . import macros, valid
 from .errors import ConfigError
@@ -116,14 +117,18 @@ IFACE_OPTIONS_ACTIVE = {
     "logmartians", "sourceroute", "forward", "proxyarp", "proxyndp",
     "arp_filter", "arp_ignore", "accept_ra", "mss",
 }
-# Options recognized but not yet acted on. Accepted silently so real
-# configs compile; each is a known no-op we can implement later.
+# Options recognized but not yet acted on. Accepted so real configs
+# compile; each is a known no-op we can implement later.
 IFACE_OPTIONS_ACCEPTED = {
     "optional", "required", "wait", "bridge", "loopback", "maclist",
     "blacklist", "nets", "sfilter", "rpfilter", "upnp", "upnpclient",
     "destonly", "sourceonly", "ignore", "unmanaged", "dbl", "nodbl",
     "omitanycast", "detectnets", "norfc1918", "tcpflags", "wait",
 }
+# Accepted no-ops that provide anti-spoofing upstream. Silently ignoring
+# them would leave an interface less protected than the config asks for, so
+# each use is warned about until we enforce it.
+IFACE_OPTIONS_ANTISPOOF = {"sfilter", "rpfilter", "norfc1918"}
 IFACE_OPTIONS_KNOWN = IFACE_OPTIONS_ACTIVE | IFACE_OPTIONS_ACCEPTED
 
 
@@ -151,11 +156,22 @@ def parse_interfaces(path, variables):
                 key, eq, value = opt.partition("=")
                 if key not in IFACE_OPTIONS_KNOWN:
                     raise line.error(f"unsupported interface option {key}")
+                # Several option values reach sysctl commands in the root
+                # script; a metacharacter here would inject as root.
+                if eq:
+                    valid.safe_token(value, line, f"interface option {key}")
+                if key in IFACE_OPTIONS_ANTISPOOF:
+                    print(f"shorewall-nft: warning: {os.path.basename(line.path)}"
+                          f":{line.lineno}: interface option {key!r} is "
+                          "accepted but not yet enforced; anti-spoofing is "
+                          "NOT applied to this interface.", file=sys.stderr)
                 options[key] = value if eq else True
-        # mss is interpolated into the ruleset as a number.
+        # mss is interpolated into the ruleset as a number, so it needs a
+        # numeric value; a bare "mss" with no value is an error, not True.
         mss = options.get("mss")
-        if isinstance(mss, str) and not mss.isdigit():
-            raise line.error(f"interface mss must be a number, not {mss!r}")
+        if mss is not None and (mss is True or not mss.isdigit()):
+            raise line.error("interface mss needs a numeric value, e.g. "
+                             "mss=1400")
         # An ignore interface is not managed at all. A '-' zone interface is
         # kept: it belongs to no zone but its options (dhcp, tcpflags, mss)
         # and its logical-to-physical mapping still apply.
@@ -430,7 +446,13 @@ def parse_rules(path, variables, fw_zone, family=4):
             valid.mark(mark, line, "rules mark")
         if connlimit:
             cl = connlimit[1:] if connlimit.startswith("!") else connlimit
-            valid.integer(cl.split(":")[0], line, "rules connlimit")
+            # A per-source-subnet mask (count:mask) is not expressible as a
+            # single nft ct count; reject it rather than silently drop the
+            # mask and apply a global limit.
+            if ":" in cl:
+                raise line.error("rules CONNLIMIT per-subnet mask is not "
+                                 "supported yet")
+            valid.integer(cl, line, "rules connlimit")
         if col(12):
             raise line.error("rules HEADERS column not supported yet")
         if col(13):
@@ -595,6 +617,11 @@ def parse_nat(path, variables, interfaces):
         iface = cols[1].split(":")[0]
         iface = logical.get(iface, iface)
         internal = cols[2]
+        # These reach the ruleset; validate at the boundary so a bad token
+        # is a located error, not an unloadable ruleset at boot.
+        valid.address(external, line, "nat external")
+        valid.interface(iface, line, "nat interface")
+        valid.address(internal, line, "nat internal")
         allints = _yes(cols[3]) if len(cols) > 3 and cols[3] != "-" else False
         local = _yes(cols[4]) if len(cols) > 4 and cols[4] != "-" else False
         origin = f"{os.path.basename(line.path)}:{line.lineno}"
@@ -1024,9 +1051,10 @@ def parse_mangle(path, variables, interfaces, family=4):
         proto = cols[3] if len(cols) > 3 and cols[3] != "-" else ""
         dport = cols[4] if len(cols) > 4 and cols[4] != "-" else ""
         sport = cols[5] if len(cols) > 5 and cols[5] != "-" else ""
-        # A MARK param reaches nft as a number; reject a bad one here.
+        # A MARK param reaches nft as a number to set; reject a bad one, and
+        # a negation, here (you cannot set a negated mark).
         if name == "MARK":
-            valid.mark(m.group("param"), line, "mangle mark")
+            valid.mark(m.group("param"), line, "mangle mark", negatable=False)
         origin = f"{os.path.basename(line.path)}:{line.lineno}"
         for chain in chains:
             out.append(MangleRule(chain=chain, action=name,
@@ -1313,7 +1341,12 @@ def parse_accounting(path, variables, interfaces):
         s_iface, s_addr = side(source)
         d_iface, d_addr = side(dest)
         if m:
-            out.append(AcctRule(table=m.group("table"), net=m.group("net"),
+            net = m.group("net")
+            # net is interpolated into the accounting rule; validate it here
+            # rather than emit an unloadable ruleset.
+            if net and net not in ("0.0.0.0/0", "::/0"):
+                valid.network(net, line, "accounting network")
+            out.append(AcctRule(table=m.group("table"), net=net,
                                 in_iface=s_iface or s_addr,
                                 out_iface=d_iface or d_addr,
                                 origin=origin, chain=chain))
@@ -1481,6 +1514,8 @@ def parse_masq(path, variables, interfaces):
         cols = split_columns(line.text, line.path, line.lineno)
         iface, _, dest_addr = cols[0].partition(":")
         dest_phys = logical.get(iface, iface)
+        # dest_phys reaches oifname in the ruleset; a metacharacter injects.
+        valid.interface(dest_phys, line, "masq interface")
         source = cols[1] if len(cols) > 1 and cols[1] != "-" else ""
         address = cols[2] if len(cols) > 2 and cols[2] != "-" else ""
         proto = cols[3] if len(cols) > 3 and cols[3] != "-" else ""
@@ -1537,6 +1572,8 @@ def parse_snat(path, variables, interfaces):
         dest_phys = logical.get(dest, dest)
         if not dest_phys or dest_phys == "-":
             raise line.error("snat needs a destination interface")
+        # dest_phys reaches oifname in the ruleset; a metacharacter injects.
+        valid.interface(dest_phys, line, "snat interface")
         proto = cols[3] if len(cols) > 3 and cols[3] != "-" else ""
         dport = cols[4] if len(cols) > 4 and cols[4] != "-" else ""
         # FORMAT 2 inserts a SPORT column after DPORT, shifting the tail

@@ -14,12 +14,15 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)),
 from shorewall_nft import capabilities, ipsets, lsm  # noqa: E402
 from shorewall_nft.compile import load  # noqa: E402
 from shorewall_nft.emit import (  # noqa: E402
-    render, render_stop, _match_addr_alts, _time_match)
+    render, render_stop, _match_addr_alts, _time_match, _match_addr,
+    _addr_set, _verdict, _rule_match)
+from shorewall_nft.model import Rule  # noqa: E402
 from shorewall_nft.errors import ConfigError  # noqa: E402
 from shorewall_nft.lsm import Monitor, MonitorCfg, parse_lsm  # noqa: E402
 from shorewall_nft.parsers import (  # noqa: E402
     parse_providers, parse_tcpri, parse_tcdevices, parse_tcclasses,
-    parse_rtrules, parse_policy, parse_tcinterfaces, parse_mangle, parse_snat)
+    parse_rtrules, parse_policy, parse_tcinterfaces, parse_mangle, parse_snat,
+    parse_masq, parse_nat, parse_accounting)
 from shorewall_nft.reader import read_file  # noqa: E402
 from shorewall_nft.script import render_script, _rate_kbit  # noqa: E402
 
@@ -412,13 +415,17 @@ finally:
  else bad)("snat: a non-numeric mark is a config error")
 
 
-def load_with(files):
-    """load() a copy of 0002 with the given {name: text} overrides."""
+def load_with(files, append=None):
+    """load() a copy of 0002 with the given {name: text} overrides, and any
+    {name: text} in append added to the end of the existing file."""
     d = tempfile.mkdtemp(prefix="shorewall-nft-rev2-")
     shutil.copytree(os.path.join(REPO, "tests/corpus/0002-one-interface/config"),
                     d, dirs_exist_ok=True)
     for name, text in files.items():
         with open(os.path.join(d, name), "w") as f:
+            f.write(text)
+    for name, text in (append or {}).items():
+        with open(os.path.join(d, name), "a") as f:
             f.write(text)
     try:
         return load(d, 4)
@@ -449,5 +456,67 @@ text = render(cfg)
  else bad)("emit: tcpflags reaches a wildcard interface as a glob")
 (ok if 'iifname "ppp*" ct state new,invalid,untracked jump smurfs' in text
  else bad)("emit: nosmurfs reaches a wildcard interface as a glob")
+
+# --- third-review findings: more injection, fail-open and traceback gaps ---
+# Interface option VALUES reach sysctl in the root script; a metacharacter
+# is rejected, and a bare mss needs a value.
+(ok if raises_config_error(
+    lambda: load_with({"interfaces":
+                       "?FORMAT 2\nnet eth0 arp_ignore=$(touch /tmp/x)\n"}))
+ else bad)("interfaces: a metacharacter in an option value is a config error")
+(ok if raises_config_error(lambda: load_with({"interfaces":
+                                              "?FORMAT 2\nnet eth0 mss\n"}))
+ else bad)("interfaces: a bare mss option is a config error")
+
+# A +ipset reference name reaches the DYNSETS shell assignment; reject a
+# metacharacter, and a bare '!' address must not crash the emitter.
+(ok if raises_config_error(
+    lambda: _match_addr("+ban$(id)", "saddr", "ip", set()))
+ else bad)("emit: a +ipset name with a metacharacter is a config error")
+(ok if raises_config_error(lambda: _match_addr("!", "saddr", "ip", set()))
+ else bad)("emit: a bare '!' address column is a config error, not KeyError")
+(ok if raises_config_error(lambda: _addr_set("!"))
+ else bad)("emit: a bare '!' origdest is a config error, not IndexError")
+
+# A negated protocol renders nft's != form and loads.
+(ok if _rule_match(Rule(action="ACCEPT", source="net", dest="fw",
+                        proto="!tcp"), 4, set()) == ["meta l4proto != tcp"]
+ else bad)("emit: a negated protocol renders as meta l4proto != tcp")
+(ok if raises_config_error(
+    lambda: _rule_match(Rule(action="ACCEPT", source="net", dest="fw",
+                             proto="!tcp", dport="22"), 4, set()))
+ else bad)("emit: a negated protocol with a port is a config error")
+
+# An unknown verdict/disposition is a config error, not a KeyError.
+(ok if raises_config_error(lambda: _verdict("LOG"))
+ else bad)("emit: an unknown verdict is a config error, not KeyError")
+
+# mangle MARK cannot be negated; snat/masq/nat interfaces are validated.
+(ok if raises_config_error(
+    lambda: parses(parse_mangle, "MARK(!1) - - -\n", ".mangle"))
+ else bad)("mangle: a negated MARK is a config error, not a ValueError")
+(ok if raises_config_error(
+    lambda: parses(parse_masq, 'eth0" 10.0.0.0/8\n', ".masq"))
+ else bad)("masq: a metacharacter in the interface is a config error")
+(ok if raises_config_error(
+    lambda: parses(parse_nat, '1.2.3.4 eth0" 10.0.0.1\n', ".nat"))
+ else bad)("nat: a metacharacter in the interface is a config error")
+
+# ACCOUNT net is validated; a per-subnet CONNLIMIT mask is rejected.
+(ok if raises_config_error(
+    lambda: parses(parse_accounting, "ACCOUNT(t,not-an-addr)\teth0\n",
+                   ".accounting"))
+ else bad)("accounting: a bad ACCOUNT network is a config error")
+(ok if raises_config_error(
+    lambda: load_with({"rules": "?SECTION NEW\n"
+                       "DROP net $FW tcp 22 - - - - 10:24\n"}))
+ else bad)("rules: a per-subnet CONNLIMIT mask is a config error")
+
+# A BLACKLIST_DISPOSITION nft cannot render is a config error, not KeyError.
+(ok if raises_config_error(
+    lambda: render(load_with(
+        {"blrules": "BLACKLIST net $FW tcp 22\n"},
+        append={"shorewall.conf": "\nBLACKLIST_DISPOSITION=nonsense\n"})))
+ else bad)("blrules: an unsupported BLACKLIST_DISPOSITION is a config error")
 
 sys.exit(1 if fails else 0)

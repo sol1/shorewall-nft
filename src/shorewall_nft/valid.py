@@ -27,6 +27,10 @@ _IDENT = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
 # A tc rate: a number with an optional unit, or the word full.
 _RATE = re.compile(r"^(full|[0-9]+(\.[0-9]+)?"
                    r"(bit|kbit|mbit|gbit|tbit|bps|kbps|mbps|gbps|tbps)?)$")
+# A token with no shell or nft metacharacter: for a value that reaches a
+# command or the ruleset but has no more specific validator. Excludes space,
+# quotes, $, backtick, (), ;, &, |, <, >, =, *, etc.
+_SAFE = re.compile(r"^[\w.:@/+-]*$")
 
 
 def interface(name, line, col="interface"):
@@ -79,13 +83,27 @@ def integer(spec, line, col="number", base=10):
         raise line.error(f"invalid {col} {spec!r}")
 
 
-def mark(spec, line, col="mark"):
-    """A packet mark: an optional leading !, then value or value/mask, each
-    an integer in any base. The value reaches nft as a number, so a bad one
-    would otherwise be a bare ValueError in the emitter."""
-    s = spec[1:] if spec.startswith("!") else spec
+def mark(spec, line, col="mark", negatable=True):
+    """A packet mark: an optional leading ! (only where a match negation is
+    allowed), then value or value/mask, each an integer in any base. The
+    value reaches nft as a number, so a bad one would otherwise be a bare
+    ValueError in the emitter."""
+    s = spec
+    if s.startswith("!"):
+        if not negatable:
+            raise line.error(f"{col} cannot be negated: {spec!r}")
+        s = s[1:]
     value, _, msk = s.partition("/")
     integer(value, line, col, 0)
     if msk:
         integer(msk, line, col, 0)
     return spec
+
+
+def safe_token(value, line, col="value"):
+    """A value with no shell or nft metacharacter, for a column that reaches
+    a command or the ruleset but has no dedicated validator. Blocks the
+    injection a metacharacter would carry into the root script or nft."""
+    if not _SAFE.match(value or ""):
+        raise line.error(f"invalid {col} {value!r}")
+    return value

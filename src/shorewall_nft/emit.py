@@ -203,6 +203,11 @@ def _unbracket(addr):
     return addr
 
 
+# A set name: an nft identifier. The name reaches the DYNSETS shell
+# assignment in the root script, so a metacharacter here would inject.
+_SETNAME = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]*$")
+
+
 def _addr_set(spec):
     """Render an address list. A leading ! negates the whole match,
     upstream's exclusion syntax."""
@@ -211,6 +216,8 @@ def _addr_set(spec):
         negate = "!= "
         spec = spec[1:]
     parts = [_unbracket(p) for p in spec.split(",") if p]
+    if not parts:
+        raise ConfigError(f"empty address column: {spec!r}")
     if len(parts) > 1:
         return negate + "{ " + ", ".join(parts) + " }"
     return negate + parts[0]
@@ -225,6 +232,8 @@ def _match_addr(spec, side, ipkw, sets):
         negate = "!= "
         spec = spec[1:]
     parts = [p for p in spec.split(",") if p]
+    if not parts:
+        raise ConfigError(f"empty address column: {spec!r}")
     kinds = {("set" if p.startswith("+") else
               "geoip" if p.startswith("^") else
               "mac" if p.startswith("~") else "addr") for p in parts}
@@ -252,6 +261,8 @@ def _match_addr(spec, side, ipkw, sets):
         name = parts[0][1:]
         if "[" in name:
             raise ConfigError(f"ipset flags not supported yet: {spec}")
+        if not _SETNAME.match(name):
+            raise ConfigError(f"invalid ipset name: {spec}")
         sets.add(name)
         return f"{ipkw} {side} {negate}@{name}"
     if kind == "mac":
@@ -340,9 +351,19 @@ def _rule_match(rule, family=4, sets=None):
     proto = rule.proto.lower()
     if proto in ("all", "any"):
         proto = ""
-    if family == 6 and proto == "icmp":
-        proto = "ipv6-icmp"
-    if "," in proto:
+    if family == 6 and proto in ("icmp", "!icmp"):
+        proto = proto.replace("icmp", "ipv6-icmp")
+    if proto.startswith("!"):
+        # A negated protocol matches everything but the listed protocol(s);
+        # nft spells this != and it cannot carry ports.
+        if rule.sport or rule.dport:
+            raise ConfigError(
+                f"a negated protocol cannot take ports: {rule.proto}")
+        bare = proto[1:]
+        body = ("{ " + ", ".join(bare.split(",")) + " }"
+                if "," in bare else bare)
+        post.append(f"meta l4proto != {body}")
+    elif "," in proto:
         protos = "{ " + ", ".join(proto.split(",")) + " }"
         post.append(f"meta l4proto {protos}")
         if rule.sport:
@@ -524,8 +545,11 @@ def _verdict(action, param=""):
         return "queue"
     if action == "NFQUEUE":
         return f"queue to {param}" if param else "queue"
-    return {"ACCEPT": "accept", "DROP": "drop",
-            "REJECT": "jump reject_action"}[action]
+    verdicts = {"ACCEPT": "accept", "DROP": "drop",
+                "REJECT": "jump reject_action"}
+    if action not in verdicts:
+        raise ConfigError(f"unsupported action or verdict {action!r}")
+    return verdicts[action]
 
 
 def _collect_sets(cfg, sink):
@@ -549,6 +573,11 @@ def _collect_sets(cfg, sink):
             _match_addr(r.saddr, "saddr", ipkw, sink)
         if r.daddr:
             _match_addr(r.daddr, "daddr", ipkw, sink)
+    for a in cfg.accounting:
+        if a.saddr:
+            _match_addr(a.saddr, "saddr", ipkw, sink)
+        if a.daddr:
+            _match_addr(a.daddr, "daddr", ipkw, sink)
 
 
 def external_sets(cfg):
@@ -576,8 +605,13 @@ class Emitter:
         # Distinct default-action strings in use, each gets a chain.
         self._default_chains = {}
         seen = set()
-        for p in cfg.policies:
-            d = self._default_action(p.policy)
+        # _policy_for synthesizes an intra-zone ACCEPT policy that never
+        # appears in cfg.policies, so register the ACCEPT default action too;
+        # otherwise its chain is missing and the default jump is silently
+        # dropped, letting broadcast/multicast through. When ACCEPT_DEFAULT is
+        # none (the shipped default) this registers nothing.
+        for policy in [p.policy for p in cfg.policies] + ["ACCEPT"]:
+            d = self._default_action(policy)
             if d and d not in seen:
                 seen.add(d)
                 self._default_chains[d] = f"default_{len(self._default_chains)}"
@@ -1154,10 +1188,11 @@ class Emitter:
                 m.append(f'iifname "{a.in_iface}"')
             if a.out_iface:
                 m.append(f'oifname "{a.out_iface}"')
+            # Set-aware so a +ipset reference renders as @set and is declared.
             if a.saddr:
-                m.append(f"{ipkw} saddr {_addr_set(a.saddr)}")
+                m.append(_match_addr(a.saddr, "saddr", ipkw, self.sets))
             if a.daddr:
-                m.append(f"{ipkw} daddr {_addr_set(a.daddr)}")
+                m.append(_match_addr(a.daddr, "daddr", ipkw, self.sets))
             return m
 
         def emit_stmt(chain, stmt, a, indent=2):
@@ -1500,6 +1535,13 @@ class Emitter:
         if not self.cfg.blrules:
             return
         disp = self.cfg.variables.get("BLACKLIST_DISPOSITION", "DROP").upper()
+        verdicts = {"WHITELIST": "return", "ACCEPT": "accept",
+                    "CONTINUE": "return", "DROP": "drop",
+                    "A_DROP": "log level audit drop",
+                    "REJECT": "jump reject_action",
+                    "A_REJECT": "log level audit jump reject_action"}
+        if disp not in verdicts:
+            raise ConfigError(f"unsupported BLACKLIST_DISPOSITION {disp}")
         self.out("")
         self.out("chain blacklist {", 1)
         # Established and related traffic is already accepted, so the
@@ -1511,11 +1553,9 @@ class Emitter:
             action = r.action
             if action == "BLACKLIST":
                 action = disp
-            verdict = {"WHITELIST": "return", "ACCEPT": "accept",
-                       "CONTINUE": "return", "DROP": "drop",
-                       "A_DROP": "log level audit drop",
-                       "REJECT": "jump reject_action",
-                       "A_REJECT": "log level audit jump reject_action"}[action]
+            if action not in verdicts:
+                raise ConfigError(f"unsupported blrules action {action}")
+            verdict = verdicts[action]
             comment = f' comment "{r.origin}"' if r.origin else ""
             # A mixed column fans the rule out into several alternatives.
             for base in _rule_match(r, self.cfg.family, self.sets):
