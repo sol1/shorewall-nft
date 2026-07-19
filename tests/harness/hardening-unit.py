@@ -603,4 +603,8 @@ dnat_text = render(dnat_all)
 (ok if parses(parse_tcclasses, "eth0:10\t1\t-\tfull\t1\n", ".tcclasses")
  else bad)("tcclasses: a '-' rate (device bandwidth) still compiles")
 
+# Problem 2: policy all+/any+ (include intra-zone) must still compile.
+(ok if load_with({"policy": "all+ all+ REJECT\nall all DROP\n"})
+ else bad)("policy: all+/any+ catch-all still compiles")
+
 sys.exit(1 if fails else 0)

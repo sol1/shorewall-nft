@@ -195,9 +195,12 @@ def parse_policy(path, variables, zones=None):
     def check_zone(spec, fw):
         # A policy naming an undeclared zone never matches, so a broader
         # catch-all silently supplies a different disposition. Reject it.
+        # all and any, with or without the trailing + (include intra-zone),
+        # are the documented catch-alls and are always allowed.
         z = spec.split(":")[0]
         z = fw if z == "$FW" else z
-        if zones is not None and z not in ("all", "any") and z not in zones:
+        if zones is not None and z not in ("all", "any", "all+", "any+") \
+                and z not in zones:
             raise line.error(f"unknown zone {z}")
 
     for line in read_file(path, variables):
