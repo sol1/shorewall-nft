@@ -560,6 +560,17 @@ dnat_text = render(dnat_all)
 (ok if "dnat ip to 10.0.0.5" in dnat_text
  else bad)("emit: DNAT from all is emitted, not silently dropped")
 
+# A DNAT from a hosts-only zone is scoped by that zone's addresses, not open.
+dnat_hostonly = load_with({
+    "zones": "fw firewall\nnet ipv4\nloc ipv4\n",
+    "interfaces": "?FORMAT 2\nnet eth0\n",
+    "hosts": "loc eth0:10.0.0.0/24\n",
+    "rules": "?SECTION NEW\nDNAT loc net:1.2.3.4 tcp 80\n",
+    "policy": "all all ACCEPT\n"})
+ho_text = render(dnat_hostonly)
+(ok if "ip saddr 10.0.0.0/24" in ho_text and "dnat ip to 1.2.3.4" in ho_text
+ else bad)("emit: DNAT from a hosts-only zone is scoped by its addresses")
+
 # Zone typos in rules/policy/blrules are rejected, not silently fail-open.
 (ok if raises_config_error(
     lambda: load_with({"rules": "?SECTION NEW\nREJECT lan net tcp 25\n"}))

@@ -1747,18 +1747,24 @@ class Emitter:
                     m.append(f"meta l4proto {d.proto}")
                 match = " ".join(m)
                 comment = f' comment "{d.origin}"' if d.origin else ""
-                ifaces = self._zone_ifaces(d.source)
-                if d.source == "all" or not ifaces:
-                    # A source of all (or a zone with no own interface) is not
-                    # scoped by iifname, so emit one unrestricted rule rather
-                    # than silently dropping the DNAT.
+                if d.source == "all":
+                    # all sources: not scoped by interface or address.
                     body = f"{match} {action}".strip()
                     self.out(f"{body}{comment}", 2)
                 else:
-                    for iface in ifaces:
-                        ifm = _if_match("iifname", iface.physical)
-                        dev = f"{ifm} " if ifm else ""
-                        self.out(f"{dev}{match} {action}{comment}", 2)
+                    # Scope by every claim the source zone has: its interfaces
+                    # and its hosts-file address ranges. A hosts-only zone has
+                    # no interface of its own but must still be scoped by its
+                    # addresses, not left open.
+                    for iface, nets in self._zone_sources(d.source):
+                        ifm = _if_match("iifname", iface)
+                        parts = ([ifm] if ifm else [])
+                        if nets:
+                            parts.append(f"{ipkw} saddr {_addr_set(nets)}")
+                        if match:
+                            parts.append(match)
+                        self.out(" ".join(parts + [action]).strip()
+                                 + comment, 2)
             self.out("}", 1)
         if not self.cfg.snat:
             return
