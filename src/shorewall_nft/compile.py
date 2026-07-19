@@ -199,6 +199,9 @@ def load(confdir, family=4):
     if clampmss.lower() in ("yes", "1", "on"):
         cfg.clampmss = "pmtu"
     elif clampmss and clampmss.lower() not in ("no", "0", "off", ""):
+        if not clampmss.isdigit():
+            raise ConfigError(f"CLAMPMSS must be Yes, No or a number, not "
+                              f"{clampmss!r}")
         cfg.clampmss = clampmss   # a fixed MSS value
 
     # Register user-defined actions so the rule parser can expand them

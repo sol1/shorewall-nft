@@ -17,7 +17,10 @@ from shorewall_nft.emit import (  # noqa: E402
     render, render_stop, _match_addr_alts, _time_match)
 from shorewall_nft.errors import ConfigError  # noqa: E402
 from shorewall_nft.lsm import Monitor, MonitorCfg, parse_lsm  # noqa: E402
-from shorewall_nft.parsers import parse_providers  # noqa: E402
+from shorewall_nft.parsers import (  # noqa: E402
+    parse_providers, parse_tcpri, parse_tcdevices, parse_tcclasses,
+    parse_rtrules)
+from shorewall_nft.reader import read_file  # noqa: E402
 from shorewall_nft.script import render_script  # noqa: E402
 
 REPO = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..")
@@ -263,5 +266,71 @@ finally:
  else bad)("emit: a midnight-crossing time range is a config error")
 (ok if raises_config_error(lambda: _time_match("timestart=08:00"))
  else bad)("emit: a time range with no stop is a config error")
+
+# --- bad numbers and directives are ConfigError, not a raw traceback (#6) ---
+# main() catches ConfigError and exits cleanly; a bare ValueError/IndexError
+# would be an uncaught traceback. Feed each parser a malformed value.
+def reads(text, suffix):
+    path = _tmp(text, suffix)
+    try:
+        list(read_file(path, {}))
+    finally:
+        os.unlink(path)
+
+
+def parses(fn, text, suffix):
+    path = _tmp(text, suffix)
+    try:
+        fn(path, {}, [])
+    finally:
+        os.unlink(path)
+
+
+(ok if raises_config_error(lambda: reads("?FORMAT x\n", ".conf"))
+ else bad)("reader: non-numeric ?FORMAT is a config error")
+(ok if raises_config_error(lambda: reads("?FORMAT 3\n", ".conf"))
+ else bad)("reader: unsupported ?FORMAT number is a config error")
+(ok if raises_config_error(lambda: reads("INCLUDE\n", ".conf"))
+ else bad)("reader: INCLUDE with no file is a config error")
+(ok if raises_config_error(lambda: reads("INCLUDE no-such-file\n", ".conf"))
+ else bad)("reader: INCLUDE of a missing file is a config error")
+(ok if raises_config_error(lambda: reads("?IF &&\n?ENDIF\n", ".conf"))
+ else bad)("reader: a malformed ?IF expression is a config error")
+(ok if raises_config_error(lambda: parses(parse_tcpri, "x - - - - eth0\n",
+                                          ".tcpri"))
+ else bad)("tcpri: non-numeric band is a config error")
+(ok if raises_config_error(lambda: parses(parse_tcdevices, "eth0:x 1mbit\n",
+                                          ".tcdevices"))
+ else bad)("tcdevices: non-numeric number is a config error")
+(ok if raises_config_error(
+    lambda: parses(parse_tcclasses, "eth0 x 1mbit 1mbit 1\n", ".tcclasses"))
+ else bad)("tcclasses: non-numeric mark is a config error")
+(ok if raises_config_error(
+    lambda: parse_rtrules(_tmp("192.168.1.0/24 - main 1000 xyz\n", ".rtrules"),
+                          {}, [], []))
+ else bad)("rtrules: non-numeric mark is a config error")
+
+# CLAMPMSS and the interface mss option are numbers reaching the ruleset.
+mss_conf = tempfile.mkdtemp(prefix="shorewall-nft-mss-")
+try:
+    shutil.copytree(os.path.join(REPO, "tests/corpus/0002-one-interface/config"),
+                    mss_conf, dirs_exist_ok=True)
+    with open(os.path.join(mss_conf, "shorewall.conf"), "a") as f:
+        f.write("\nCLAMPMSS=notanumber\n")
+    (ok if raises_config_error(lambda: load(mss_conf, 4))
+     else bad)("compile: non-numeric CLAMPMSS is a config error")
+finally:
+    shutil.rmtree(mss_conf)
+
+iface_conf = tempfile.mkdtemp(prefix="shorewall-nft-ifmss-")
+try:
+    shutil.copytree(os.path.join(REPO, "tests/corpus/0002-one-interface/config"),
+                    iface_conf, dirs_exist_ok=True)
+    with open(os.path.join(iface_conf, "interfaces"), "w") as f:
+        f.write("?FORMAT 2\nnet eth0 mss=big\n")
+    (ok if raises_config_error(lambda: load(iface_conf, 4))
+     else bad)("parse: non-numeric interface mss is a config error")
+finally:
+    shutil.rmtree(iface_conf)
 
 sys.exit(1 if fails else 0)

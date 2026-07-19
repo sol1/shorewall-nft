@@ -138,6 +138,10 @@ def parse_interfaces(path, variables):
                 if key not in IFACE_OPTIONS_KNOWN:
                     raise line.error(f"unsupported interface option {key}")
                 options[key] = value if eq else True
+        # mss is interpolated into the ruleset as a number.
+        mss = options.get("mss")
+        if isinstance(mss, str) and not mss.isdigit():
+            raise line.error(f"interface mss must be a number, not {mss!r}")
         if options.get("ignore") is True or zone is None:
             continue
         physical = options.get("physical", logical)
@@ -206,7 +210,8 @@ def _expand_action(line, name, param, src, dst, proto, dport, sport,
                      origin=origin)]
     if macros.exists(name, family):
         out = []
-        for mr in macros.expand(name, param or "", variables, family):
+        for mr in macros.expand(name, param or "", variables, family,
+                                line=line):
             szone, saddr = resolve(mr.src)
             dzone, daddr = resolve(mr.dst)
             out.append(Rule(action=mr.action, source=szone, dest=dzone,
@@ -422,7 +427,8 @@ def parse_rules(path, variables, fw_zone, family=4):
         # is the redirect port or the DNAT target.
         if param in ("REDIRECT", "DNAT") and macros.exists(name, family):
             for source, s_addr in zones_of(cols[1]):
-                for mr in macros.expand(name, "ACCEPT", variables, family):
+                for mr in macros.expand(name, "ACCEPT", variables, family,
+                                        line=line):
                     if not mr.proto:
                         continue
                     if param == "REDIRECT":
@@ -850,7 +856,7 @@ def parse_tcpri(path, variables, interfaces):
     out = []
     for line in read_file(path, variables):
         cols = split_columns(line.text, line.path, line.lineno)
-        band = int(cols[0])
+        band = valid.integer(cols[0], line, "tcpri band")
         if band not in (1, 2, 3):
             raise line.error(f"tcpri band must be 1, 2 or 3, not {band}")
 
@@ -872,7 +878,7 @@ def parse_tcdevices(path, variables, interfaces):
         iface = cols[0]
         if ":" in iface:
             num, _, iface = iface.partition(":")
-            number = int(num)
+            number = valid.integer(num, line, "tcdevices number")
         else:
             number += 1
         in_bw = cols[1] if len(cols) > 1 and cols[1] != "-" else ""
@@ -908,8 +914,9 @@ def parse_tcclasses(path, variables, interfaces):
         num = 0
         if ":" in iface:
             iface, _, n = iface.partition(":")
-            num = int(n)
-        mark = int(cols[1], 0) if cols[1] != "-" else 0
+            num = valid.integer(n, line, "tcclasses class number")
+        mark = valid.integer(cols[1], line, "tcclasses mark", 0) \
+            if cols[1] != "-" else 0
         num = num or mark
         if not num:
             raise line.error("tcclasses entry needs a class number or mark")
@@ -930,7 +937,8 @@ def parse_tcclasses(path, variables, interfaces):
             valid.rate(cols[3], line, "ceil")
         out.append(TcClass(interface=iface, num=num,
                            mark=mark, rate=cols[2], ceil=cols[3],
-                           prio=int(cols[4]) if cols[4] != "-" else 1,
+                           prio=valid.integer(cols[4], line, "tcclasses prio")
+                           if cols[4] != "-" else 1,
                            default=default, origin=origin))
     return out
 
@@ -1076,7 +1084,9 @@ def parse_rtrules(path, variables, interfaces, providers):
         if len(cols) > 4 and cols[4] != "-":
             value, _, mask = cols[4].partition("/")
             mask = mask or "0xff"
-            mark = f"{int(value, 0):#x}/{int(mask, 0):#x}"
+            markval = valid.integer(value, line, "rtrules mark", 0)
+            maskval = valid.integer(mask, line, "rtrules mark mask", 0)
+            mark = f"{markval:#x}/{maskval:#x}"
         origin = f"{os.path.basename(line.path)}:{line.lineno}"
 
         for source in (cols[0].split(",") if cols[0] != "-" else [""]):

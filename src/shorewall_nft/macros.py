@@ -78,12 +78,17 @@ def _parse_side(col, own, line, name):
     return (own, col)
 
 
-def _compose(inner, outer_src, outer_dst):
+def _err(line, message):
+    """A ConfigError carrying the invoking line's file:line when known."""
+    return line.error(message) if line is not None else ConfigError(message)
+
+
+def _compose(inner, outer_src, outer_dst, line=None):
     """Resolve an inner (side, addr) against the outer invocation."""
     side, addr = inner
     outer = outer_src if side == "SOURCE" else outer_dst
     if addr and outer[1]:
-        raise ConfigError("nested macro address restrictions collide")
+        raise _err(line, "nested macro address restrictions collide")
     return (outer[0], addr or outer[1])
 
 
@@ -108,10 +113,12 @@ def _load(name, variables, family=4):
 
 
 def expand(name, param, variables, family=4, src=("SOURCE", ""),
-           dst=("DEST", ""), depth=0):
-    """Return a list of MacroRule resolved against the invocation."""
+           dst=("DEST", ""), depth=0, line=None):
+    """Return a list of MacroRule resolved against the invocation. line is
+    the rules line that invoked the macro; it labels any error with the
+    file and line the user can act on."""
     if depth > MAX_DEPTH:
-        raise ConfigError(f"macro {name}: expansion too deep")
+        raise _err(line, f"macro {name}: expansion too deep")
     out = []
     default = ""
     for target, msrc, mdst, proto, dport, sport in _load(name, variables,
@@ -120,13 +127,13 @@ def expand(name, param, variables, family=4, src=("SOURCE", ""),
             # The first parameter's default; DEFAULTS may list several.
             default = msrc[1].split(",")[0] if msrc[1] else ""
             continue
-        rsrc = _compose(msrc, src, dst)
-        rdst = _compose(mdst, src, dst)
+        rsrc = _compose(msrc, src, dst, line)
+        rdst = _compose(mdst, src, dst, line)
         audit = False
         if target == "PARAM":
             disposition = param or default
             if not disposition:
-                raise ConfigError(f"macro {name} needs a parameter")
+                raise _err(line, f"macro {name} needs a parameter")
         elif target in TERMINAL:
             disposition = target
         elif target in AUDIT:
@@ -134,16 +141,16 @@ def expand(name, param, variables, family=4, src=("SOURCE", ""),
             audit = True
         elif exists(target, family):
             out.extend(expand(target, param, variables, family, rsrc, rdst,
-                              depth + 1))
+                              depth + 1, line))
             continue
         else:
-            raise ConfigError(f"macro {name}: unsupported target {target}")
+            raise _err(line, f"macro {name}: unsupported target {target}")
         if disposition in AUDIT:
             disposition = AUDIT[disposition]
             audit = True
         if disposition not in TERMINAL:
-            raise ConfigError(f"macro {name}: unsupported disposition "
-                              f"{disposition}")
+            raise _err(line, f"macro {name}: unsupported disposition "
+                       f"{disposition}")
         out.append(MacroRule(action=disposition, audit=audit, proto=proto,
                              dport=dport, sport=sport, src=rsrc, dst=rdst))
     return out

@@ -45,7 +45,11 @@ def evaluate(expr, variables, path, lineno):
     if not re.fullmatch(r"[\s()]*((True|False|and|or|not)[\s()]*)+", text):
         raise ConfigError(f"cannot evaluate ?IF expression: {expr}",
                           path, lineno)
-    return bool(eval(text, {"__builtins__": {}}))  # noqa: S307
+    try:
+        return bool(eval(text, {"__builtins__": {}}))  # noqa: S307
+    except SyntaxError:
+        raise ConfigError(f"cannot evaluate ?IF expression: {expr}",
+                          path, lineno)
 
 
 class Line:
@@ -130,7 +134,14 @@ def read_file(path, variables):
             elif not live:
                 pass
             elif directive == "?FORMAT":
-                fmt = int(rest)
+                try:
+                    fmt = int(rest)
+                except ValueError:
+                    raise ConfigError(f"?FORMAT wants a number, got {rest!r}",
+                                      path, buf_start)
+                if fmt not in (1, 2):
+                    raise ConfigError(f"unsupported ?FORMAT {fmt}",
+                                      path, buf_start)
             elif directive == "?SECTION":
                 section = rest.upper()
             elif directive == "?COMMENT":
@@ -141,9 +152,15 @@ def read_file(path, variables):
             continue
         if not live:
             continue
-        if text.startswith("INCLUDE"):
-            inc = text.split(None, 1)[1]
+        if text == "INCLUDE" or text.startswith("INCLUDE "):
+            parts = text.split(None, 1)
+            if len(parts) < 2 or not parts[1].strip():
+                raise ConfigError("INCLUDE needs a file name", path, buf_start)
+            inc = expand(parts[1].strip(), variables, path, buf_start)
             inc_path = os.path.join(os.path.dirname(path), inc)
+            if not os.path.exists(inc_path):
+                raise ConfigError(f"INCLUDE file not found: {inc}",
+                                  path, buf_start)
             yield from read_file(inc_path, variables)
             continue
         text = expand(text, variables, path, buf_start)

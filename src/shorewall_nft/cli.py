@@ -105,16 +105,28 @@ def _parse_compile_args(args):
     family = None
     script = None
     i = 0
+
+    def val(flag):
+        if i + 1 >= len(args):
+            _fatal(f"{flag} needs a value")
+        return args[i + 1]
+
     while i < len(args):
         a = args[i]
         if a in ("-o", "--output"):
-            pathname = args[i + 1]
+            pathname = val(a)
             i += 2
         elif a == "--family":
-            family = int(args[i + 1])
+            fam = val(a)
+            try:
+                family = int(fam)
+            except ValueError:
+                _fatal(f"--family must be 4 or 6, not {fam!r}")
+            if family not in (4, 6):
+                _fatal(f"--family must be 4 or 6, not {family}")
             i += 2
         elif a == "--script":
-            script = args[i + 1]
+            script = val(a)
             i += 2
         elif a in ("-e", "--export"):
             i += 1
@@ -293,7 +305,10 @@ def cmd_try(args, family):
     timeout = 0
     if len(args) > 1:
         spec = args[1]
-        timeout = int(spec[:-1]) * 60 if spec.endswith("m") else int(spec)
+        num = spec[:-1] if spec.endswith("m") else spec
+        if not num.isdigit():
+            _fatal(f"try timeout must be a number of seconds or Nm, not {spec!r}")
+        timeout = int(num) * 60 if spec.endswith("m") else int(num)
     vardir = _vardir(family)
     try:
         rc = _apply(directory, family, vardir)

@@ -68,3 +68,12 @@ def rate(spec, line, col="rate"):
     if not _RATE.match(spec or ""):
         raise line.error(f"invalid tc {col} {spec!r}")
     return spec
+
+
+def integer(spec, line, col="number", base=10):
+    """Parse an integer column into an int, raising a located ConfigError
+    on a non-numeric value rather than letting a bare ValueError escape."""
+    try:
+        return int(spec, base)
+    except (ValueError, TypeError):
+        raise line.error(f"invalid {col} {spec!r}")
