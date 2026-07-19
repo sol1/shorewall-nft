@@ -1407,6 +1407,11 @@ def parse_accounting(path, variables, interfaces):
         known = {i.physical for i in interfaces} | set(logical)
 
         def side(spec):
+            # any and all are documented keywords meaning no constraint; a
+            # known interface name matches on that interface; anything else
+            # is an address (validated where it reaches the ruleset).
+            if spec in ("any", "all"):
+                return "", ""
             if spec in known:
                 return logical.get(spec, spec), ""
             return "", spec
