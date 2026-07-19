@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.0.10
+Version:        0.1.0
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -78,6 +78,13 @@ DESTDIR=%{buildroot} packaging/install.sh packaging/shorewallrc.redhat
 %systemd_postun shorewall-geoip-update.timer
 
 %changelog
+* Sun Jul 19 2026 Dave Kempe <dave@sol1.com.au> - 0.1.0-1
+- First public release. Validate configuration tokens at the parse boundary
+  as upstream does, report malformed config as a located error instead of a
+  traceback, and apply the intra-zone ACCEPT default action. Add RPM packages
+  and install-compatibility testing across the Debian, Ubuntu and Red Hat
+  families. See the Debian changelog for the full list.
+
 * Mon Jul 13 2026 Dave Kempe <dave@sol1.com.au> - 0.0.10-1
 - Complete legacy Shorewall NETMAP compatibility for IPv4 and IPv6 using
   stateful nftables prefix NAT: eight-column netmap files, exclusions,
