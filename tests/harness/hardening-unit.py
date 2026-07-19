@@ -571,6 +571,14 @@ ho_text = render(dnat_hostonly)
 (ok if "ip saddr 10.0.0.0/24" in ho_text and "dnat ip to 1.2.3.4" in ho_text
  else bad)("emit: DNAT from a hosts-only zone is scoped by its addresses")
 
+# A blacklist rule on a wildcard-interface zone globs it; the literal ppp+
+# (which nft never matches) must appear nowhere in the ruleset.
+bl_wild = load_with({"interfaces": "?FORMAT 2\nnet ppp+\n",
+                     "blrules": "DROP net all\n"})
+bl_text = render(bl_wild)
+(ok if 'iifname "ppp*"' in bl_text and '"ppp+"' not in bl_text
+ else bad)("emit: blacklist rule globs a wildcard zone interface")
+
 # Zone typos in rules/policy/blrules are rejected, not silently fail-open.
 (ok if raises_config_error(
     lambda: load_with({"rules": "?SECTION NEW\nREJECT lan net tcp 25\n"}))

@@ -1598,9 +1598,21 @@ class Emitter:
         ifaces = sorted(set(ifaces))
         if not ifaces:
             return []
-        if len(ifaces) == 1:
-            return [f'{key} "{ifaces[0]}"']
-        return [f"{key} {{ " + ", ".join(f'"{i}"' for i in ifaces) + " }"]
+        # A wildcard interface must be an nft name glob (ppp*), which nft
+        # accepts on its own and inside a set. A bare + is every interface,
+        # which nft cannot glob, so it leaves the match unscoped.
+        globs = []
+        for i in ifaces:
+            if i.endswith("+"):
+                g = _iface_glob(i)
+                if g == "*":
+                    return []
+                globs.append(g)
+            else:
+                globs.append(i)
+        if len(globs) == 1:
+            return [f'{key} "{globs[0]}"']
+        return [f"{key} {{ " + ", ".join(f'"{i}"' for i in globs) + " }"]
 
     def _filter_chains(self):
         """The smurfs and tcpflags check chains, translated from upstream
