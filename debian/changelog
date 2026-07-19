@@ -1,3 +1,28 @@
+shorewall-nft (0.1.2) unstable; urgency=medium
+
+  * Fixes found reviewing 0.1.1, and a coverage suite for documented config
+    forms so they cannot regress unseen again. More documented forms that had
+    stopped compiling or loading now work:
+    - CONNLIMIT: a negated !limit emitted the invalid nft keyword 'until', so
+      the ruleset failed to load; the direction was also inverted. A plain
+      limit now matches at or below N, a !limit above N, matching upstream.
+    - policy all+/any+ is honored: it overrides the implicit intra-zone accept
+      as upstream does, rather than aborting the compile or being ignored.
+    - accounting SOURCE/DEST of any or all is accepted again.
+    - a tcpri ADDRESS may be a ~MAC address again.
+
+  * A DNAT from a zone with no interface and no host is a located error rather
+    than a silently dropped rule.
+
+  * geoip: a set that fits one transaction is refilled atomically, a larger
+    one is chunked under the netlink budget, and the restart path applies each
+    batch as its own transaction, so a large country's set loads rather than
+    silently failing and leaving a geoip rule open.
+
+  * A TIME value must be plain digits (a sign or underscore is rejected).
+
+ -- Dave Kempe <dave@sol1.com.au>  Mon, 20 Jul 2026 08:03:17 +1000
+
 shorewall-nft (0.1.1) unstable; urgency=medium
 
   * Fixes found reviewing 0.1.0. Several 0.1.0 parse-boundary checks rejected
