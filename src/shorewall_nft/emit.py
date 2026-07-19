@@ -916,16 +916,11 @@ class Emitter:
         for iface in self.cfg.interfaces:
             if not iface.options.get("dhcp"):
                 continue
-            # A prefix wildcard (eth+) must still bind the match to its glob
-            # (eth*), or DHCP would open on every interface. A bare + means
-            # all interfaces, which nft cannot express as an iifname glob
-            # ("*" is rejected), so it correctly matches with no interface.
-            name = (_iface_glob(iface.physical) if iface.wildcard
-                    else iface.physical)
-            if name == "*":
-                self.out(f"udp dport {ports} accept", 2)
-            else:
-                self.out(f'{match} "{name}" udp dport {ports} accept', 2)
+            # A prefix wildcard (eth+) binds to its glob (eth*); a bare +
+            # (all interfaces) has no iifname, via the shared _if_match.
+            ifm = _if_match(match, iface.physical)
+            prefix = f"{ifm} " if ifm else ""
+            self.out(f"{prefix}udp dport {ports} accept", 2)
 
     def _tcpflags_ifaces(self):
         """Interfaces with the tcpflags check. Upstream defaults it on
@@ -965,13 +960,11 @@ class Emitter:
             self.out(f'oifname {g} accept comment "docker coexistence"', 2)
 
     def _iif_match(self, iface):
-        """An iifname match prefix for an interface: a name glob for a
-        wildcard, and empty for a bare + (all interfaces), which nft cannot
-        express as an iifname glob."""
-        if iface.endswith("+"):
-            glob = _iface_glob(iface)
-            return "" if glob == "*" else f'iifname "{glob}" '
-        return f'iifname "{iface}" '
+        """An iifname match prefix (with a trailing space, or empty) for an
+        interface. Delegates to the shared _if_match so the wildcard-to-glob
+        and bare-+ rules live in one place."""
+        m = _if_match("iifname", iface)
+        return f"{m} " if m else ""
 
     def _interface_filters(self, hook):
         """Jump arriving traffic through the smurf and tcp-flag checks
