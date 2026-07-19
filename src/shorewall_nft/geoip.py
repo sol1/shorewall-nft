@@ -16,7 +16,24 @@ import re
 import subprocess
 import urllib.request
 
+from .chunk import CHUNK_BYTES
 from .emit import table_for
+
+
+def _add_batches(table, setname, cidrs):
+    """add-element statements for a set, each batch kept under the netlink
+    transaction budget so a large country (thousands of CIDRs) does not
+    overflow a single nft transaction."""
+    out, batch, size = [], [], 0
+    for c in cidrs:
+        if batch and size + len(c) + 2 > CHUNK_BYTES:
+            out.append(f"add element {table} {setname} {{ {', '.join(batch)} }}")
+            batch, size = [], 0
+        batch.append(c)
+        size += len(c) + 2
+    if batch:
+        out.append(f"add element {table} {setname} {{ {', '.join(batch)} }}")
+    return out
 
 URL_V4 = "https://www.ipdeny.com/ipblocks/data/aggregated/{cc}-aggregated.zone"
 URL_V6 = "https://www.ipdeny.com/ipv6/ipaddresses/aggregated/{cc}-aggregated.zone"
@@ -76,21 +93,30 @@ def fetch(cc, family, source_dir=None, timeout=30):
 
 
 def _load_set(nft, table, setname, cidrs, geodir):
-    """Flush and refill a set from the live table, then write a reload
-    file so the wrapper can repopulate it on a restart without the
-    network. Elements are added in chunks to stay under the arg limit."""
-    lines = []
-    for i in range(0, len(cidrs), 500):
-        chunk = ", ".join(cidrs[i:i + 500])
-        lines.append(f"add element {table} {setname} {{ {chunk} }}")
-    # Apply the flush and the refill as one transaction. If any chunk is
-    # rejected the whole transaction rolls back and the set keeps its old
-    # contents, so a bad update never leaves a geoip rule matching an empty
-    # set (which would fail open).
-    script = f"flush set {table} {setname}\n" + "\n".join(lines) + "\n"
-    subprocess.run([nft, "-f", "-"], input=script, text=True, check=True)
+    """Flush and refill a set from the live table, then write a reload file so
+    the wrapper can repopulate it on a restart without the network. The refill
+    is applied in transactions kept under the netlink budget: a large country
+    exceeds a single transaction. If a batch fails, the set is restored from
+    the last good reload file rather than left empty, which would fail a geoip
+    rule open."""
+    lines = _add_batches(table, setname, cidrs)
+    reload_file = os.path.join(geodir, f"{setname}.nft")
+    first = f"flush set {table} {setname}\n" + (lines[0] + "\n" if lines else "")
+    try:
+        subprocess.run([nft, "-f", "-"], input=first, text=True, check=True)
+        for stmt in lines[1:]:
+            subprocess.run([nft, "-f", "-"], input=stmt + "\n", text=True,
+                           check=True)
+    except subprocess.CalledProcessError:
+        # Roll back to the previous contents so the set is never left empty.
+        if os.path.isfile(reload_file):
+            with open(reload_file) as f:
+                subprocess.run([nft, "-f", "-"],
+                               input=f"flush set {table} {setname}\n" + f.read(),
+                               text=True)
+        raise
     os.makedirs(geodir, exist_ok=True)
-    with open(os.path.join(geodir, f"{setname}.nft"), "w") as f:
+    with open(reload_file, "w") as f:
         f.write("\n".join(lines) + "\n")
 
 

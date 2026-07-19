@@ -12,6 +12,8 @@ import tempfile
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                 "..", "..", "src"))
 from shorewall_nft import capabilities, ipsets, lsm  # noqa: E402
+from shorewall_nft.chunk import CHUNK_BYTES  # noqa: E402
+from shorewall_nft.geoip import _add_batches  # noqa: E402
 from shorewall_nft.compile import load  # noqa: E402
 from shorewall_nft.emit import (  # noqa: E402
     render, render_stop, _match_addr_alts, _time_match, _match_addr,
@@ -670,5 +672,14 @@ for spec, label in (("10:24", "limit:mask"), ("d:10", "d: prefix"),
                      f"DROP net $FW tcp 22 - - - - - {spec}\n"})
     (ok if cfg and "ct count" in render(cfg)
      else bad)(f"rules: CONNLIMIT {label} compiles to a ct count")
+
+# A large geoip set is split into transactions under the netlink budget (a
+# single transaction would overflow it) with every element preserved.
+big_cidrs = [f"10.{i // 256}.{i % 256}.0/24" for i in range(8000)]
+geoip_batches = _add_batches("ip shorewall", "geoip_cn", big_cidrs)
+(ok if len(geoip_batches) > 1
+    and all(len(b) <= CHUNK_BYTES + 64 for b in geoip_batches)
+    and sum(b.count(",") + 1 for b in geoip_batches) == len(big_cidrs)
+ else bad)("geoip: a large set splits into sub-budget batches, no elements lost")
 
 sys.exit(1 if fails else 0)
