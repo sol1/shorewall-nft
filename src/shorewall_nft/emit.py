@@ -483,24 +483,35 @@ _WEEKDAYS = {
 }
 
 
-def _time_secs(t):
-    """HH, HH:MM or HH:MM:SS to seconds since midnight. nft meta hour wants
-    a second count; the HH:MM form is not accepted."""
+def _time_hhmm(t):
+    """Validate an HH, HH:MM or HH:MM:SS time and return the HH:MM[:SS] form
+    nft's meta hour accepts. nft reads the quoted time as local and converts
+    it to the UTC value it stores, so this keeps the configured local time."""
     parts = t.split(":")
-    if not 1 <= len(parts) <= 3 or not all(p.isdigit() for p in parts):
+    if not 1 <= len(parts) <= 3:
         raise ConfigError(f"invalid time {t!r}")
-    h = int(parts[0])
-    m = int(parts[1]) if len(parts) > 1 else 0
-    s = int(parts[2]) if len(parts) > 2 else 0
+    nums = []
+    for p in parts:
+        try:
+            nums.append(int(p, 10))
+        except ValueError:
+            raise ConfigError(f"invalid time {t!r}")
+    h = nums[0]
+    m = nums[1] if len(nums) > 1 else 0
+    s = nums[2] if len(nums) > 2 else 0
     if h > 23 or m > 59 or s > 59:
         raise ConfigError(f"invalid time {t!r}")
-    return h * 3600 + m * 60 + s
+    return f"{h:02d}:{m:02d}:{s:02d}" if len(nums) > 2 else f"{h:02d}:{m:02d}"
 
 
 def _time_match(spec):
     """TIME column: &-separated timestart/timestop/weekdays. Weekday
-    abbreviations and numbers map to the full names nft wants; the hour
-    range is emitted as a second count, which is the form nft accepts."""
+    abbreviations and numbers map to the full names nft wants; the hour range
+    is emitted as a quoted local HH:MM, which nft converts to the UTC value it
+    stores. A window that wraps midnight in UTC (a local daytime range on a
+    box east or west of UTC) cannot be one nft range and is rejected by
+    nft-check at compile with a range error; the seconds form would instead
+    have matched at the wrong local time."""
     out = []
     start = stop = None
     for el in spec.split("&"):
@@ -520,12 +531,7 @@ def _time_match(spec):
         else:
             raise ConfigError(f"time element {key} not supported yet")
     if start and stop:
-        a, b = _time_secs(start), _time_secs(stop)
-        if a > b:
-            raise ConfigError(
-                f"time range {start}-{stop} crosses midnight, which nft "
-                "cannot express as one range; split it into two rules")
-        out.append(f"meta hour {a}-{b}")
+        out.append(f'meta hour "{_time_hhmm(start)}"-"{_time_hhmm(stop)}"')
     elif start or stop:
         raise ConfigError("time needs both timestart and timestop")
     return " ".join(out)

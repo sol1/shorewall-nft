@@ -239,9 +239,10 @@ alts = _match_addr_alts("!1.2.3.4,+knoc", "saddr", "ip", set())
 (ok if alts == ["ip saddr != 1.2.3.4 ip saddr != @knoc"]
  else bad)("emit: a negated mixed column excludes both in one match")
 
-# --- a TIME rule renders nft's day names and a second-count hour range ---
-# nft meta day wants the full day name and meta hour wants a second count;
-# the raw abbreviation and "HH:MM" range are both rejected by nft.
+# --- a TIME rule renders nft day names and a quoted local HH:MM hour range ---
+# meta day wants the full day name; meta hour takes a quoted local HH:MM,
+# which nft converts to the UTC value it stores. The seconds form the first
+# 0.1.0 cut emitted matched at the wrong local time.
 time_conf = tempfile.mkdtemp(prefix="shorewall-nft-time-")
 try:
     shutil.copytree(os.path.join(REPO, "tests/corpus/0002-one-interface/config"),
@@ -249,24 +250,29 @@ try:
     with open(os.path.join(time_conf, "rules"), "w") as f:
         f.write("?SECTION NEW\n")
         f.write("ACCEPT\tnet\t$FW\ttcp\t22\t-\t-\t-\t-\t-\t-\t"
-                "weekdays=Mon,Tue&timestart=08:00&timestop=17:00\n")
+                "weekdays=Mon,Tue&timestart=17:00&timestop=19:00\n")
     text = render(load(time_conf, 4))
     (ok if 'meta day { "Monday", "Tuesday" }' in text
      else bad)("emit: TIME weekdays render as nft full day names")
-    (ok if "meta hour 28800-61200" in text
-     else bad)("emit: TIME hour range renders as a second count")
+    (ok if 'meta hour "17:00"-"19:00"' in text
+     else bad)("emit: TIME hour range renders as a quoted local HH:MM")
 finally:
     shutil.rmtree(time_conf)
 
 # numeric weekdays map too, and the whole clause is one match string
 (ok if _time_match("weekdays=1,7") == 'meta day { "Monday", "Sunday" }'
  else bad)("emit: numeric weekdays map to nft day names")
-# an unknown day and a midnight-crossing range are config errors, not silent
+# a window that wraps local midnight is still rendered (nft accepts it when it
+# does not wrap in UTC); it is no longer pre-rejected.
+(ok if _time_match("timestart=23:00&timestop=01:00")
+        == 'meta hour "23:00"-"01:00"'
+ else bad)("emit: a local wrapping window renders a quoted range")
+# an unknown day, an invalid time and a half-open range are config errors
 (ok if raises_config_error(lambda: _time_match("weekdays=Funday"))
  else bad)("emit: an unknown weekday is a config error")
 (ok if raises_config_error(
-    lambda: _time_match("timestart=22:00&timestop=06:00"))
- else bad)("emit: a midnight-crossing time range is a config error")
+    lambda: _time_match("timestart=25:00&timestop=26:00"))
+ else bad)("emit: an invalid time value is a config error")
 (ok if raises_config_error(lambda: _time_match("timestart=08:00"))
  else bad)("emit: a time range with no stop is a config error")
 
