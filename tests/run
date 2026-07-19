@@ -280,7 +280,7 @@ def main():
     for proof in ("wrapper-proof.sh", "cli-proof.sh", "dualstack-proof.sh",
                   "seam-proof.sh", "default-route-proof.sh", "migrate-proof.sh",
                   "chunk-unit.py", "chunk-proof.sh", "validation-unit.py",
-                  "hardening-unit.py",
+                  "hardening-unit.py", "forms-unit.py",
                   "netmap-unit.py", "lsm-unit.py", "lsm-proof.sh",
                   "lsm-once-proof.sh"):
         name = proof.replace(".sh", "")
