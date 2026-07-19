@@ -383,7 +383,8 @@ def cmd_status(args, family):
           f"({artifact} compiled {compiled} by shorewall-nft {__version__})")
 
     counts = _rule_counts(family)
-    if counts is None:
+    loaded = counts is not None
+    if not loaded:
         print("\nWarning: the state says started but the ruleset is not "
               "loaded.", file=sys.stderr)
     else:
@@ -410,7 +411,9 @@ def cmd_status(args, family):
             except OSError:
                 pass
             print(f"  {name}: {state}{mon}")
-    return 0
+    # Started but the table is gone is a real problem: return non-zero so a
+    # monitor keyed on the exit code alerts on an unprotected box.
+    return 0 if loaded else 1
 
 
 def _accounting_listing(text):

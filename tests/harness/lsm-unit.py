@@ -88,6 +88,46 @@ os.unlink(path)
 (ok if mons["lte"].targets == ["1.1.1.1", "8.8.8.8"] and mons["lte"].metered
  else bad)("parse: explicit targets and metered flag")
 
+# 6b. Bounds: a non-positive interval/timeout/count/up/down/reliability, or
+# a reliability greater than the number of targets, is rejected rather than
+# busy-looping the daemon or defeating the quorum.
+from shorewall_nft.errors import ConfigError  # noqa: E402
+
+
+def parse_str(text, providers=None):
+    providers = providers or {"isp1": ("eth0", "203.0.113.1")}
+    with tempfile.NamedTemporaryFile("w", suffix=".lsm", delete=False) as fh:
+        fh.write(text)
+        p = fh.name
+    try:
+        return parse_lsm(p, providers)
+    finally:
+        os.unlink(p)
+
+
+def rejects(fn):
+    try:
+        fn()
+    except ConfigError:
+        return True
+    except Exception:
+        return False
+    return False
+
+
+(ok if rejects(lambda: parse_str("?PROVIDER isp1\nreliability 0\n"))
+ else bad)("parse: reliability 0 is rejected")
+(ok if rejects(lambda: parse_str("?PROVIDER isp1\ninterval 0\n"))
+ else bad)("parse: interval 0 is rejected")
+(ok if rejects(lambda: parse_str("?PROVIDER isp1\ninterval -5\n"))
+ else bad)("parse: negative interval is rejected")
+(ok if rejects(lambda: parse_str("?PROVIDER isp1\nreliability 2\n"))
+ else bad)("parse: reliability above the target count is rejected")
+(ok if parse_str("?PROVIDER isp1\ncheck 1.1.1.1 8.8.8.8\nreliability 2\n")
+ else bad)("parse: reliability within the target count is accepted")
+(ok if not rejects(lambda: parse_str("?PROVIDER isp1\nmax_loss 0\n"))
+ else bad)("parse: max_loss 0 (ignore) is accepted")
+
 # 7. run() logs a startup line and a per-provider heartbeat even when no
 # state changes, so the journal shows the monitor is alive.
 logs = []

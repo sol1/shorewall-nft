@@ -296,7 +296,7 @@ def load_ruleset(spec):
     elif mode == "script":
         # A firewall script, ours or upstream's. Runs entirely inside
         # the fw namespace.
-        env = dict(os.environ, SWNFT_STATE="/run/swnft-state")
+        env = dict(os.environ, SWNFT_STATE="/run/swnft-state", SWNFT_VARDIR="/run/swnft-var")
         r = subprocess.run(["ip", "netns", "exec", "fw", "sh",
                             os.path.realpath(path), "start"],
                            env=env, capture_output=True, text=True)
@@ -441,7 +441,7 @@ def main():
         ns("fw", "nft", "add", "element", fam, "shorewall",
            f"geoip_{cc}", "{ " + ", ".join(cidrs) + " }")
     load_mode, _, load_path = args.load.partition(":")
-    script_env = dict(os.environ, SWNFT_STATE="/run/swnft-state")
+    script_env = dict(os.environ, SWNFT_STATE="/run/swnft-state", SWNFT_VARDIR="/run/swnft-var")
     procs = start_listeners(case)
     try:
         verdicts = run_probes(case.get("probes", []))

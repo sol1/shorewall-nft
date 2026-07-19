@@ -88,10 +88,19 @@ def parse_lsm(path, providers):
                 raise ConfigError(f"lsm: unknown setting {key}", path, lineno)
             if key in _INT_KEYS:
                 try:
-                    int(val)
+                    n = int(val)
                 except ValueError:
                     raise ConfigError(f"lsm: {key} must be an integer: "
                                       f"{val!r}", path, lineno)
+                # interval/timeout/count/up/down/reliability must be at
+                # least 1: 0 or negative would busy-loop the daemon, make
+                # the quorum vacuously true (a dead link never disabled) or
+                # never met (a healthy link forced down). Latency and loss
+                # thresholds of 0 mean "ignore", so they may be 0.
+                floor = 0 if key in ("max_latency", "max_loss") else 1
+                if n < floor:
+                    raise ConfigError(f"lsm: {key} must be at least {floor}: "
+                                      f"{val}", path, lineno)
             blocks[cur][key] = val
     mons = []
     for name, b in blocks.items():
@@ -114,6 +123,12 @@ def parse_lsm(path, providers):
                   file=sys.stderr)
             continue
         kw = {k: int(b[k]) for k in _INT_KEYS}
+        # reliability is a quorum over the check targets; more than there
+        # are targets can never be met, so the link would be forced down.
+        if kw["reliability"] > len(targets):
+            raise ConfigError(
+                f"lsm provider {name}: reliability {kw['reliability']} "
+                f"exceeds its {len(targets)} check target(s)")
         mons.append(MonitorCfg(
             name=name, interface=interface, targets=targets,
             method=b["method"], metered=b["metered"].lower() in ("yes", "1"),

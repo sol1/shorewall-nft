@@ -95,4 +95,27 @@ sk, ch = chunk.split(small, TABLE)
     and any("ip saddr 10.0.0.1 accept" in c for c in ch)
  else bad)("small ruleset: rule moves to a chunk, policy stays in skeleton")
 
+# 6. A plain (non-interval) set keeps its elements verbatim. Collapse would
+# rewrite single addresses as /31 and /32 prefixes, which nft rejects for a
+# non-interval hash:ip set, so the chunked load would fail and strand the
+# box on the all-drop skeleton.
+plain = (f"table {TABLE}\ndelete table {TABLE}\ntable {TABLE} {{\n"
+         "    set hosts {\n        type ipv4_addr;\n"
+         "        elements = {\n            10.0.0.4, 10.0.0.5, 10.0.0.6\n"
+         "        }\n    }\n}\n")
+_, ch = chunk.split(plain, TABLE)
+elem_text = "\n".join(ch)
+(ok if "10.0.0.5" in elem_text and "/31" not in elem_text
+    and "/32" not in elem_text
+ else bad)("plain set elements stay bare, not collapsed to prefixes")
+
+# An interval set is still collapsed (adjacent addresses merge to a prefix).
+interval_rs = (f"table {TABLE}\ndelete table {TABLE}\ntable {TABLE} {{\n"
+               "    set nets {\n        type ipv4_addr; flags interval; "
+               "auto-merge;\n        elements = {\n"
+               "            10.0.0.0, 10.0.0.1\n        }\n    }\n}\n")
+_, ch = chunk.split(interval_rs, TABLE)
+(ok if "10.0.0.0/31" in "\n".join(ch)
+ else bad)("interval set elements are collapsed to a prefix")
+
 sys.exit(1 if fails else 0)

@@ -185,6 +185,38 @@ try:
 finally:
     shutil.rmtree(prov_conf)
 
+# --- DHCP on a wildcard interface still binds to the interface glob ---
+dhcp_conf = tempfile.mkdtemp(prefix="shorewall-nft-dhcp-")
+try:
+    shutil.copytree(os.path.join(REPO, "tests/corpus/0002-one-interface/config"),
+                    dhcp_conf, dirs_exist_ok=True)
+    with open(os.path.join(dhcp_conf, "interfaces"), "w") as f:
+        f.write("?FORMAT 2\nnet eth+ dhcp\n")
+    cfg = load(dhcp_conf, 4)
+    text = render(cfg)
+    (ok if 'iifname "eth*" udp dport { 67, 68 } accept' in text
+     else bad)("emit: DHCP on a wildcard interface binds to the glob")
+    # There must be no unbound (interface-less) DHCP accept.
+    (ok if "\n        udp dport { 67, 68 } accept" not in text
+     else bad)("emit: no interface-less DHCP accept is emitted")
+    # start must load the ruleset before enabling forwarding sysctls, so
+    # there is no window with forwarding on and no filter.
+    wrapper = render_script(cfg, text, render_stop(cfg))
+    start = wrapper.split("start|reload|restart)", 1)[1].split(";;", 1)[0]
+    (ok if "load_ruleset" in start and "apply_sysctls" in start
+        and start.index("load_ruleset") < start.index("apply_sysctls")
+     else bad)("script: sysctls are applied after the ruleset loads")
+finally:
+    shutil.rmtree(dhcp_conf)
+
+# --- the wrapper reads geoip and set snapshots from the persistent VARDIR ---
+cfg = load(os.path.join(REPO, "tests/corpus/0039-ipset-dynamic/config"), 4)
+wrapper = render_script(cfg, render(cfg), render_stop(cfg))
+(ok if '"$VARDIR"/geoip/*.nft' in wrapper and '"$VARDIR/sets"' in wrapper
+    and "$STATE/geoip" not in wrapper and "$STATE/sets" not in wrapper
+    and '"$STATE"/sets' not in wrapper
+ else bad)("script: geoip and set snapshots load from VARDIR, not tmpfs STATE")
+
 # --- a mixed address column fans out into one match per group ---
 alts = _match_addr_alts("1.2.3.4,192.168.1.0/24,+knoc", "saddr", "ip", set())
 (ok if alts == ["ip saddr { 1.2.3.4, 192.168.1.0/24 }", "ip saddr @knoc"]

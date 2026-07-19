@@ -473,14 +473,19 @@ TEMPLATE = """#!/bin/sh
 PATH=/usr/sbin:/sbin:/usr/bin:/bin
 export PATH
 STATE=${{SWNFT_STATE:-/var/run/shorewall-nft}}
+# The persistent state directory. Runtime state (provider up/down, saved
+# default route, lsm status) lives under $STATE, which is a tmpfs cleared
+# at boot. Data that must survive a reboot, geoip country sets and the
+# snapshots of externally-filled sets, lives under $VARDIR instead.
+VARDIR=${{SWNFT_VARDIR:-{vardir_default}}}
 # Sets filled at runtime by an external tool (a knock or ban daemon that
 # writes to the nft set directly). Declared empty in the ruleset and
-# preserved across a reload.
+# preserved across a reload, a stop and a reboot.
 DYNSETS="{dynsets}"
 
 save_dynamic_sets() {{
     [ -n "$DYNSETS" ] || return 0
-    mkdir -p "$STATE/sets"
+    mkdir -p "$VARDIR/sets"
     for s in $DYNSETS; do
         # Only touch the snapshot when the set is present in the live table.
         # On a cold start (or after stop) the set does not exist, so leave
@@ -490,9 +495,9 @@ save_dynamic_sets() {{
         elems=$(printf '%s' "$listing" | tr '\\n' ' ' \\
                 | sed -n 's/.*elements = {{\\([^}}]*\\)}}.*/\\1/p')
         if [ -n "$elems" ]; then
-            echo "add element {table} $s {{$elems}}" > "$STATE/sets/$s.nft"
+            echo "add element {table} $s {{$elems}}" > "$VARDIR/sets/$s.nft"
         else
-            rm -f "$STATE/sets/$s.nft"
+            rm -f "$VARDIR/sets/$s.nft"
         fi
     done
 }}
@@ -601,15 +606,18 @@ SWNFT_STOP_EOF
 case "$1" in
     start|reload|restart)
         run_init
-        apply_sysctls
         # Capture externally-filled sets before the table is replaced,
         # then reload them after, so live entries survive a reload.
         save_dynamic_sets
         load_ruleset || {{ echo "$0: ruleset load failed" >&2; exit 1; }}
-        for gf in "$STATE"/geoip/*.nft; do
+        # Enable forwarding and the per-interface sysctls only after the
+        # filter is loaded, so there is never a window with forwarding on
+        # and no ruleset.
+        apply_sysctls
+        for gf in "$VARDIR"/geoip/*.nft; do
             [ -e "$gf" ] && nft -f "$gf" 2>/dev/null || :
         done
-        for sf in "$STATE"/sets/*.nft; do
+        for sf in "$VARDIR"/sets/*.nft; do
             [ -e "$sf" ] && nft -f "$sf" 2>/dev/null || :
         done
         setup_routing
@@ -625,7 +633,7 @@ case "$1" in
         # the table and restore their elements immediately afterwards.
         save_dynamic_sets
         load_stop_ruleset || {{ echo "$0: stop ruleset load failed" >&2; exit 1; }}
-        for sf in "$STATE"/sets/*.nft; do
+        for sf in "$VARDIR"/sets/*.nft; do
             [ -e "$sf" ] && nft -f "$sf" 2>/dev/null || :
         done
         clear_routing
@@ -642,7 +650,7 @@ case "$1" in
         run_clear
         ;;
     savesets)
-        # Snapshot externally-filled sets to $STATE/sets so they survive
+        # Snapshot externally-filled sets to $VARDIR/sets so they survive
         # a reload or a reboot restore.
         save_dynamic_sets
         ;;
@@ -730,6 +738,8 @@ def render_script(cfg, ruleset, stop_ruleset):
     from .emit import table_for, external_sets
     table = table_for(cfg.family)
     ipf = "-6" if cfg.family == 6 else "-4"
+    vardir_default = ("/var/lib/shorewall6-nft" if cfg.family == 6
+                      else "/var/lib/shorewall-nft")
     dynsets = " ".join(external_sets(cfg))
     sysctls = "\n".join(f"    sysctl -qw {s}" for s in _sysctls(cfg)) or "    :"
     routing_build, routing_clear, routing_restore = _routing(cfg)
@@ -739,7 +749,8 @@ def render_script(cfg, ruleset, stop_ruleset):
     proxyarp_up, proxyarp_down = _proxyarp(cfg)
     skeleton, chunks = chunk.split(ruleset, table)
     return TEMPLATE.format(confdir=cfg.confdir, sysctls=sysctls,
-                           table=table, ipf=ipf, dynsets=dynsets,
+                           table=table, ipf=ipf,
+                           vardir_default=vardir_default, dynsets=dynsets,
                            extensions=_extensions(cfg),
                            routing_build=routing_build,
                            routing_clear=routing_clear,

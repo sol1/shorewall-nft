@@ -22,11 +22,16 @@ WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 CONF=$WORK/etc
 cp -r "$REPO/tests/corpus/0002-one-interface/config" "$CONF"
-# A defined ipset with elements plus a rule that uses it, so the split has
-# both an element chunk and a rule chunk to reassemble.
+# A hash:net set (interval, collapsed on chunked add) and a hash:ip set
+# (plain, elements kept verbatim) plus rules that use them, so the split
+# has element chunks of both kinds and a rule chunk to reassemble. The
+# hash:ip set is the case the collapse bug broke.
 { echo "create blk hash:net"
-  for i in $(seq 1 40); do echo "add blk 10.$i.0.0/24"; done; } > "$CONF/ipsets"
-printf '?SECTION NEW\nDROP\tnet:+blk\t$FW\n' > "$CONF/rules"
+  for i in $(seq 1 40); do echo "add blk 10.$i.0.0/24"; done
+  echo "create hosts hash:ip"
+  for i in $(seq 1 20); do echo "add hosts 10.60.$i.7"; done; } > "$CONF/ipsets"
+printf '?SECTION NEW\nDROP\tnet:+blk\t$FW\nDROP\tnet:+hosts\t$FW\n' \
+    > "$CONF/rules"
 
 sw() { PYTHONPATH=$REPO/src python3 -m shorewall_nft "$@"; }
 fail=0

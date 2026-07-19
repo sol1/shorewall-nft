@@ -44,6 +44,13 @@ nft list table ip shorewall | grep -q "chain net2fw" \
 
 sw status >/dev/null && ok "status running" || bad "status running"
 
+# Started but the table gone must be nonzero, so a monitor keyed on the
+# exit code alerts on an unprotected box. Restore it for the rest.
+nft delete table ip shorewall 2>/dev/null || :
+sw status >/dev/null && bad "status must be nonzero when the table is gone" \
+    || ok "status nonzero when started but table missing"
+sw start >/dev/null 2>&1 || bad "restart after the table was removed"
+
 sw show | grep -q "chain net2fw" && ok show || bad show
 sw show capabilities | grep -q NAT_ENABLED && ok "show capabilities" \
     || bad "show capabilities"

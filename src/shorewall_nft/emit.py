@@ -815,8 +815,16 @@ class Emitter:
         for iface in self.cfg.interfaces:
             if not iface.options.get("dhcp"):
                 continue
-            dev = "" if iface.wildcard else f'{match} "{iface.physical}" '
-            self.out(f"{dev}udp dport {ports} accept", 2)
+            # A prefix wildcard (eth+) must still bind the match to its glob
+            # (eth*), or DHCP would open on every interface. A bare + means
+            # all interfaces, which nft cannot express as an iifname glob
+            # ("*" is rejected), so it correctly matches with no interface.
+            name = (_iface_glob(iface.physical) if iface.wildcard
+                    else iface.physical)
+            if name == "*":
+                self.out(f"udp dport {ports} accept", 2)
+            else:
+                self.out(f'{match} "{name}" udp dport {ports} accept', 2)
 
     def _tcpflags_ifaces(self):
         """Interfaces with the tcpflags check. Upstream defaults it on

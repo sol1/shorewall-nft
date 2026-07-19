@@ -62,12 +62,15 @@ def _collapse(elements):
     return out
 
 
-def _element_statements(table, name, elements, out):
-    """Batch set elements into add element statements."""
+def _element_statements(table, name, elements, out, interval):
+    """Batch set elements into add element statements. Only an interval
+    set (flags interval) is collapsed: collapse turns single addresses
+    into /31 and /32 prefixes, which a plain hash:ip set (no interval)
+    rejects, so its elements are emitted verbatim."""
     batch = []
     batch_len = 0
     limit = CHUNK_BYTES // 2
-    for e in _collapse(elements):
+    for e in (_collapse(elements) if interval else elements):
         batch.append(e)
         batch_len += len(e) + 2
         if batch_len >= limit:
@@ -94,6 +97,7 @@ def split(text, table="ip shorewall"):
     context = "table"     # table, chain, object or elements
     chain_name = None
     object_name = None
+    object_interval = False
     element_items = []
     for raw in text.splitlines():
         line = raw.strip()
@@ -108,7 +112,7 @@ def split(text, table="ip shorewall"):
         if context == "elements":
             if line == "}":
                 _element_statements(table, object_name, element_items,
-                                    elements_out)
+                                    elements_out, object_interval)
                 element_items = []
                 context = "object"
                 continue
@@ -136,9 +140,14 @@ def split(text, table="ip shorewall"):
                 context = "object"
                 object_name = line.split()[1] if len(line.split()) > 1 \
                     else None
+                object_interval = False
             skeleton.append("    " + line)
             continue
         if context == "object":
+            # A set declared with `flags interval` is collapsed on chunked
+            # add; a plain set must keep its elements verbatim.
+            if "interval" in line:
+                object_interval = True
             skeleton.append("        " + line)
             continue
         if context == "chain":
