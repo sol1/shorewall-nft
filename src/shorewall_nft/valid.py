@@ -77,3 +77,15 @@ def integer(spec, line, col="number", base=10):
         return int(spec, base)
     except (ValueError, TypeError):
         raise line.error(f"invalid {col} {spec!r}")
+
+
+def mark(spec, line, col="mark"):
+    """A packet mark: an optional leading !, then value or value/mask, each
+    an integer in any base. The value reaches nft as a number, so a bad one
+    would otherwise be a bare ValueError in the emitter."""
+    s = spec[1:] if spec.startswith("!") else spec
+    value, _, msk = s.partition("/")
+    integer(value, line, col, 0)
+    if msk:
+        integer(msk, line, col, 0)
+    return spec

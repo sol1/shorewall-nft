@@ -131,6 +131,8 @@ def parse_interfaces(path, variables):
     interfaces = []
     for line in read_file(path, variables):
         cols = split_columns(line.text, line.path, line.lineno)
+        if len(cols) < 2:
+            raise line.error("interfaces line needs ZONE INTERFACE")
         zone = cols[0] if cols[0] != "-" else None
         logical = cols[1]
         # Format 1 has a BROADCAST column before OPTIONS. Live configs
@@ -422,6 +424,13 @@ def parse_rules(path, variables, fw_zone, family=4):
         mark = col(9)
         connlimit = col(10)
         time = col(11)
+        # mark and connlimit reach nft as numbers; reject a bad value here
+        # rather than let a bare ValueError escape from the emitter.
+        if mark:
+            valid.mark(mark, line, "rules mark")
+        if connlimit:
+            cl = connlimit[1:] if connlimit.startswith("!") else connlimit
+            valid.integer(cl.split(":")[0], line, "rules connlimit")
         if col(12):
             raise line.error("rules HEADERS column not supported yet")
         if col(13):
@@ -868,6 +877,13 @@ def parse_tcinterfaces(path, variables, interfaces):
         iface = logical.get(iface, iface)
         in_bw = cols[2] if len(cols) > 2 and cols[2] != "-" else ""
         out_bw = cols[3] if len(cols) > 3 and cols[3] != "-" else ""
+        # interface and bandwidths are interpolated into tc commands in the
+        # root script, so validate them like parse_tcdevices does.
+        valid.interface(iface, line, "tcinterfaces interface")
+        if in_bw:
+            valid.rate(in_bw, line, "bandwidth")
+        if out_bw:
+            valid.rate(out_bw, line, "bandwidth")
         out.append(TcInterface(interface=iface, in_bw=in_bw, out_bw=out_bw,
                                origin=f"{os.path.basename(line.path)}:"
                                f"{line.lineno}"))
@@ -1008,6 +1024,9 @@ def parse_mangle(path, variables, interfaces, family=4):
         proto = cols[3] if len(cols) > 3 and cols[3] != "-" else ""
         dport = cols[4] if len(cols) > 4 and cols[4] != "-" else ""
         sport = cols[5] if len(cols) > 5 and cols[5] != "-" else ""
+        # A MARK param reaches nft as a number; reject a bad one here.
+        if name == "MARK":
+            valid.mark(m.group("param"), line, "mangle mark")
         origin = f"{os.path.basename(line.path)}:{line.lineno}"
         for chain in chains:
             out.append(MangleRule(chain=chain, action=name,
@@ -1540,6 +1559,8 @@ def parse_snat(path, variables, interfaces):
             raise line.error("snat SWITCH column not supported yet")
         if prob:
             raise line.error("snat PROBABILITY column not supported yet")
+        if mark:
+            valid.mark(mark, line, "snat mark")
         # An interface name in SOURCE means traffic arriving on it.
         in_iface = ""
         src_key = source.partition(":")[0]

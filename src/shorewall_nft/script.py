@@ -6,6 +6,7 @@ ruleset atomically with nft -f. This mirrors upstream's
 compile-to-script model, so shorewall-lite style deployment works: the
 target host needs nft and sh, not the compiler.
 """
+from .errors import ConfigError
 
 TRUTHY = ("yes", "1", "on")
 
@@ -345,12 +346,20 @@ def _proxyarp(cfg):
 
 
 def _rate_kbit(spec, line_hint=""):
+    """A tc rate to kbit. Covers every unit valid.rate accepts: bit-based
+    (bit/kbit/mbit/gbit/tbit) and byte-based (bps/kbps/mbps/gbps/tbps, eight
+    times the bit value). Longer suffixes are matched first so mbps is not
+    read as bps. A value valid.rate passed but this cannot convert (full, or
+    a bare number with no unit) is a located ConfigError, not a traceback."""
     s = spec.lower().strip()
-    for suffix, mult in (("gbit", 1000000), ("mbit", 1000), ("kbit", 1),
-                         ("bit", 0.001)):
+    for suffix, mult in (("tbit", 1000000000), ("gbit", 1000000),
+                         ("mbit", 1000), ("kbit", 1), ("bit", 0.001),
+                         ("tbps", 8000000000), ("gbps", 8000000),
+                         ("mbps", 8000), ("kbps", 8), ("bps", 0.008)):
         if s.endswith(suffix):
             return int(float(s[:-len(suffix)]) * mult)
-    raise ValueError(f"cannot parse bandwidth {spec} {line_hint}")
+    raise ConfigError(f"cannot use bandwidth {spec!r} here; give an explicit "
+                      f"unit such as kbit or mbit ({line_hint})")
 
 
 def _tc(cfg):

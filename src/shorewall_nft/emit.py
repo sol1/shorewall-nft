@@ -154,7 +154,13 @@ def _tos_to_dscp(param):
     mask, to the DSCP value nft sets. DSCP is the top six bits of the
     TOS byte, so the value is the byte shifted right by two."""
     value = param.split("/")[0].strip().lower()
-    tos = TOS_NAMES[value] if value in TOS_NAMES else int(value, 0)
+    if value in TOS_NAMES:
+        tos = TOS_NAMES[value]
+    else:
+        try:
+            tos = int(value, 0)
+        except ValueError:
+            raise ConfigError(f"invalid TOS value {param!r}")
     return tos >> 2
 
 
@@ -867,11 +873,10 @@ class Emitter:
     def _tcpflags_ifaces(self):
         """Interfaces with the tcpflags check. Upstream defaults it on
         for every non-unmanaged interface (TCP_FLAGS_DISPOSITION and the
-        tcpflags option), so it is on unless explicitly set to 0."""
+        tcpflags option), so it is on unless explicitly set to 0. A
+        wildcard interface is kept; _interface_filters globs it."""
         out = []
         for i in self.cfg.interfaces:
-            if i.wildcard:
-                continue
             v = i.options.get("tcpflags", True)
             if v not in (False, "0", "no"):
                 out.append(i.physical)
@@ -880,8 +885,6 @@ class Emitter:
     def _nosmurfs_ifaces(self):
         out = []
         for i in self.cfg.interfaces:
-            if i.wildcard:
-                continue
             v = i.options.get("nosmurfs")
             if v and v not in (False, "0", "no"):
                 out.append(i.physical)
@@ -904,15 +907,25 @@ class Emitter:
             self.out(f'iifname {g} accept comment "docker coexistence"', 2)
             self.out(f'oifname {g} accept comment "docker coexistence"', 2)
 
+    def _iif_match(self, iface):
+        """An iifname match prefix for an interface: a name glob for a
+        wildcard, and empty for a bare + (all interfaces), which nft cannot
+        express as an iifname glob."""
+        if iface.endswith("+"):
+            glob = _iface_glob(iface)
+            return "" if glob == "*" else f'iifname "{glob}" '
+        return f'iifname "{iface}" '
+
     def _interface_filters(self, hook):
         """Jump arriving traffic through the smurf and tcp-flag checks
         for interfaces that carry those options, replicating upstream's
         per-source-interface smurfs and tcpflags jumps."""
         for iface in self._nosmurfs_ifaces():
-            self.out(f'iifname "{iface}" ct state new,invalid,untracked '
+            self.out(f'{self._iif_match(iface)}ct state new,invalid,untracked '
                      "jump smurfs", 2)
         for iface in self._tcpflags_ifaces():
-            self.out(f'iifname "{iface}" meta l4proto tcp jump tcpflags', 2)
+            self.out(f'{self._iif_match(iface)}meta l4proto tcp jump tcpflags',
+                     2)
 
     def _dispatch(self, hook):
         fw = self.cfg.fw_zone

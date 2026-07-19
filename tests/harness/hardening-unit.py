@@ -19,9 +19,9 @@ from shorewall_nft.errors import ConfigError  # noqa: E402
 from shorewall_nft.lsm import Monitor, MonitorCfg, parse_lsm  # noqa: E402
 from shorewall_nft.parsers import (  # noqa: E402
     parse_providers, parse_tcpri, parse_tcdevices, parse_tcclasses,
-    parse_rtrules, parse_policy)
+    parse_rtrules, parse_policy, parse_tcinterfaces, parse_mangle, parse_snat)
 from shorewall_nft.reader import read_file  # noqa: E402
-from shorewall_nft.script import render_script  # noqa: E402
+from shorewall_nft.script import render_script, _rate_kbit  # noqa: E402
 
 REPO = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..")
 fails = 0
@@ -381,5 +381,73 @@ try:
      else bad)("emit: MACLIST_DISPOSITION A_REJECT renders an audit reject")
 finally:
     shutil.rmtree(mac_conf)
+
+# --- second-review findings: tc/mark/connlimit injection and tracebacks ---
+# tcinterfaces validates its INTERFACE and bandwidth like its sibling tc
+# parsers, so a shell payload never reaches the root script.
+(ok if raises_config_error(
+    lambda: parses(parse_tcinterfaces, "eth0;reboot simple\n", ".tcinterfaces"))
+ else bad)("tcinterfaces: a shell-metachar interface is a config error")
+(ok if raises_config_error(
+    lambda: parses(parse_tcinterfaces, "eth0 simple - 10mbit;reboot\n",
+                   ".tcinterfaces"))
+ else bad)("tcinterfaces: a bad bandwidth is a config error")
+
+# _rate_kbit converts every unit valid.rate accepts, and reports the ones
+# it cannot use as a config error rather than a traceback.
+(ok if _rate_kbit("10mbps") == 80000 and _rate_kbit("1tbit") == 1000000000
+ and _rate_kbit("100kbit") == 100
+ else bad)("script: _rate_kbit converts byte and bit units")
+(ok if raises_config_error(lambda: _rate_kbit("full"))
+ else bad)("script: an unusable bandwidth is a config error, not a traceback")
+
+# A mangle MARK, an snat mark and a rules mark/connlimit are numbers; a bad
+# value is a located config error, not a bare ValueError in the emitter.
+(ok if raises_config_error(
+    lambda: parses(parse_mangle, "MARK(abc) - - -\n", ".mangle"))
+ else bad)("mangle: a non-numeric MARK is a config error")
+(ok if raises_config_error(
+    lambda: parses(parse_snat, "MASQUERADE 10.0.0.0/8 eth0 - - - 0xzz\n",
+                   ".snat"))
+ else bad)("snat: a non-numeric mark is a config error")
+
+
+def load_with(files):
+    """load() a copy of 0002 with the given {name: text} overrides."""
+    d = tempfile.mkdtemp(prefix="shorewall-nft-rev2-")
+    shutil.copytree(os.path.join(REPO, "tests/corpus/0002-one-interface/config"),
+                    d, dirs_exist_ok=True)
+    for name, text in files.items():
+        with open(os.path.join(d, name), "w") as f:
+            f.write(text)
+    try:
+        return load(d, 4)
+    finally:
+        shutil.rmtree(d)
+
+
+(ok if raises_config_error(
+    lambda: load_with({"rules": "?SECTION NEW\n"
+                       "ACCEPT net $FW tcp 22 - - - - abc -\n"}))
+ else bad)("rules: a non-numeric mark is a config error")
+(ok if raises_config_error(
+    lambda: load_with({"rules": "?SECTION NEW\n"
+                       "ACCEPT net $FW tcp 22 - - - - - xyz\n"}))
+ else bad)("rules: a non-numeric connlimit is a config error")
+(ok if raises_config_error(
+    lambda: render(load_with({"mangle": "TOS(bogus)\t-\t-\t-\n"})))
+ else bad)("mangle: an invalid TOS value is a config error, not a traceback")
+
+# A single-column interfaces line is a located error, not an IndexError.
+(ok if raises_config_error(lambda: load_with({"interfaces": "?FORMAT 2\neth0\n"}))
+ else bad)("interfaces: a one-column line is a config error")
+
+# The tcpflags and smurf checks reach a wildcard interface, as a glob.
+cfg = load_with({"interfaces": "?FORMAT 2\nnet ppp+ tcpflags,nosmurfs\n"})
+text = render(cfg)
+(ok if 'iifname "ppp*" meta l4proto tcp jump tcpflags' in text
+ else bad)("emit: tcpflags reaches a wildcard interface as a glob")
+(ok if 'iifname "ppp*" ct state new,invalid,untracked jump smurfs' in text
+ else bad)("emit: nosmurfs reaches a wildcard interface as a glob")
 
 sys.exit(1 if fails else 0)
