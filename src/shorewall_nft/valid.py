@@ -24,9 +24,12 @@ import re
 _IFACE = re.compile(r"^(\+|[A-Za-z0-9][A-Za-z0-9_.@-]*\+?)$")
 # A Shorewall identifier: provider, zone and set names. Upstream's rule.
 _IDENT = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
-# A tc rate: a number with an optional unit, or the word full.
+# A tc rate: a number with an optional unit, or the word full. tc and the
+# _rate_kbit consumer are case-insensitive about the unit (10Mbit == 10mbit),
+# so accept either case here rather than reject a form that shapes correctly.
 _RATE = re.compile(r"^(full|[0-9]+(\.[0-9]+)?"
-                   r"(bit|kbit|mbit|gbit|tbit|bps|kbps|mbps|gbps|tbps)?)$")
+                   r"(bit|kbit|mbit|gbit|tbit|bps|kbps|mbps|gbps|tbps)?)$",
+                   re.IGNORECASE)
 # A token with no shell or nft metacharacter: for a value that reaches a
 # command or the ruleset but has no more specific validator. Excludes space,
 # quotes, $, backtick, (), ;, &, |, <, >, =, *, etc.

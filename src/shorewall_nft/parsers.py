@@ -1041,8 +1041,11 @@ def parse_tcclasses(path, variables, interfaces):
         origin = f"{os.path.basename(line.path)}:{line.lineno}"
         iface = logical.get(iface, iface)
         # interface, rate and ceil are interpolated into tc class commands.
+        # A '-' rate or ceil means the device bandwidth (_tc substitutes it),
+        # so accept it here as the CEIL column already does.
         valid.interface(iface, line, "tcclasses interface")
-        valid.rate(cols[2], line, "rate")
+        if cols[2] not in ("-", ""):
+            valid.rate(cols[2], line, "rate")
         if cols[3] not in ("-", ""):
             valid.rate(cols[3], line, "ceil")
         out.append(TcClass(interface=iface, num=num,

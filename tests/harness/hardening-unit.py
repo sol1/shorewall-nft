@@ -284,7 +284,7 @@ def reads(text, suffix):
 def parses(fn, text, suffix):
     path = _tmp(text, suffix)
     try:
-        fn(path, {}, [])
+        return fn(path, {}, [])
     finally:
         os.unlink(path)
 
@@ -593,5 +593,14 @@ dnat_text = render(dnat_all)
 (ok if raises_config_error(lambda: parses(parse_tcpri, '1 - - - - eth0"\n',
                                           ".tcpri"))
  else bad)("tcpri: a metacharacter in the interface is a config error")
+
+# --- keep valid config compiling (regressions from over-strict validators) ---
+# Problem 1: valid.rate must accept the documented tc rate forms it rejected.
+(ok if parses(parse_tcclasses, "eth0:10\t1\t10Mbit\t20Mbit\t1\n", ".tcclasses")
+ else bad)("tcclasses: an uppercase-unit rate (10Mbit) still compiles")
+(ok if parses(parse_tcdevices, "eth0\t100Mbit\t100Mbit\n", ".tcdevices")
+ else bad)("tcdevices: an uppercase-unit bandwidth still compiles")
+(ok if parses(parse_tcclasses, "eth0:10\t1\t-\tfull\t1\n", ".tcclasses")
+ else bad)("tcclasses: a '-' rate (device bandwidth) still compiles")
 
 sys.exit(1 if fails else 0)
