@@ -1486,7 +1486,11 @@ class Emitter:
             if p.interface:
                 m += [t for t in [_if_match("oifname", p.interface)] if t]
             if p.address:
-                m.append(f"{ipkw} saddr {_addr_set(p.address)}")
+                if p.address.startswith("~"):
+                    mac = p.address[1:].replace("-", ":").lower()
+                    m.append(f"ether saddr {mac}")
+                else:
+                    m.append(f"{ipkw} saddr {_addr_set(p.address)}")
             if p.proto:
                 if p.dport:
                     m.append(f"{p.proto} dport {_ports(p.dport)}")

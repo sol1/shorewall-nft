@@ -992,11 +992,15 @@ def parse_tcpri(path, variables, interfaces):
         def col(n):
             return cols[n] if len(cols) > n and cols[n] != "-" else ""
         iface = logical.get(col(5), col(5))
-        # interface and address reach the tcpri chain in the ruleset.
+        # interface and address reach the tcpri chain in the ruleset. The
+        # ADDRESS column is a network or a ~MAC (shorewall-tcpri(5)).
         if iface:
             valid.interface(iface, line, "tcpri interface")
         if col(4):
-            valid.network(col(4), line, "tcpri address")
+            if col(4).startswith("~"):
+                valid.mac(col(4), line, "tcpri address")
+            else:
+                valid.network(col(4), line, "tcpri address")
         out.append(TcPri(band=band, proto=col(1), dport=col(2), sport=col(3),
                          address=col(4), interface=iface,
                          origin=f"{os.path.basename(line.path)}:{line.lineno}"))

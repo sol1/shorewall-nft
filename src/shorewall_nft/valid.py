@@ -114,6 +114,17 @@ def queue(spec, line, col="queue number"):
     return spec
 
 
+_MAC = re.compile(r"^~?([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$")
+
+
+def mac(spec, line, col="MAC"):
+    """A MAC address, Shorewall format (optional ~ prefix, : or - between the
+    six hex bytes). Reaches the ruleset as an ether address match."""
+    if not _MAC.match(spec or ""):
+        raise line.error(f"invalid {col} {spec!r}")
+    return spec
+
+
 def safe_token(value, line, col="value"):
     """A value with no shell or nft metacharacter, for a column that reaches
     a command or the ruleset but has no dedicated validator. Blocks the
