@@ -233,9 +233,14 @@ def parse_policy(path, variables, zones=None):
             if suffix.lower() in ("none", "-"):
                 default_action = "none"
             else:
-                raise line.error(f"policy suffix {suffix!r} not supported yet; "
-                                 "only ':none' is, and a log level belongs in "
-                                 "the LOGLEVEL column")
+                # A named default action (POLICY:action) is a documented form
+                # that older configs use. We do not run the default action yet,
+                # but reject-to-compile-error would break migration, so accept
+                # it and warn that it is not applied rather than abort.
+                print(f"shorewall-nft: warning: "
+                      f"{os.path.basename(line.path)}:{line.lineno}: policy "
+                      f"default action {suffix!r} is not applied yet; the "
+                      "policy disposition still takes effect.", file=sys.stderr)
         loglevel = cols[3] if len(cols) > 3 and cols[3] != "-" else ""
         if ":" in loglevel:
             raise line.error("policy log tags not supported yet")

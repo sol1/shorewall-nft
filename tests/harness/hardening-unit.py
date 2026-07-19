@@ -353,13 +353,14 @@ rules = parse_rtrules(_tmp("eth0:2001:db8::1 - main 1000\n", ".rtrules"),
 (ok if rules and rules[0].iif == "eth0" and rules[0].source == "2001:db8::1"
  else bad)("rtrules: iface:addr still splits for an IPv6 address")
 
-# A policy default-action suffix is honored for none and rejected otherwise.
+# A policy :none suffix records the override; a named default action is
+# accepted (warned, not applied yet) so a migrating config still compiles.
 pols = parse_policy(_tmp("net all DROP:none\n", ".policy"), {})
 (ok if pols and pols[0].default_action == "none"
  else bad)("policy: DROP:none records a default-action override")
-(ok if raises_config_error(
-    lambda: parse_policy(_tmp("net all DROP:MyAction\n", ".policy"), {}))
- else bad)("policy: a named default action is a config error, not ignored")
+pols = parse_policy(_tmp("net all DROP:MyAction\n", ".policy"), {})
+(ok if pols and pols[0].policy == "DROP" and pols[0].default_action == ""
+ else bad)("policy: a named default action compiles (not applied yet)")
 
 # A lsm provider name that would escape the status directory is rejected.
 (ok if raises_config_error(
@@ -606,5 +607,9 @@ dnat_text = render(dnat_all)
 # Problem 2: policy all+/any+ (include intra-zone) must still compile.
 (ok if load_with({"policy": "all+ all+ REJECT\nall all DROP\n"})
  else bad)("policy: all+/any+ catch-all still compiles")
+
+# Problem 3: a named default-action suffix (DROP:Reject) still compiles.
+(ok if load_with({"policy": "net fw DROP:Reject\nall all ACCEPT\n"})
+ else bad)("policy: a named default-action suffix still compiles")
 
 sys.exit(1 if fails else 0)
