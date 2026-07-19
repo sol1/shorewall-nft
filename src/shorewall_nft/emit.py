@@ -540,7 +540,12 @@ def _extra_matches(rule):
     if rule.mark:
         out.append(_mark_match(rule.mark))
     if rule.connlimit:
+        # CONNLIMIT is [d:][!]limit[:mask]. nft ct count is a plain per-rule
+        # counter, so drop the d: (count-by-destination) prefix and the :mask
+        # grouping (the parser warns they are not applied) and enforce limit.
         cl = rule.connlimit
+        if cl.startswith("d:"):
+            cl = cl[2:]
         neg = "over"
         if cl.startswith("!"):
             neg, cl = "until", cl[1:]

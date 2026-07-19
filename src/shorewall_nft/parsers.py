@@ -486,14 +486,25 @@ def parse_rules(path, variables, fw_zone, family=4, zones=None):
         if mark:
             valid.mark(mark, line, "rules mark")
         if connlimit:
-            cl = connlimit[1:] if connlimit.startswith("!") else connlimit
-            # A per-source-subnet mask (count:mask) is not expressible as a
-            # single nft ct count; reject it rather than silently drop the
-            # mask and apply a global limit.
-            if ":" in cl:
-                raise line.error("rules CONNLIMIT per-subnet mask is not "
-                                 "supported yet")
-            valid.integer(cl, line, "rules connlimit")
+            # CONNLIMIT is [d:][!]limit[:mask] per shorewall-rules(5). nft's
+            # ct count is a plain per-rule counter, so the d: (count by
+            # destination) prefix and the :mask (per-subnet) grouping cannot
+            # be expressed; validate the limit and warn that the grouping is
+            # not applied, rather than reject a documented form.
+            cl = connlimit
+            grouped = cl.startswith("d:")
+            if grouped:
+                cl = cl[2:]
+            if cl.startswith("!"):
+                cl = cl[1:]
+            limit, _, mask = cl.partition(":")
+            valid.integer(limit, line, "rules connlimit")
+            if grouped or mask:
+                print(f"shorewall-nft: warning: "
+                      f"{os.path.basename(line.path)}:{line.lineno}: CONNLIMIT "
+                      "counts by destination or per-subnet are not applied yet; "
+                      "the limit is enforced as a single global count.",
+                      file=sys.stderr)
         if col(12):
             raise line.error("rules HEADERS column not supported yet")
         if col(13):

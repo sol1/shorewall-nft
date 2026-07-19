@@ -503,15 +503,11 @@ text = render(cfg)
     lambda: parses(parse_nat, '1.2.3.4 eth0" 10.0.0.1\n', ".nat"))
  else bad)("nat: a metacharacter in the interface is a config error")
 
-# ACCOUNT net is validated; a per-subnet CONNLIMIT mask is rejected.
+# ACCOUNT net is validated at the parse boundary.
 (ok if raises_config_error(
     lambda: parses(parse_accounting, "ACCOUNT(t,not-an-addr)\teth0\n",
                    ".accounting"))
  else bad)("accounting: a bad ACCOUNT network is a config error")
-(ok if raises_config_error(
-    lambda: load_with({"rules": "?SECTION NEW\n"
-                       "DROP net $FW tcp 22 - - - - 10:24\n"}))
- else bad)("rules: a per-subnet CONNLIMIT mask is a config error")
 
 # A BLACKLIST_DISPOSITION nft cannot render is a config error, not KeyError.
 (ok if raises_config_error(
@@ -611,5 +607,16 @@ dnat_text = render(dnat_all)
 # Problem 3: a named default-action suffix (DROP:Reject) still compiles.
 (ok if load_with({"policy": "net fw DROP:Reject\nall all ACCEPT\n"})
  else bad)("policy: a named default-action suffix still compiles")
+
+# Problem 4: the documented CONNLIMIT forms [d:][!]limit[:mask] compile, and
+# the limit is enforced (the grouping is warned, not applied).
+for spec, label in (("10:24", "limit:mask"), ("d:10", "d: prefix"),
+                    ("!10", "! below-limit"), ("d:!10", "d: with !")):
+    # columns: ACTION SOURCE DEST PROTO DPORT SPORT ORIGDEST RATE USER MARK
+    # CONNLIMIT, so five dashes put the value in the CONNLIMIT column.
+    cfg = load_with({"rules": f"?SECTION NEW\n"
+                     f"DROP net $FW tcp 22 - - - - - {spec}\n"})
+    (ok if cfg and "ct count" in render(cfg)
+     else bad)(f"rules: CONNLIMIT {label} compiles to a ct count")
 
 sys.exit(1 if fails else 0)
