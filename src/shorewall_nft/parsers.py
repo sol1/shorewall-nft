@@ -1415,8 +1415,8 @@ def parse_accounting(path, variables, interfaces):
             if net and net not in ("0.0.0.0/0", "::/0"):
                 valid.network(net, line, "accounting network")
             out.append(AcctRule(table=m.group("table"), net=net,
-                                in_iface=s_iface or s_addr,
-                                out_iface=d_iface or d_addr,
+                                in_iface=s_iface, out_iface=d_iface,
+                                saddr=s_addr, daddr=d_addr,
                                 origin=origin, chain=chain))
         elif cm:
             out.append(AcctRule(table=cm.group("name"), net="",

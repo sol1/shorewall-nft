@@ -587,6 +587,14 @@ nm_text = render(nm_bare)
 (ok if '"*"' not in nm_text and "prefix to" in nm_text
  else bad)("emit: a bare-wildcard netmap interface drops the match, no '*'")
 
+# An ACCOUNT rule whose SOURCE is a bare address matches ip saddr, not an
+# interface named after the address.
+acct_addr = load_with({"accounting":
+                       "ACCOUNT(tbl,10.0.0.0/8)\t-\t192.168.1.1\t-\n"})
+at = render(acct_addr)
+(ok if 'iifname "192.168.1.1"' not in at and "ip saddr 192.168.1.1" in at
+ else bad)("emit: an ACCOUNT bare-address source is an saddr, not iifname")
+
 # Zone typos in rules/policy/blrules are rejected, not silently fail-open.
 (ok if raises_config_error(
     lambda: load_with({"rules": "?SECTION NEW\nREJECT lan net tcp 25\n"}))
