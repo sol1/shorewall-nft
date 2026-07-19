@@ -1,3 +1,41 @@
+shorewall-nft (0.1.1) unstable; urgency=medium
+
+  * Fixes found reviewing 0.1.0. Several 0.1.0 parse-boundary checks rejected
+    valid configuration, which broke a migrating config. These compile again:
+    a tc rate with an uppercase unit (10Mbit) or a '-' meaning the device
+    bandwidth; a policy SOURCE or DEST of all+ or any+; a policy with a named
+    default action (POLICY:action), now accepted and warned as not applied
+    rather than rejected; and a CONNLIMIT with the documented d: prefix or a
+    :mask, where the limit is enforced and the grouping is warned as not
+    applied.
+
+  * TIME rules now match local time. 0.1.0 emitted the window as a UTC second
+    count, so a rule set for 17:00 fired at 03:00 on a UTC+10 host. The window
+    is now the quoted local HH:MM form nft converts. A window that wraps
+    midnight in UTC (a daytime range on a host east or west of UTC) cannot be
+    one nft range and is reported at compile rather than matching at the wrong
+    time.
+
+  * A wildcard interface (ppp+) is globbed to ppp* everywhere it reaches the
+    ruleset. 0.1.0 still emitted the literal ppp+ in the blacklist chain and
+    in netmap, where a bare + became the invalid iifname "*"; nft never matched
+    the former and rejected the latter.
+
+  * A DNAT from a hosts-only zone is scoped by that zone's addresses again,
+    not emitted open to every source.
+
+  * An ACCOUNT entry whose SOURCE is a bare address counts that address, not
+    an interface named after it. The rules and snat USER column, the ecn and
+    tcpri interface and address columns, and the SNAT target are validated at
+    the parse boundary, so a bad value is a located error rather than a ruleset
+    nft refuses to load at start.
+
+  * The geoip set refill is applied in transactions under the netlink budget,
+    so a large country's set loads; a failed refill restores the previous
+    contents rather than leaving the set empty and a geoip rule open.
+
+ -- Dave Kempe <dave@sol1.com.au>  Mon, 20 Jul 2026 00:17:36 +1000
+
 shorewall-nft (0.1.0) unstable; urgency=medium
 
   * First public release. The compiler turns a standard /etc/shorewall

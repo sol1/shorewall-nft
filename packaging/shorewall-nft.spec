@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.1.0
+Version:        0.1.1
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -78,6 +78,15 @@ DESTDIR=%{buildroot} packaging/install.sh packaging/shorewallrc.redhat
 %systemd_postun shorewall-geoip-update.timer
 
 %changelog
+* Mon Jul 20 2026 Dave Kempe <dave@sol1.com.au> - 0.1.1-1
+- Fixes found reviewing 0.1.0. Restore compilation of valid config the new
+  validators wrongly rejected (uppercase tc units, '-' rate, policy all+/any+
+  and named default actions, CONNLIMIT d:/mask). Match TIME rules in local
+  time, not UTC. Glob a wildcard interface everywhere (blacklist, netmap).
+  Scope a DNAT from a hosts-only zone. Validate USER, ecn/tcpri and the SNAT
+  target. Chunk the geoip refill under the netlink budget. See the Debian
+  changelog for the full list.
+
 * Sun Jul 19 2026 Dave Kempe <dave@sol1.com.au> - 0.1.0-1
 - First public release. Validate configuration tokens at the parse boundary
   as upstream does, report malformed config as a located error instead of a
