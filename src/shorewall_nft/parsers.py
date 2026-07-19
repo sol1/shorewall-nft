@@ -630,6 +630,10 @@ def parse_ecn(path, variables, interfaces):
         cols = split_columns(line.text, line.path, line.lineno)
         iface = logical.get(cols[0], cols[0])
         hosts = cols[1] if len(cols) > 1 and cols[1] != "-" else ""
+        # interface and hosts reach the ruleset; validate at the boundary.
+        valid.interface(iface, line, "ecn interface")
+        for host in (hosts.split(",") if hosts else []):
+            valid.network(host, line, "ecn host")
         origin = f"{os.path.basename(line.path)}:{line.lineno}"
         out.append((iface, hosts, origin))
     return out
@@ -963,9 +967,14 @@ def parse_tcpri(path, variables, interfaces):
 
         def col(n):
             return cols[n] if len(cols) > n and cols[n] != "-" else ""
-        iface = col(5)
+        iface = logical.get(col(5), col(5))
+        # interface and address reach the tcpri chain in the ruleset.
+        if iface:
+            valid.interface(iface, line, "tcpri interface")
+        if col(4):
+            valid.network(col(4), line, "tcpri address")
         out.append(TcPri(band=band, proto=col(1), dport=col(2), sport=col(3),
-                         address=col(4), interface=logical.get(iface, iface),
+                         address=col(4), interface=iface,
                          origin=f"{os.path.basename(line.path)}:{line.lineno}"))
     return out
 

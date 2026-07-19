@@ -22,7 +22,7 @@ from shorewall_nft.lsm import Monitor, MonitorCfg, parse_lsm  # noqa: E402
 from shorewall_nft.parsers import (  # noqa: E402
     parse_providers, parse_tcpri, parse_tcdevices, parse_tcclasses,
     parse_rtrules, parse_policy, parse_tcinterfaces, parse_mangle, parse_snat,
-    parse_masq, parse_nat, parse_accounting)
+    parse_masq, parse_nat, parse_accounting, parse_ecn)
 from shorewall_nft.reader import read_file  # noqa: E402
 from shorewall_nft.script import render_script, _rate_kbit  # noqa: E402
 
@@ -582,5 +582,16 @@ dnat_text = render(dnat_all)
     lambda: load_with({"policy": "net fw NFQUEUE(0 accept)\nfw net ACCEPT\n"
                        "all all DROP\n"}))
  else bad)("policy: a space in an NFQUEUE queue is a config error")
+
+# ecn and tcpri validate their interface and address columns at the boundary.
+(ok if raises_config_error(lambda: parses(parse_ecn, 'eth0" 10.0.0.0/8\n',
+                                          ".ecn"))
+ else bad)("ecn: a metacharacter in the interface is a config error")
+(ok if raises_config_error(lambda: parses(parse_ecn, "eth0 not-an-addr\n",
+                                          ".ecn"))
+ else bad)("ecn: a bad host address is a config error")
+(ok if raises_config_error(lambda: parses(parse_tcpri, '1 - - - - eth0"\n',
+                                          ".tcpri"))
+ else bad)("tcpri: a metacharacter in the interface is a config error")
 
 sys.exit(1 if fails else 0)
