@@ -519,4 +519,68 @@ text = render(cfg)
         append={"shorewall.conf": "\nBLACKLIST_DISPOSITION=nonsense\n"})))
  else bad)("blrules: an unsupported BLACKLIST_DISPOSITION is a config error")
 
+# --- fourth-review findings: regressions, wildcard glob, zone validation ---
+# Regressions: these forms compiled before the hardening and must again.
+(ok if load_with({"interfaces": "?FORMAT 2\nnet eth0 nets=(10.0.0.0/8)\n"})
+ else bad)("interfaces: nets=(...) still compiles (option-value regression)")
+(ok if load_with({"policy": "net fw NFQUEUE(0:3)\nfw net ACCEPT\n"
+                  "all all DROP\n"})
+ else bad)("policy: NFQUEUE(0:3) queue range still compiles")
+isets, _ = ipsets.parse(_tmp("create bl hash:net\nadd bl 192.0.2.1-192.0.2.9\n",
+                             ".ipset"))
+(ok if "bl" in isets else bad)("ipsets: an a-b range element parses")
+
+# RATE=full resolves to the device bandwidth instead of crashing the render.
+rate_conf = load_with({
+    "tcdevices": "eth0 100mbit 100mbit\n",
+    "tcclasses": "eth0:1 - full full 1\n"})
+(ok if "rate 100mbit ceil 100mbit" in render_script(
+    rate_conf, render(rate_conf), render_stop(rate_conf))
+ else bad)("tc: RATE=full resolves to the device bandwidth")
+
+# Wildcard glob reaches masq and maclist (same class as the tcpflags fix).
+wild = load_with({"interfaces": "?FORMAT 2\nnet ppp+\nloc eth1\n",
+                  "masq": "ppp+ 10.0.0.0/24\n"})
+(ok if 'oifname "ppp*"' in render(wild)
+ else bad)("emit: wildcard masq interface renders as a glob")
+mac_wild = load_with({"interfaces": "?FORMAT 2\nloc ppp+ maclist\n",
+                      "maclist": "ACCEPT ppp+ 11:22:33:44:55:66\n"})
+(ok if 'iifname "ppp*" jump maclist' in render(mac_wild)
+ else bad)("emit: wildcard maclist interface renders as a glob")
+
+# A DNAT from all is emitted unrestricted, not silently dropped.
+dnat_all = load_with({"rules": "?SECTION NEW\nDNAT all loc:10.0.0.5 tcp 80\n",
+                      "interfaces": "?FORMAT 2\nnet eth0\nloc eth1\n",
+                      "zones": "fw firewall\nnet ipv4\nloc ipv4\n",
+                      "policy": "all all ACCEPT\n"})
+dnat_text = render(dnat_all)
+(ok if "dnat ip to 10.0.0.5" in dnat_text
+ else bad)("emit: DNAT from all is emitted, not silently dropped")
+
+# Zone typos in rules/policy/blrules are rejected, not silently fail-open.
+(ok if raises_config_error(
+    lambda: load_with({"rules": "?SECTION NEW\nREJECT lan net tcp 25\n"}))
+ else bad)("rules: an undeclared source zone is a config error")
+(ok if raises_config_error(
+    lambda: load_with({"policy": "nett fw DROP\nall all ACCEPT\n"}))
+ else bad)("policy: an undeclared zone is a config error")
+(ok if raises_config_error(
+    lambda: load_with({"blrules": "WHITELIST badzone all\n"}))
+ else bad)("blrules: an undeclared zone is a config error")
+
+# Unvalidated params reaching nft are rejected at the boundary.
+(ok if raises_config_error(
+    lambda: parses(parse_mangle, "DSCP(cs1 accept)\t-\t-\t-\n", ".mangle"))
+ else bad)("mangle: a space in a DSCP param is a config error")
+(ok if raises_config_error(
+    lambda: parses(parse_mangle, "CLASSIFY(1:1 accept)\t-\t-\t-\n", ".mangle"))
+ else bad)("mangle: a space in a CLASSIFY param is a config error")
+(ok if raises_config_error(
+    lambda: parses(parse_snat, 'SNAT(1.2.3.4;reboot) - eth0\n', ".snat"))
+ else bad)("snat: a metacharacter in the SNAT target is a config error")
+(ok if raises_config_error(
+    lambda: load_with({"policy": "net fw NFQUEUE(0 accept)\nfw net ACCEPT\n"
+                       "all all DROP\n"}))
+ else bad)("policy: a space in an NFQUEUE queue is a config error")
+
 sys.exit(1 if fails else 0)

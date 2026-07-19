@@ -170,6 +170,17 @@ def _iface_glob(iface):
     return iface[:-1] + "*"
 
 
+def _if_match(kw, iface):
+    """An iifname/oifname match token for an interface. A wildcard (trailing
+    +) becomes a name glob; a bare + (all interfaces) returns "", since nft
+    cannot express an all-wildcard iifname. The caller drops an empty token,
+    which leaves the rule unscoped, matching every interface as intended."""
+    if iface.endswith("+"):
+        glob = _iface_glob(iface)
+        return "" if glob == "*" else f'{kw} "{glob}"'
+    return f'{kw} "{iface}"'
+
+
 def _split_action_list(spec):
     """Split a comma list of actions, keeping parenthesised params
     together: Broadcast(DROP),Multicast(DROP) -> two items."""
@@ -866,7 +877,8 @@ class Emitter:
             # MAC verification runs first on maclist interfaces: an
             # unapproved source MAC is dropped before anything else.
             for iface in self._maclist_ifaces():
-                self.out(f'iifname "{iface}" jump maclist', 2)
+                ifm = _if_match("iifname", iface)
+                self.out(f"{ifm + ' ' if ifm else ''}jump maclist", 2)
             # Blacklist and whitelist rules run before the regular
             # rules. A blacklisted source is dropped even if it has an
             # established connection, so this precedes the state accept.
@@ -1185,9 +1197,9 @@ class Emitter:
         def match(a):
             m = []
             if a.in_iface:
-                m.append(f'iifname "{a.in_iface}"')
+                m += [t for t in [_if_match("iifname", a.in_iface)] if t]
             if a.out_iface:
-                m.append(f'oifname "{a.out_iface}"')
+                m += [t for t in [_if_match("oifname", a.out_iface)] if t]
             # Set-aware so a +ipset reference renders as @set and is declared.
             if a.saddr:
                 m.append(_match_addr(a.saddr, "saddr", ipkw, self.sets))
@@ -1247,7 +1259,7 @@ class Emitter:
         ipkw = "ip6" if self.cfg.family == 6 else "ip"
         m = []
         if r.iif:
-            m.append(f'iifname "{r.iif}"')
+            m += [t for t in [_if_match("iifname", r.iif)] if t]
         if r.saddr:
             m.append(_match_addr(r.saddr, "saddr", ipkw, self.sets))
         if r.daddr:
@@ -1306,14 +1318,16 @@ class Emitter:
         for r in by_chain.get("prerouting", []):
             self.out(self._mangle_statement(r), 2)
         for p in tracked:
-            self.out(f'iifname "{p.interface}" meta mark and 0xff == 0 '
+            ifm = _if_match("iifname", p.interface)
+            self.out(f"{ifm + ' ' if ifm else ''}meta mark and 0xff == 0 "
                      f"jump routemark", 2)
         self.out("}", 1)
         if tracked:
             self.out("")
             self.out("chain routemark {", 1)
             for p in tracked:
-                self.out(f'iifname "{p.interface}" meta mark set mark and '
+                ifm = _if_match("iifname", p.interface)
+                self.out(f"{ifm + ' ' if ifm else ''}meta mark set mark and "
                          f"0xffffff00 or {p.mark:#x}"
                          f' comment "{p.origin}"', 2)
             self.out("ct mark set meta mark and 0xff", 2)
@@ -1453,7 +1467,7 @@ class Emitter:
         for p in self.cfg.tcpri:
             m = []
             if p.interface:
-                m.append(f'oifname "{p.interface}"')
+                m += [t for t in [_if_match("oifname", p.interface)] if t]
             if p.address:
                 m.append(f"{ipkw} saddr {_addr_set(p.address)}")
             if p.proto:
@@ -1481,7 +1495,7 @@ class Emitter:
             self.out(f"chain ecn_{hook} {{", 1)
             self.out(f"type filter hook {hook} priority {prio};", 2)
             for iface, hosts, origin in self.cfg.ecn:
-                m = [f'oifname "{iface}"']
+                m = [t for t in [_if_match("oifname", iface)] if t]
                 if hosts:
                     m.append(f"{ipkw} daddr {_addr_set(hosts)}")
                 m.append("tcp flags & (syn|ecn|cwr) == syn|ecn|cwr "
@@ -1516,8 +1530,8 @@ class Emitter:
         self.out("")
         self.out("chain maclist {", 1)
         for m in self.cfg.maclist:
-            parts = [f'iifname "{m["interface"]}"',
-                     f'ether saddr {m["mac"]}']
+            ifm = _if_match("iifname", m["interface"])
+            parts = ([ifm] if ifm else []) + [f'ether saddr {m["mac"]}']
             if m["addresses"]:
                 parts.append(f"{ipkw} saddr {_addr_set(m['addresses'])}")
             comment = f' comment "{m["origin"]}"' if m["origin"] else ""
@@ -1624,7 +1638,8 @@ class Emitter:
             self.out("chain nat_one2one_pre {", 1)
             self.out("type nat hook prerouting priority dstnat - 10;", 2)
             for n in self.cfg.nat:
-                dev = "" if n.allints else f'iifname "{n.interface}" '
+                ifm = "" if n.allints else _if_match("iifname", n.interface)
+                dev = f"{ifm} " if ifm else ""
                 comment = f' comment "{n.origin}"' if n.origin else ""
                 self.out(f"{dev}{ipkw6} daddr {n.external} "
                          f"dnat {ipkw6} to {n.internal}{comment}", 2)
@@ -1633,7 +1648,8 @@ class Emitter:
             self.out("chain nat_one2one_post {", 1)
             self.out("type nat hook postrouting priority srcnat - 10;", 2)
             for n in self.cfg.nat:
-                dev = "" if n.allints else f'oifname "{n.interface}" '
+                ifm = "" if n.allints else _if_match("oifname", n.interface)
+                dev = f"{ifm} " if ifm else ""
                 comment = f' comment "{n.origin}"' if n.origin else ""
                 self.out(f"{dev}{ipkw6} saddr {n.internal} "
                          f"snat {ipkw6} to {n.external}{comment}", 2)
@@ -1720,9 +1736,18 @@ class Emitter:
                     m.append(f"meta l4proto {d.proto}")
                 match = " ".join(m)
                 comment = f' comment "{d.origin}"' if d.origin else ""
-                for iface in self._zone_ifaces(d.source):
-                    dev = "" if iface.wildcard else f'iifname "{iface.physical}" '
-                    self.out(f"{dev}{match} {action}{comment}", 2)
+                ifaces = self._zone_ifaces(d.source)
+                if d.source == "all" or not ifaces:
+                    # A source of all (or a zone with no own interface) is not
+                    # scoped by iifname, so emit one unrestricted rule rather
+                    # than silently dropping the DNAT.
+                    body = f"{match} {action}".strip()
+                    self.out(f"{body}{comment}", 2)
+                else:
+                    for iface in ifaces:
+                        ifm = _if_match("iifname", iface.physical)
+                        dev = f"{ifm} " if ifm else ""
+                        self.out(f"{dev}{match} {action}{comment}", 2)
             self.out("}", 1)
         if not self.cfg.snat:
             return
@@ -1731,9 +1756,11 @@ class Emitter:
         self.out("type nat hook postrouting priority srcnat;", 2)
         ipkw = "ip6" if self.cfg.family == 6 else "ip"
         for s in self.cfg.snat:
-            m = [f'oifname "{s.interface}"']
+            m = [t for t in [_if_match("oifname", s.interface)] if t]
             if s.in_interface:
-                m.append(f'iifname "{s.in_interface}"')
+                iif = _if_match("iifname", s.in_interface)
+                if iif:
+                    m.append(iif)
             if s.daddr:
                 m.append(_match_addr(s.daddr, "daddr", ipkw, self.sets))
             if s.source:
@@ -1771,9 +1798,9 @@ def _stop_rule(rule, family):
     ipkw = "ip6" if family == 6 else "ip"
     m = []
     if rule.iif:
-        m.append(f'iifname "{rule.iif}"')
+        m += [t for t in [_if_match("iifname", rule.iif)] if t]
     if rule.oif:
-        m.append(f'oifname "{rule.oif}"')
+        m += [t for t in [_if_match("oifname", rule.oif)] if t]
     if rule.saddr:
         m.append(f"{ipkw} saddr {_addr_set(rule.saddr)}")
     if rule.daddr:
@@ -1856,12 +1883,14 @@ def render_stop(cfg):
         lines.append("    }")
         lines.append("")
 
-    dhcp_ifaces = [i for i in cfg.interfaces
-                   if i.options.get("dhcp") and not i.wildcard]
+    dhcp_ifaces = [i for i in cfg.interfaces if i.options.get("dhcp")]
+
+    def _dhcp_in(i):
+        ifm = _if_match("iifname", i.physical)
+        return f"{ifm + ' ' if ifm else ''}udp dport {dhcp_ports} accept"
 
     body = ['iif "lo" accept', "ct state established,related accept"]
-    body += [f'iifname "{i.physical}" udp dport {dhcp_ports} accept'
-             for i in dhcp_ifaces]
+    body += [_dhcp_in(i) for i in dhcp_ifaces]
     body += [_stop_rule(r, cfg.family) for r in cfg.stoppedrules
              if r.chain == "input"]
     chain("input", "drop", body)
@@ -1874,9 +1903,14 @@ def render_stop(cfg):
                  if r.chain == "output"]
         chain("output", "drop", body)
 
+    def _dhcp_fwd(i):
+        ifm = _if_match("iifname", i.physical)
+        ofm = _if_match("oifname", i.physical)
+        pre = " ".join(t for t in (ifm, ofm) if t)
+        return f"{pre + ' ' if pre else ''}udp dport {dhcp_ports} accept"
+
     body = ["ct state established,related accept"]
-    body += [f'iifname "{i.physical}" oifname "{i.physical}" '
-             f"udp dport {dhcp_ports} accept" for i in dhcp_ifaces]
+    body += [_dhcp_fwd(i) for i in dhcp_ifaces]
     body += [_stop_rule(r, cfg.family) for r in cfg.stoppedrules
              if r.chain == "forward"]
     chain("forward", "drop", body)

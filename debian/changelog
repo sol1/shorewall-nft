@@ -38,8 +38,18 @@ shorewall-nft (0.1.0) unstable; urgency=medium
     as a single global limit. The anti-spoofing options sfilter, rpfilter and
     norfc1918 warn that they are not yet enforced, instead of passing as silent
     no-ops. maclist and blacklist audit dispositions render their audit log. An
-    IPv6 rtrules source, a tc class ceil of full, a bare-zone interface and the
-    mangle MARK and TOS values are handled correctly.
+    IPv6 rtrules source, a tc class rate or ceil of full, a bare-zone interface
+    and the mangle MARK and TOS values are handled correctly.
+
+  * A wildcard interface (ppp+) reaches the match as an nft name glob (ppp*)
+    everywhere it is used: masq, snat, nat, the maclist and DNAT dispatch,
+    mangle, tc priority and accounting. It was previously emitted as the
+    literal ppp+, which nft never matches, so the rule silently did nothing.
+
+  * A rules, policy or blrules entry that names an undeclared zone is a located
+    error. Such a zone matched no chain, so the rule was silently dropped or a
+    broader policy quietly took its place. A DNAT from all is emitted rather
+    than dropped.
 
   * Add RPM packages. Test that the Debian and RPM packages install and compile
     a configuration across the Debian and Ubuntu families and the Red Hat

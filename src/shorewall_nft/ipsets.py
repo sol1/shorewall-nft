@@ -98,8 +98,15 @@ def parse(path, strict=True):
                     raise ConfigError(f"add to unknown ipset {name}",
                                       path, lineno)
                 element = parts[2]
+                # An element is an address, a CIDR network, or an a-b range;
+                # nft interval sets accept the range form, so allow it.
                 try:
-                    ipaddress.ip_network(element, strict=False)
+                    if "-" in element and "/" not in element:
+                        lo, _, hi = element.partition("-")
+                        ipaddress.ip_address(lo)
+                        ipaddress.ip_address(hi)
+                    else:
+                        ipaddress.ip_network(element, strict=False)
                 except ValueError:
                     raise ConfigError(f"ipset {name}: invalid element "
                                       f"{element!r}", path, lineno)

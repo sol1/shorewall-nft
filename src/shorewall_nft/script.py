@@ -398,8 +398,9 @@ def _tc(cfg):
                   f"htb rate {out_bw} $MTUARG")
         handle = 2
         for c in classes:
-            rate = c.rate
-            # out_bw carries the device default when the class ceil is full.
+            # out_bw carries the device bandwidth when the class rate or ceil
+            # is full, the documented upstream value for "the whole link".
+            rate = out_bw if c.rate in ("full", "-", "") else c.rate
             ceil = out_bw if c.ceil in ("full", "-", "") else c.ceil
             qbase = max(_rate_kbit(rate, c.origin) * 1000 // 8 // 250, 1)
             minor = 10 + c.num

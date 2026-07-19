@@ -216,10 +216,12 @@ def load(confdir, family=4):
         cfg.zone_hosts = parsers.parse_hosts(_path(confdir, "hosts"),
                                              variables, cfg.interfaces,
                                              cfg.zones)
-    cfg.policies = parsers.parse_policy(_path(confdir, "policy"), variables)
+    zone_names = {z.name for z in cfg.zones}
+    cfg.policies = parsers.parse_policy(_path(confdir, "policy"), variables,
+                                        zone_names)
     cfg.rules, cfg.dnat = parsers.parse_rules(_path(confdir, "rules"),
                                               variables, cfg.fw_zone,
-                                              family)
+                                              family, zone_names)
     if os.path.exists(_path(confdir, "tunnels")):
         cfg.rules += parsers.parse_tunnels(_path(confdir, "tunnels"),
                                            variables, cfg.fw_zone)
@@ -272,7 +274,8 @@ def load(confdir, family=4):
             _path(confdir, "netmap"), variables, cfg.interfaces, family)
     if os.path.exists(_path(confdir, "blrules")):
         cfg.blrules = parsers.parse_blrules(
-            _path(confdir, "blrules"), variables, cfg.fw_zone, family)
+            _path(confdir, "blrules"), variables, cfg.fw_zone, family,
+            zone_names)
     if os.path.exists(_path(confdir, "nat")):
         cfg.nat = parsers.parse_nat(
             _path(confdir, "nat"), variables, cfg.interfaces)

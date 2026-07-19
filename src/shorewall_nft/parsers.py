@@ -156,9 +156,11 @@ def parse_interfaces(path, variables):
                 key, eq, value = opt.partition("=")
                 if key not in IFACE_OPTIONS_KNOWN:
                     raise line.error(f"unsupported interface option {key}")
-                # Several option values reach sysctl commands in the root
-                # script; a metacharacter here would inject as root.
-                if eq:
+                # The active options' values reach sysctl commands in the
+                # root script, so a metacharacter there would inject as root.
+                # The accepted no-op options (nets, and the like) never reach
+                # a command, and some carry parentheses, so leave them be.
+                if eq and key in IFACE_OPTIONS_ACTIVE:
                     valid.safe_token(value, line, f"interface option {key}")
                 if key in IFACE_OPTIONS_ANTISPOOF:
                     print(f"shorewall-nft: warning: {os.path.basename(line.path)}"
@@ -187,22 +189,42 @@ def parse_interfaces(path, variables):
     return interfaces
 
 
-def parse_policy(path, variables):
+def parse_policy(path, variables, zones=None):
     policies = []
+
+    def check_zone(spec, fw):
+        # A policy naming an undeclared zone never matches, so a broader
+        # catch-all silently supplies a different disposition. Reject it.
+        z = spec.split(":")[0]
+        z = fw if z == "$FW" else z
+        if zones is not None and z not in ("all", "any") and z not in zones:
+            raise line.error(f"unknown zone {z}")
+
     for line in read_file(path, variables):
         cols = split_columns(line.text, line.path, line.lineno)
         if len(cols) < 3:
             raise line.error("policy line needs SOURCE DEST POLICY")
-        # The POLICY token is POLICY[:suffix]. The suffix names a default
-        # action for this line, overriding the global default. Only 'none'
-        # (suppress the default action) is supported; a named default action
-        # is rejected rather than silently ignored.
-        verb, _, suffix = cols[2].partition(":")
-        policy, _, param = verb.partition("(")
-        param = param.rstrip(")")
+        fw = variables.get("FW", "fw")
+        check_zone(cols[0], fw)
+        check_zone(cols[1], fw)
+        # The POLICY token is POLICY[(param)][:suffix]. The param may hold a
+        # ':' (an NFQUEUE queue range), so split it off before looking for the
+        # suffix colon. The suffix names a default action for this line; only
+        # 'none' (suppress the default action) is supported, and a named
+        # default action is rejected rather than silently ignored.
+        token = cols[2]
+        if "(" in token:
+            policy, _, rest = token.partition("(")
+            param, _, tail = rest.partition(")")
+            suffix = tail[1:] if tail.startswith(":") else ""
+        else:
+            policy, _, suffix = token.partition(":")
+            param = ""
         if policy not in ("ACCEPT", "DROP", "REJECT", "CONTINUE", "NONE",
                           "QUEUE", "NFQUEUE"):
             raise line.error(f"unsupported policy {cols[2]}")
+        if policy == "NFQUEUE" and param:
+            valid.queue(param, line, "policy NFQUEUE queue")
         default_action = ""
         if suffix:
             if suffix.lower() in ("none", "-"):
@@ -240,6 +262,8 @@ def _expand_action(line, name, param, src, dst, proto, dport, sport,
                      saddr=src[1], daddr=dst[1],
                      proto=proto, dport=dport, sport=sport, origin=origin)]
     if name in QUEUE_ACTIONS:
+        if name == "NFQUEUE" and param:
+            valid.queue(param, line, "NFQUEUE queue")
         return [Rule(action=name, source=src[0], dest=dst[0],
                      qparam=param or "", saddr=src[1], daddr=dst[1],
                      proto=proto, dport=dport, sport=sport, origin=origin)]
@@ -309,7 +333,7 @@ BLRULE_ACTIONS = {"ACCEPT", "DROP", "REJECT", "WHITELIST", "BLACKLIST",
                   "CONTINUE", "A_DROP", "A_REJECT"}
 
 
-def parse_blrules(path, variables, fw_zone, family=4):
+def parse_blrules(path, variables, fw_zone, family=4, zones=None):
     """The blrules file: blacklist and whitelist rules checked before
     the regular rules. Same columns as rules. WHITELIST returns to
     normal processing; BLACKLIST takes the configured disposition."""
@@ -329,7 +353,12 @@ def parse_blrules(path, variables, fw_zone, family=4):
             if spec in ("all", "any"):
                 return "all", ""
             zone, _, addr = spec.partition(":")
-            return (fw_zone if zone == "$FW" else zone), addr
+            zone = fw_zone if zone == "$FW" else zone
+            # An undeclared zone here produces an unscoped rule that applies
+            # on every interface, bypassing the rules that follow it.
+            if zones is not None and zone not in zones:
+                raise line.error(f"unknown zone {zone}")
+            return zone, addr
 
         source, saddr = zone_of(cols[1])
         dest, daddr = zone_of(cols[2])
@@ -343,7 +372,7 @@ def parse_blrules(path, variables, fw_zone, family=4):
     return out
 
 
-def parse_rules(path, variables, fw_zone, family=4):
+def parse_rules(path, variables, fw_zone, family=4, zones=None):
     rules = []
     dnat = []
     for line in read_file(path, variables):
@@ -376,6 +405,10 @@ def parse_rules(path, variables, fw_zone, family=4):
                 raise line.error(f"zone qualifier {spec} not supported yet")
             zone, _, addr = spec.partition(":")
             zone = fw_zone if zone == "$FW" else zone
+            # A typo'd or undeclared zone would land in no chain and the rule
+            # would be silently dropped, so reject it here.
+            if zones is not None and zone not in zones:
+                raise line.error(f"unknown zone {zone}")
             return zone, addr
 
         def zones_of(spec):
@@ -1051,10 +1084,14 @@ def parse_mangle(path, variables, interfaces, family=4):
         proto = cols[3] if len(cols) > 3 and cols[3] != "-" else ""
         dport = cols[4] if len(cols) > 4 and cols[4] != "-" else ""
         sport = cols[5] if len(cols) > 5 and cols[5] != "-" else ""
-        # A MARK param reaches nft as a number to set; reject a bad one, and
-        # a negation, here (you cannot set a negated mark).
+        # Every param reaches the ruleset in emit._mangle_statement. A MARK
+        # is a number to set (no negation); the others (DSCP, CLASSIFY, TOS)
+        # get a metacharacter check so a space cannot smuggle an extra nft
+        # token or verdict into a base chain.
         if name == "MARK":
             valid.mark(m.group("param"), line, "mangle mark", negatable=False)
+        else:
+            valid.safe_token(m.group("param"), line, f"mangle {name} parameter")
         origin = f"{os.path.basename(line.path)}:{line.lineno}"
         for chain in chains:
             out.append(MangleRule(chain=chain, action=name,
@@ -1518,6 +1555,8 @@ def parse_masq(path, variables, interfaces):
         valid.interface(dest_phys, line, "masq interface")
         source = cols[1] if len(cols) > 1 and cols[1] != "-" else ""
         address = cols[2] if len(cols) > 2 and cols[2] != "-" else ""
+        if address:
+            valid.safe_token(address, line, "masq address")
         proto = cols[3] if len(cols) > 3 and cols[3] != "-" else ""
         dport = cols[4] if len(cols) > 4 and cols[4] != "-" else ""
         origin = f"{os.path.basename(line.path)}:{line.lineno}"
@@ -1566,6 +1605,10 @@ def parse_snat(path, variables, interfaces):
         to_addr, flags, detect = _snat_param(m.group("param") or "", line)
         if action == "SNAT" and not to_addr and not detect:
             raise line.error("SNAT needs an address parameter")
+        # to_addr (an address, range or address:port) reaches the ruleset;
+        # block a metacharacter here so it cannot smuggle nft tokens.
+        if to_addr:
+            valid.safe_token(to_addr, line, "snat target")
         source = cols[1] if len(cols) > 1 and cols[1] != "-" else ""
         dest = cols[2] if len(cols) > 2 else ""
         dest, _, dest_addr = dest.partition(":")

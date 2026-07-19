@@ -100,6 +100,17 @@ def mark(spec, line, col="mark", negatable=True):
     return spec
 
 
+_QUEUE = re.compile(r"^\d+([:-]\d+)?$")
+
+
+def queue(spec, line, col="queue number"):
+    """An NFQUEUE queue number, or a lo:hi range for CPU fan-out. Reaches nft
+    as `queue to <spec>`, so a space or extra token here would inject."""
+    if not _QUEUE.match(spec or ""):
+        raise line.error(f"invalid {col} {spec!r}")
+    return spec
+
+
 def safe_token(value, line, col="value"):
     """A value with no shell or nft metacharacter, for a column that reaches
     a command or the ruleset but has no dedicated validator. Blocks the
