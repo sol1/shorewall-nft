@@ -579,6 +579,14 @@ bl_text = render(bl_wild)
 (ok if 'iifname "ppp*"' in bl_text and '"ppp+"' not in bl_text
  else bad)("emit: blacklist rule globs a wildcard zone interface")
 
+# A netmap on a bare-wildcard interface drops the interface match rather than
+# emitting iifname/oifname "*", which nft rejects.
+nm_bare = load_with({"interfaces": "?FORMAT 2\nnet WAN physical=+\n",
+                     "netmap": "SNAT 192.168.1.0/24 WAN 10.10.11.0/24\n"})
+nm_text = render(nm_bare)
+(ok if '"*"' not in nm_text and "prefix to" in nm_text
+ else bad)("emit: a bare-wildcard netmap interface drops the match, no '*'")
+
 # Zone typos in rules/policy/blrules are rejected, not silently fail-open.
 (ok if raises_config_error(
     lambda: load_with({"rules": "?SECTION NEW\nREJECT lan net tcp 25\n"}))

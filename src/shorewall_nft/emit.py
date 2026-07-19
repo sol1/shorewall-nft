@@ -1692,9 +1692,8 @@ class Emitter:
             self.out("type nat hook prerouting priority dstnat - 5;", 2)
             for n in self.cfg.netmap:
                 if n.kind == "DNAT":
-                    iface = _iface_glob(n.interface) \
-                        if n.interface.endswith("+") else n.interface
-                    common = [f'iifname "{iface}"']
+                    ifm = _if_match("iifname", n.interface)
+                    common = [ifm] if ifm else []
                     common += _netmap_addr_clauses(
                         (n.net1,), n.exclusions, "daddr", ipkw6)
                     common += _netmap_addr_clauses(
@@ -1711,9 +1710,8 @@ class Emitter:
             self.out("type nat hook postrouting priority srcnat - 5;", 2)
             for n in self.cfg.netmap:
                 if n.kind == "SNAT":
-                    iface = _iface_glob(n.interface) \
-                        if n.interface.endswith("+") else n.interface
-                    common = [f'oifname "{iface}"']
+                    ifm = _if_match("oifname", n.interface)
+                    common = [ifm] if ifm else []
                     common += _netmap_addr_clauses(
                         (n.net1,), n.exclusions, "saddr", ipkw6)
                     common += _netmap_addr_clauses(
