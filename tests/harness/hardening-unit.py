@@ -13,7 +13,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                 "..", "..", "src"))
 from shorewall_nft import ipsets, lsm  # noqa: E402
 from shorewall_nft.compile import load  # noqa: E402
-from shorewall_nft.emit import render, render_stop, _match_addr_alts  # noqa: E402
+from shorewall_nft.emit import (  # noqa: E402
+    render, render_stop, _match_addr_alts, _time_match)
 from shorewall_nft.errors import ConfigError  # noqa: E402
 from shorewall_nft.lsm import Monitor, MonitorCfg, parse_lsm  # noqa: E402
 from shorewall_nft.parsers import parse_providers  # noqa: E402
@@ -231,5 +232,36 @@ alts = _match_addr_alts("1.2.3.4,10.0.0.0/8", "saddr", "ip", set())
 alts = _match_addr_alts("!1.2.3.4,+knoc", "saddr", "ip", set())
 (ok if alts == ["ip saddr != 1.2.3.4 ip saddr != @knoc"]
  else bad)("emit: a negated mixed column excludes both in one match")
+
+# --- a TIME rule renders nft's day names and a second-count hour range ---
+# nft meta day wants the full day name and meta hour wants a second count;
+# the raw abbreviation and "HH:MM" range are both rejected by nft.
+time_conf = tempfile.mkdtemp(prefix="shorewall-nft-time-")
+try:
+    shutil.copytree(os.path.join(REPO, "tests/corpus/0002-one-interface/config"),
+                    time_conf, dirs_exist_ok=True)
+    with open(os.path.join(time_conf, "rules"), "w") as f:
+        f.write("?SECTION NEW\n")
+        f.write("ACCEPT\tnet\t$FW\ttcp\t22\t-\t-\t-\t-\t-\t-\t"
+                "weekdays=Mon,Tue&timestart=08:00&timestop=17:00\n")
+    text = render(load(time_conf, 4))
+    (ok if 'meta day { "Monday", "Tuesday" }' in text
+     else bad)("emit: TIME weekdays render as nft full day names")
+    (ok if "meta hour 28800-61200" in text
+     else bad)("emit: TIME hour range renders as a second count")
+finally:
+    shutil.rmtree(time_conf)
+
+# numeric weekdays map too, and the whole clause is one match string
+(ok if _time_match("weekdays=1,7") == 'meta day { "Monday", "Sunday" }'
+ else bad)("emit: numeric weekdays map to nft day names")
+# an unknown day and a midnight-crossing range are config errors, not silent
+(ok if raises_config_error(lambda: _time_match("weekdays=Funday"))
+ else bad)("emit: an unknown weekday is a config error")
+(ok if raises_config_error(
+    lambda: _time_match("timestart=22:00&timestop=06:00"))
+ else bad)("emit: a midnight-crossing time range is a config error")
+(ok if raises_config_error(lambda: _time_match("timestart=08:00"))
+ else bad)("emit: a time range with no stop is a config error")
 
 sys.exit(1 if fails else 0)
