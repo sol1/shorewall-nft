@@ -1,3 +1,59 @@
+shorewall-nft (0.1.0) unstable; urgency=medium
+
+  * First public release. The compiler turns a standard /etc/shorewall
+    configuration into an nftables ruleset and a POSIX shell wrapper, applied
+    with nft -f in one transaction. 31 of the 39 configuration files are
+    supported. The remaining 6 fail with a clear error rather than drop
+    silently.
+
+  * Validate configuration tokens at the parse boundary, as upstream Shorewall
+    does against its fixed character sets. Interface names and option values,
+    addresses and networks, tc rates, packet marks, and provider, zone and set
+    names are checked before they reach the generated shell script or the
+    ruleset. This keeps a stray metacharacter in a config field out of the
+    commands the wrapper runs as root. It matters wherever the configuration,
+    or a value written into it, is not fully trusted: a templated or generated
+    config, or a file that is not root-owned and root-only. See
+    REQUIRE_SECURE_CONFIG.
+
+  * REQUIRE_SECURE_CONFIG. The compiler warns when a configuration file is
+    group- or world-writable, or not owned by root. Set it to Yes to make that
+    an error. The token validation above is always on; this setting governs
+    only the file-permission check, so migration is unaffected.
+
+  * Report malformed configuration as a located error naming the file and line,
+    not a Python traceback. A bad number, an unknown directive, an unsupported
+    verdict or disposition, a missing INCLUDE file and the like now fail the
+    way the rest of the compiler does.
+
+  * The implicit intra-zone ACCEPT now applies the configured ACCEPT_DEFAULT
+    action, so its broadcast and multicast drops are no longer silently
+    skipped.
+
+  * The TIME column emits the forms nft loads: full weekday names for meta day
+    and a second count for meta hour. A range that crosses midnight is a clear
+    error rather than a ruleset nft rejects.
+
+  * A per-source-subnet CONNLIMIT mask is rejected rather than silently applied
+    as a single global limit. The anti-spoofing options sfilter, rpfilter and
+    norfc1918 warn that they are not yet enforced, instead of passing as silent
+    no-ops. maclist and blacklist audit dispositions render their audit log. An
+    IPv6 rtrules source, a tc class ceil of full, a bare-zone interface and the
+    mangle MARK and TOS values are handled correctly.
+
+  * Add RPM packages. Test that the Debian and RPM packages install and compile
+    a configuration across the Debian and Ubuntu families and the Red Hat
+    family (Rocky, Alma, Fedora), covering roughly the last ten years of
+    releases. Python 3.7 is the supported floor; older versions are tested but
+    allowed to fail.
+
+  * Expand the differential corpus (the upstream compiler against this one,
+    with network-namespace behavioral probes), the proofs and the unit tests.
+    Add coverage for shorewall migrate, the ruleset chunker, the TIME column,
+    and a hardening suite that asserts each validation and error path.
+
+ -- Dave Kempe <dave@sol1.com.au>  Sun, 19 Jul 2026 14:27:32 +1000
+
 shorewall-nft (0.0.10) unstable; urgency=medium
 
   * Complete legacy Shorewall NETMAP compatibility for IPv4 and IPv6 using
