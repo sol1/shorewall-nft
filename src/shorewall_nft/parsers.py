@@ -481,6 +481,11 @@ def parse_rules(path, variables, fw_zone, family=4, zones=None):
         mark = col(9)
         connlimit = col(10)
         time = col(11)
+        # user/group reaches nft as skuid/skgid; a metacharacter (or a '#',
+        # which starts an nft comment) would break the ruleset at load.
+        if user:
+            valid.safe_token(user[1:] if user.startswith("!") else user,
+                             line, "rules user")
         # mark and connlimit reach nft as numbers; reject a bad value here
         # rather than let a bare ValueError escape from the emitter.
         if mark:
@@ -1672,6 +1677,9 @@ def parse_snat(path, variables, interfaces):
             raise line.error("snat PROBABILITY column not supported yet")
         if mark:
             valid.mark(mark, line, "snat mark")
+        if user:
+            valid.safe_token(user[1:] if user.startswith("!") else user,
+                             line, "snat user")
         # An interface name in SOURCE means traffic arriving on it.
         in_iface = ""
         src_key = source.partition(":")[0]

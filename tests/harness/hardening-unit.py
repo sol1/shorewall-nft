@@ -595,6 +595,17 @@ at = render(acct_addr)
 (ok if 'iifname "192.168.1.1"' not in at and "ip saddr 192.168.1.1" in at
  else bad)("emit: an ACCOUNT bare-address source is an saddr, not iifname")
 
+# The USER column reaches nft skuid/skgid; a metacharacter is a config error,
+# a normal user name still compiles.
+(ok if raises_config_error(lambda: load_with(
+    {"rules": "?SECTION NEW\nACCEPT $FW net tcp 22 - - - bad{user\n"}))
+ else bad)("rules: a metacharacter in the USER column is a config error")
+(ok if load_with({"rules": "?SECTION NEW\nACCEPT $FW net tcp 22 - - - myuser\n"})
+ else bad)("rules: a normal USER value still compiles")
+(ok if raises_config_error(lambda: parses(
+    parse_snat, "MASQUERADE 10.0.0.0/8 eth0 - - - - bad{user\n", ".snat"))
+ else bad)("snat: a metacharacter in the USER column is a config error")
+
 # Zone typos in rules/policy/blrules are rejected, not silently fail-open.
 (ok if raises_config_error(
     lambda: load_with({"rules": "?SECTION NEW\nREJECT lan net tcp 25\n"}))
