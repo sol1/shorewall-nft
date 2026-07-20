@@ -23,10 +23,13 @@ from .emit import table_for
 def _add_batches(table, setname, cidrs):
     """add-element statements for a set, each batch kept under the netlink
     transaction budget so a large country (thousands of CIDRs) does not
-    overflow a single nft transaction."""
+    overflow a single nft transaction. A geoip set is an interval set, whose
+    elements roughly double in the netlink message, so the text budget is
+    halved (chunk.py does the same for interval sets)."""
+    budget = CHUNK_BYTES // 2
     out, batch, size = [], [], 0
     for c in cidrs:
-        if batch and size + len(c) + 2 > CHUNK_BYTES:
+        if batch and size + len(c) + 2 > budget:
             out.append(f"add element {table} {setname} {{ {', '.join(batch)} }}")
             batch, size = [], 0
         batch.append(c)

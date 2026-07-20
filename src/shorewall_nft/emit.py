@@ -1584,8 +1584,8 @@ class Emitter:
         # blacklist only affects new connections, as upstream does.
         self.out("ct state established,related return", 2)
         for r in self.cfg.blrules:
-            zone = self._zone_iface_match(r.source, "iifname")
-            zone += self._zone_iface_match(r.dest, "oifname")
+            src_alts = self._zone_iface_matches(r.source, "iifname")
+            dst_alts = self._zone_iface_matches(r.dest, "oifname")
             action = r.action
             if action == "BLACKLIST":
                 action = disp
@@ -1593,37 +1593,32 @@ class Emitter:
                 raise ConfigError(f"unsupported blrules action {action}")
             verdict = verdicts[action]
             comment = f' comment "{r.origin}"' if r.origin else ""
-            # A mixed column fans the rule out into several alternatives.
-            for base in _rule_match(r, self.cfg.family, self.sets):
-                m = zone + ([base] if base else [])
-                self.out(" ".join(m + [verdict]).strip() + comment, 2)
+            # One rule per interface alternative and per mixed-column base
+            # match. Emitting a rule per wildcard interface avoids a set of
+            # name globs, which nft 1.0.2 mishandles (as _docker_coexist notes).
+            for sa in src_alts:
+                for da in dst_alts:
+                    for base in _rule_match(r, self.cfg.family, self.sets):
+                        parts = [p for p in (sa, da, base) if p]
+                        self.out(" ".join(parts + [verdict]).strip()
+                                 + comment, 2)
         self.out("}", 1)
 
-    def _zone_iface_match(self, zone, key):
-        """Match a zone by its interfaces for a pre-dispatch chain. The
-        firewall zone and all match nothing."""
+    def _zone_iface_matches(self, zone, key):
+        """Interface-match alternatives for a zone in a pre-dispatch chain:
+        one per interface the zone claims, a wildcard as an nft name glob.
+        Returns [""] (one alternative, no interface scope) for all, the
+        firewall zone, a bare + (which nft cannot glob), or a zone with no
+        interface. The caller emits one rule per alternative, never a set of
+        globs (nft 1.0.2 mishandles those)."""
         if zone in ("all", self.cfg.fw_zone):
-            return []
+            return [""]
         ifaces = [i.physical for i in self._zone_ifaces(zone)]
         ifaces += [h.interface for h in self.cfg.zone_hosts if h.zone == zone]
         ifaces = sorted(set(ifaces))
         if not ifaces:
-            return []
-        # A wildcard interface must be an nft name glob (ppp*), which nft
-        # accepts on its own and inside a set. A bare + is every interface,
-        # which nft cannot glob, so it leaves the match unscoped.
-        globs = []
-        for i in ifaces:
-            if i.endswith("+"):
-                g = _iface_glob(i)
-                if g == "*":
-                    return []
-                globs.append(g)
-            else:
-                globs.append(i)
-        if len(globs) == 1:
-            return [f'{key} "{globs[0]}"']
-        return [f"{key} {{ " + ", ".join(f'"{i}"' for i in globs) + " }"]
+            return [""]
+        return [_if_match(key, i) for i in ifaces]
 
     def _filter_chains(self):
         """The smurfs and tcpflags check chains, translated from upstream

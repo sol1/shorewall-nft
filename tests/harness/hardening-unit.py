@@ -544,13 +544,15 @@ isets, _ = ipsets.parse(_tmp("create bl hash:net\nadd bl 192.0.2.1-192.0.2.9\n",
                              ".ipset"))
 (ok if "bl" in isets else bad)("ipsets: an a-b range element parses")
 
-# RATE=full resolves to the device bandwidth instead of crashing the render.
-rate_conf = load_with({
-    "tcdevices": "eth0 100mbit 100mbit\n",
-    "tcclasses": "eth0:1 - full full 1\n"})
-(ok if "rate 100mbit ceil 100mbit" in render_script(
-    rate_conf, render(rate_conf), render_stop(rate_conf))
- else bad)("tc: RATE=full resolves to the device bandwidth")
+# RATE=full resolves to the device bandwidth instead of crashing the render,
+# in any case (valid.rate accepts the keyword case-insensitively).
+for kw in ("full", "FULL"):
+    rate_conf = load_with({
+        "tcdevices": "eth0 100mbit 100mbit\n",
+        "tcclasses": f"eth0:1 - {kw} {kw} 1\n"})
+    (ok if "rate 100mbit ceil 100mbit" in render_script(
+        rate_conf, render(rate_conf), render_stop(rate_conf))
+     else bad)(f"tc: RATE={kw} resolves to the device bandwidth")
 
 # Wildcard glob reaches masq and maclist (same class as the tcpflags fix).
 wild = load_with({"interfaces": "?FORMAT 2\nnet ppp+\nloc eth1\n",
@@ -598,6 +600,15 @@ bl_wild = load_with({"interfaces": "?FORMAT 2\nnet ppp+\n",
 bl_text = render(bl_wild)
 (ok if 'iifname "ppp*"' in bl_text and '"ppp+"' not in bl_text
  else bad)("emit: blacklist rule globs a wildcard zone interface")
+
+# A multi-interface zone with a wildcard emits one blacklist rule per
+# interface, never a set of globs (nft 1.0.2 mishandles a set of globs).
+bl_multi = load_with({"interfaces": "?FORMAT 2\nnet ppp+\nnet eth0\n",
+                      "blrules": "DROP net all\n"})
+bm = render(bl_multi)
+(ok if 'iifname "ppp*"' in bm and 'iifname "eth0"' in bm
+    and "iifname {" not in bm
+ else bad)("emit: blacklist on a multi-interface wildcard zone avoids a glob set")
 
 # A netmap on a bare-wildcard interface drops the interface match rather than
 # emitting iifname/oifname "*", which nft rejects.
@@ -722,8 +733,9 @@ c_neg = render(load_with({"rules": "?SECTION NEW\n"
 # single transaction would overflow it) with every element preserved.
 big_cidrs = [f"10.{i // 256}.{i % 256}.0/24" for i in range(8000)]
 geoip_batches = _add_batches("ip shorewall", "geoip_cn", big_cidrs)
+# The budget is halved for the interval set (its netlink message ~doubles).
 (ok if len(geoip_batches) > 1
-    and all(len(b) <= CHUNK_BYTES + 64 for b in geoip_batches)
+    and all(len(b) <= CHUNK_BYTES // 2 + 64 for b in geoip_batches)
     and sum(b.count(",") + 1 for b in geoip_batches) == len(big_cidrs)
  else bad)("geoip: a large set splits into sub-budget batches, no elements lost")
 

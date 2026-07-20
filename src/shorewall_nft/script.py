@@ -400,8 +400,9 @@ def _tc(cfg):
         for c in classes:
             # out_bw carries the device bandwidth when the class rate or ceil
             # is full, the documented upstream value for "the whole link".
-            rate = out_bw if c.rate in ("full", "-", "") else c.rate
-            ceil = out_bw if c.ceil in ("full", "-", "") else c.ceil
+            # valid.rate accepts the keyword in any case, so compare lowered.
+            rate = out_bw if c.rate.lower() in ("full", "-", "") else c.rate
+            ceil = out_bw if c.ceil.lower() in ("full", "-", "") else c.ceil
             qbase = max(_rate_kbit(rate, c.origin) * 1000 // 8 // 250, 1)
             minor = 10 + c.num
             up.append(f"    QUANTUM={qbase}")
