@@ -1,3 +1,19 @@
+shorewall-nft (0.1.6) unstable; urgency=medium
+
+  * New `shorewall automate` interface for configuration management. Every verb
+    prints one JSON object, reports whether it changed anything, and never
+    prompts: check, status, versioncheck, capabilities, doctor, diff, apply
+    (reload only when the compiled ruleset changed), safe-apply (apply with an
+    auto-revert timer so a bad rule over SSH does not lock you out), rollback,
+    and an idempotent migrate. See docs/automation.md.
+
+  * The package no longer warns that the firewall "was cleared and could not be
+    preserved" when upgrading shorewall-nft over shorewall-nft. That check only
+    looked at iptables; an nft firewall stays loaded across the upgrade and is
+    fine (issue #9).
+
+ -- Dave Kempe <dave@sol1.com.au>  Tue, 21 Jul 2026 08:39:38 +1000
+
 shorewall-nft (0.1.5) unstable; urgency=medium
 
   * The stock /etc/shorewall/conntrack file is ?FORMAT 3. The reader capped

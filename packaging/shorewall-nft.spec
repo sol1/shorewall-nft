@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.1.5
+Version:        0.1.6
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -78,6 +78,14 @@ DESTDIR=%{buildroot} packaging/install.sh packaging/shorewallrc.redhat
 %systemd_postun shorewall-geoip-update.timer
 
 %changelog
+* Tue Jul 21 2026 Dave Kempe <dave@sol1.com.au> - 0.1.6-1
+- New `shorewall automate` JSON interface for configuration management
+  (Ansible): check, status, versioncheck, capabilities, doctor, diff, apply,
+  safe-apply (apply with an auto-revert timer), rollback and an idempotent
+  migrate. See docs/automation.md.
+- Do not warn that the firewall was cleared when upgrading shorewall-nft over
+  shorewall-nft; the check ignored the live nft ruleset (issue #9).
+
 * Mon Jul 20 2026 Dave Kempe <dave@sol1.com.au> - 0.1.5-1
 - Accept ?FORMAT 3 in the stock conntrack file. The reader capped every file
   at ?FORMAT 2, so shorewall check aborted with "unsupported ?FORMAT 3" before
