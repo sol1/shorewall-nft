@@ -75,8 +75,10 @@ def expand(text, variables, path, lineno):
     return VAR_RE.sub(sub, text)
 
 
-def read_file(path, variables):
-    """Yield logical Line objects from one config file."""
+def read_file(path, variables, max_format=2):
+    """Yield logical Line objects from one config file. max_format is the
+    highest ?FORMAT the file supports. Most files stop at 2; conntrack goes
+    to 3."""
     section = None
     fmt = 1
     # Each ?IF pushes [condition, any_branch_taken]. A line is live
@@ -141,7 +143,7 @@ def read_file(path, variables):
                 except ValueError:
                     raise ConfigError(f"?FORMAT wants a number, got {rest!r}",
                                       path, buf_start)
-                if fmt not in (1, 2):
+                if not 1 <= fmt <= max_format:
                     raise ConfigError(f"unsupported ?FORMAT {fmt}",
                                       path, buf_start)
             elif directive == "?SECTION":
@@ -163,7 +165,7 @@ def read_file(path, variables):
             if not os.path.exists(inc_path):
                 raise ConfigError(f"INCLUDE file not found: {inc}",
                                   path, buf_start)
-            yield from read_file(inc_path, variables)
+            yield from read_file(inc_path, variables, max_format)
             continue
         text = expand(text, variables, path, buf_start)
         yield Line(path, buf_start, text, section=section, fmt=fmt)

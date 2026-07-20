@@ -160,4 +160,49 @@ form_rejected("policy: an all!zone exclusion is a clear located error",
 form_ok("accounting: an interface:address source compiles and loads",
         {"accounting": "COUNT accounting eth0:192.168.1.0/24\n"})
 
+# --- conntrack: the stock /etc/shorewall/conntrack file ships on every
+# install. It is ?FORMAT 3 and assigns conntrack helpers, gated on the
+# AUTOHELPERS setting and the helper capabilities. Migrating any real system
+# reads it, so it must compile and load in both AUTOHELPERS states. ?FORMAT 3
+# is conntrack-specific; the reader used to cap every file at ?FORMAT 2. ---
+STOCK_CONNTRACK = (
+    "?FORMAT 3\n"
+    "#ACTION            SOURCE  DEST    PROTO   DPORT   SPORT   USER    SWITCH\n"
+    "?if $AUTOHELPERS && __CT_TARGET\n"
+    "?if __AMANDA_HELPER\n"
+    "CT:helper:amanda:PO     -       -       udp     10080\n"
+    "?endif\n"
+    "?if __FTP_HELPER\n"
+    "CT:helper:ftp:PO        -       -       tcp     21\n"
+    "?endif\n"
+    "?if __IRC_HELPER\n"
+    "CT:helper:irc:PO        -       -       tcp     6667\n"
+    "?endif\n"
+    "?if __SIP_HELPER\n"
+    "CT:helper:sip:PO        -       -       udp     5060\n"
+    "?endif\n"
+    "?if __TFTP_HELPER\n"
+    "CT:helper:tftp:PO       -       -       udp     69\n"
+    "?endif\n"
+    "?endif\n"
+)
+
+# AUTOHELPERS=No (the modern default): the whole file is gated off, so it
+# compiles to no helpers. The point is that ?FORMAT 3 is accepted and the file
+# is a clean no-op rather than a parse error.
+form_ok("conntrack: the stock file with AUTOHELPERS=No compiles and loads",
+        {"conntrack": STOCK_CONNTRACK})
+
+# AUTOHELPERS=Yes: the gated helpers activate. Each becomes an nft ct helper
+# object plus an assignment rule, and the ruleset must load.
+form_ok("conntrack: the stock file with AUTOHELPERS=Yes assigns helpers",
+        {"conntrack": STOCK_CONNTRACK, "params": "AUTOHELPERS=Yes\n"},
+        expect='ct helper set "helper_ftp_tcp"')
+
+# A bare CT:helper assignment with an explicit hook suffix, independent of
+# AUTOHELPERS, exercises the helper emit path directly.
+form_ok("conntrack: an explicit CT:helper assignment compiles and loads",
+        {"conntrack": "?FORMAT 3\nCT:helper:ftp:PO - - tcp 21\n"},
+        expect='type "ftp" protocol tcp')
+
 sys.exit(1 if fails else 0)

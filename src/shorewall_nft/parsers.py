@@ -1367,7 +1367,7 @@ def parse_conntrack(path, variables, interfaces):
     else fails loudly."""
     del interfaces
     out = []
-    for line in read_file(path, variables):
+    for line in read_file(path, variables, max_format=3):
         cols = split_columns(line.text, line.path, line.lineno)
         action = cols[0]
         if action in ("NOTRACK", "CT:notrack"):
