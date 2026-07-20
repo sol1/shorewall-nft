@@ -51,7 +51,13 @@ def compile_ours(case_dir, out, family, script=None):
             "--family", str(family)]
     if script:
         args += ["--script", script]
-    r = sh(args, env=dict(os.environ, PYTHONPATH=os.path.join(REPO, "src")))
+    # Keep capability answers fixed so the corpus compiles byte-identically
+    # regardless of which conntrack helpers the test kernel has. This variable
+    # is ours only; it must not leak into the upstream compiler, which reserves
+    # the SHOREWALL_ prefix, so it is set here rather than process-wide.
+    env = dict(os.environ, PYTHONPATH=os.path.join(REPO, "src"),
+               SHOREWALL_NFT_STATIC_CAPS="1")
+    r = sh(args, env=env)
     return r.returncode == 0, (r.stderr or r.stdout).strip()[-500:]
 
 
@@ -280,7 +286,7 @@ def main():
     for proof in ("wrapper-proof.sh", "cli-proof.sh", "dualstack-proof.sh",
                   "seam-proof.sh", "default-route-proof.sh", "migrate-proof.sh",
                   "chunk-unit.py", "chunk-proof.sh", "validation-unit.py",
-                  "hardening-unit.py", "forms-unit.py",
+                  "hardening-unit.py", "forms-unit.py", "caps-unit.py",
                   "netmap-unit.py", "lsm-unit.py", "lsm-proof.sh",
                   "lsm-once-proof.sh"):
         name = proof.replace(".sh", "")

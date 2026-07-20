@@ -663,7 +663,11 @@ def cmd_show(args, family):
         return subprocess.run([_nft(), "list", "table",
                                *table_for(family).split()]).returncode
     if what == "capabilities":
-        for name, value in sorted(capabilities.CAPABILITIES.items()):
+        # Probe the kernel so the helpers reflect this system, not the
+        # compile-time defaults.
+        capabilities.enable_probe()
+        for name in sorted(capabilities.CAPABILITIES):
+            value = capabilities.lookup(name)
             print(f"   {name}: {'Yes' if value else 'Not available'}")
         return 0
     if what == "macros":
@@ -1345,6 +1349,11 @@ def main(argv=None):
         print("commands: " + " ".join(sorted(VERBS)), file=sys.stderr)
         return 2
     verb, args = argv[0], argv[1:]
+    # Real commands probe the kernel for the conntrack helpers, so a helper
+    # this system lacks is gated out rather than emitted into a ruleset that
+    # would not load. Compiling the corpus sets SHOREWALL_NFT_STATIC_CAPS,
+    # which keeps the answers fixed.
+    capabilities.enable_probe()
     if verb in VERBS:
         try:
             return VERBS[verb](args, family)
