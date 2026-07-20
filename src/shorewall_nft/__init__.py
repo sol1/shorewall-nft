@@ -1,3 +1,3 @@
 """shorewall-nft: a Shorewall-compatible firewall compiler emitting nftables."""
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"

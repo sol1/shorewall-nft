@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.1.2
+Version:        0.1.3
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -78,6 +78,14 @@ DESTDIR=%{buildroot} packaging/install.sh packaging/shorewallrc.redhat
 %systemd_postun shorewall-geoip-update.timer
 
 %changelog
+* Mon Jul 20 2026 Dave Kempe <dave@sol1.com.au> - 0.1.3-1
+- Fixes found reviewing 0.1.2, plus more manpage-derived config-form coverage.
+  A $FW-sourced REDIRECT/DNAT is emitted in the output hook; accounting
+  interface:address and a case-insensitive tc full are accepted; a blacklist
+  on a multi-interface wildcard zone emits per-interface rules (nft 1.0.2 glob
+  set bug); the geoip refill budget is halved for the interval set. A policy
+  all!zone exclusion fails with a clear message. See the Debian changelog.
+
 * Mon Jul 20 2026 Dave Kempe <dave@sol1.com.au> - 0.1.2-1
 - Fixes found reviewing 0.1.1, plus a coverage suite for documented config
   forms. Restore CONNLIMIT (valid nft, correct at-or-below direction), policy

@@ -1,3 +1,25 @@
+shorewall-nft (0.1.3) unstable; urgency=medium
+
+  * Fixes found reviewing 0.1.2, and the config-form coverage was extended with
+    SOURCE and DEST forms from shorewall-addresses(5) and shorewall-exclusion(5)
+    so these cannot regress unseen:
+    - a $FW-sourced REDIRECT or DNAT (the transparent-proxy pattern) is emitted
+      in the output nat hook, where it belongs, rather than being rejected.
+    - an accounting SOURCE or DEST of the interface:address form is scoped by
+      both, not rejected as an address.
+    - a tc RATE or CEIL of full is accepted in any case.
+    - a policy all!zone exclusion is not implemented yet; it now fails with a
+      clear message rather than a misleading unknown-zone error.
+
+  * A blacklist rule on a zone with several interfaces including a wildcard
+    emits one rule per interface rather than a set of name globs, which nft
+    1.0.2 mishandles and which silently failed the blacklist open.
+
+  * geoip: the refill batch budget is halved for the interval set (its netlink
+    message roughly doubles), so a large country stays under one transaction.
+
+ -- Dave Kempe <dave@sol1.com.au>  Mon, 20 Jul 2026 12:04:48 +1000
+
 shorewall-nft (0.1.2) unstable; urgency=medium
 
   * Fixes found reviewing 0.1.1, and a coverage suite for documented config
