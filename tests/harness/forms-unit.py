@@ -115,4 +115,22 @@ form_ok("rules: USER value compiles and loads",
 form_ok("rules: CONNLIMIT !limit loads (no invalid nft keyword)",
         {"rules": "?SECTION NEW\nDROP net $FW tcp 22 - - - - - !10\n"})
 
+# --- SOURCE/DEST forms from shorewall-addresses(5) and shorewall-exclusion(5)
+# that regressed after 0.1.0 ---
+
+# A REDIRECT/DNAT sourced from $FW (the firewall redirecting its own output,
+# the transparent-proxy pattern) is documented and must compile.
+form_ok("rules: a $FW-sourced REDIRECT compiles and loads",
+        {"rules": "?SECTION NEW\nREDIRECT $FW 3128 tcp 80\n"})
+
+# A policy SOURCE/DEST zone exclusion (all!zone) is documented since 4.4.13.
+ZONES4 = {"zones": "fw firewall\nnet ipv4\nloc ipv4\ndmz ipv4\n",
+          "interfaces": "?FORMAT 2\nnet eth0\nloc eth1\ndmz eth2\n"}
+form_ok("policy: an all!zone exclusion compiles and loads",
+        {**ZONES4, "policy": "loc all!dmz REJECT\nall all ACCEPT\n"})
+
+# An accounting SOURCE of interface:address is the documented combined form.
+form_ok("accounting: an interface:address source compiles and loads",
+        {"accounting": "COUNT accounting eth0:192.168.1.0/24\n"})
+
 sys.exit(1 if fails else 0)
