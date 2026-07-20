@@ -1308,8 +1308,15 @@ def cmd_lsm(args, family):
     return 0
 
 
+def cmd_automate(args, family):
+    # Imported lazily: automate imports cli, and cli must finish loading first.
+    from . import automate
+    return automate.run(args, family)
+
+
 VERBS = {
     "version": cmd_version,
+    "automate": cmd_automate,
     "enable": cmd_enable,
     "disable": cmd_disable,
     "reenable": cmd_reenable,
