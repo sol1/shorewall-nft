@@ -7,9 +7,18 @@
 set -e
 
 STASH=/var/lib/shorewall-nft/preswap
+NFT=$(command -v nft 2>/dev/null || echo /usr/sbin/nft)
 
 has_rules() {   # $1 = save command
     command -v "$1" >/dev/null 2>&1 && "$1" 2>/dev/null | grep -q '^-A '
+}
+
+nft_loaded() {   # our own nft firewall is up (a shorewall-nft to
+                 # shorewall-nft upgrade keeps it loaded in the kernel)
+    [ -x "$NFT" ] || return 1
+    "$NFT" list table ip shorewall >/dev/null 2>&1 && return 0
+    "$NFT" list table ip6 shorewall >/dev/null 2>&1 && return 0
+    return 1
 }
 
 restore() {   # $1 = restore cmd, $2 = save cmd, $3 = stash file, $4 = label
@@ -26,10 +35,13 @@ restore() {   # $1 = restore cmd, $2 = save cmd, $3 = stash file, $4 = label
 if [ "$1" = "configure" ]; then
     restore iptables-restore iptables-save v4 IPv4
     restore ip6tables-restore ip6tables-save v6 IPv6
-    # If the firewall is still empty and we had nothing to restore, the box
-    # is unprotected. Say so; do not leave it silent.
+    # If the box is genuinely unprotected and we had nothing to restore, say
+    # so; do not leave it silent. A shorewall-nft to shorewall-nft upgrade
+    # keeps its nft firewall loaded, so check that too: without it this warned
+    # on every upgrade of a working nft box, whose rules never show in
+    # iptables-save (issue #9).
     if [ -d /etc/shorewall ] && ! has_rules iptables-save \
-       && [ ! -s "$STASH/v4" ]; then
+       && ! nft_loaded && [ ! -s "$STASH/v4" ]; then
         echo "shorewall-nft: WARNING: no firewall rules are loaded. The" \
              "previous firewall was cleared and could not be preserved." \
              "Run 'shorewall migrate' now to protect this box." >&2
