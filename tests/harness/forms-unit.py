@@ -138,7 +138,15 @@ form_ok("rules: CONNLIMIT !limit loads (no invalid nft keyword)",
 # A REDIRECT/DNAT sourced from $FW (the firewall redirecting its own output,
 # the transparent-proxy pattern) is documented and must compile.
 form_ok("rules: a $FW-sourced REDIRECT compiles and loads",
-        {"rules": "?SECTION NEW\nREDIRECT $FW 3128 tcp 80\n"})
+        {"rules": "?SECTION NEW\nREDIRECT $FW 3128 tcp 80\n"},
+        expect="hook output priority -100")
+
+# A one-to-one NAT with LOCAL=Yes (shorewall-nat(5)) also DNATs the firewall's
+# own output, so it hooks output too. That chain must use a numeric priority,
+# not the dstnat name, which nft 1.0.2 rejects at the output hook.
+form_ok("nat: a LOCAL one-to-one NAT compiles and loads",
+        {"nat": "10.0.0.1 NET_IF 10.0.1.2 No Yes\n"},
+        expect="hook output priority -110")
 
 # A policy SOURCE/DEST zone exclusion (all!zone) is documented since 4.4.13
 # but not implemented in the emitter yet; it must fail with a clear located

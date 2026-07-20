@@ -1686,7 +1686,10 @@ class Emitter:
             if any(n.local for n in self.cfg.nat):
                 self.out("")
                 self.out("chain nat_one2one_out {", 1)
-                self.out("type nat hook output priority dstnat - 10;", 2)
+                # dstnat - 10. Numeric, not the named priority: nft 1.0.2
+                # (Debian 11, Ubuntu 22.04) only registers the dstnat name at
+                # prerouting and rejects it at the output hook.
+                self.out("type nat hook output priority -110;", 2)
                 for n in self.cfg.nat:
                     if n.local:
                         self.out(f"{ipkw6} daddr {n.external} "
@@ -1800,7 +1803,10 @@ class Emitter:
         if out_dnat:
             self.out("")
             self.out("chain output_dnat {", 1)
-            self.out("type nat hook output priority dstnat;", 2)
+            # dstnat priority (-100) as a number, not the name: nft 1.0.2
+            # (Debian 11, Ubuntu 22.04) only registers the dstnat name at
+            # prerouting and rejects it at the output hook.
+            self.out("type nat hook output priority -100;", 2)
             for d in out_dnat:
                 match, action = _dnat_body(d)
                 comment = f' comment "{d.origin}"' if d.origin else ""
