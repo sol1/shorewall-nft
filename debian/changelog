@@ -1,3 +1,20 @@
+shorewall-nft (0.1.5) unstable; urgency=medium
+
+  * The stock /etc/shorewall/conntrack file is ?FORMAT 3. The reader capped
+    every file at ?FORMAT 2, so shorewall check aborted with "unsupported
+    ?FORMAT 3" before reading a rule, on a file the administrator never wrote.
+    The format ceiling is now per-file, and the conntrack file reads up to 3,
+    matching upstream. The FORMAT 3 layout is what the parser already expects.
+
+  * The conntrack helpers are probed from the running kernel rather than
+    assumed present. show capabilities reflects the system, and a helper the
+    kernel lacks is gated out of the ruleset rather than emitted into one that
+    fails to load at start. Probing instantiates the helper in a throwaway
+    network namespace; a box without user namespaces falls back to the
+    compile-time defaults.
+
+ -- Dave Kempe <dave@sol1.com.au>  Mon, 20 Jul 2026 20:49:14 +1000
+
 shorewall-nft (0.1.4) unstable; urgency=medium
 
   * A $FW-sourced DNAT or REDIRECT, and a nat file entry with LOCAL=Yes, are

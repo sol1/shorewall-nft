@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.1.4
+Version:        0.1.5
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -78,6 +78,14 @@ DESTDIR=%{buildroot} packaging/install.sh packaging/shorewallrc.redhat
 %systemd_postun shorewall-geoip-update.timer
 
 %changelog
+* Mon Jul 20 2026 Dave Kempe <dave@sol1.com.au> - 0.1.5-1
+- Accept ?FORMAT 3 in the stock conntrack file. The reader capped every file
+  at ?FORMAT 2, so shorewall check aborted with "unsupported ?FORMAT 3" before
+  reading a rule, on a file the administrator never wrote. Probe the conntrack
+  helpers from the running kernel: show capabilities reflects the system, and a
+  helper the kernel lacks is gated out rather than emitted into a ruleset that
+  fails to load. See the Debian changelog.
+
 * Mon Jul 20 2026 Dave Kempe <dave@sol1.com.au> - 0.1.4-1
 - A $FW-sourced DNAT/REDIRECT and a LOCAL one-to-one NAT emit a numeric
   priority on the output nat hook. nft 1.0.2 (Debian 11, Ubuntu 22.04) only
