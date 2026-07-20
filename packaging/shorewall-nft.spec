@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.1.3
+Version:        0.1.4
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -78,6 +78,12 @@ DESTDIR=%{buildroot} packaging/install.sh packaging/shorewallrc.redhat
 %systemd_postun shorewall-geoip-update.timer
 
 %changelog
+* Mon Jul 20 2026 Dave Kempe <dave@sol1.com.au> - 0.1.4-1
+- A $FW-sourced DNAT/REDIRECT and a LOCAL one-to-one NAT emit a numeric
+  priority on the output nat hook. nft 1.0.2 (Debian 11, Ubuntu 22.04) only
+  registers the dstnat priority name at prerouting and rejects it at the output
+  hook, so on those systems the ruleset failed to load. See the Debian changelog.
+
 * Mon Jul 20 2026 Dave Kempe <dave@sol1.com.au> - 0.1.3-1
 - Fixes found reviewing 0.1.2, plus more manpage-derived config-form coverage.
   A $FW-sourced REDIRECT/DNAT is emitted in the output hook; accounting
