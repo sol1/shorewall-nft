@@ -143,6 +143,62 @@ check("versioncheck: the installed version is up to date",
       o is not None and o["result"]["update_available"] is False
       and o["result"]["up_to_date"] is True)
 
+# migrate --check: reports it would hand over, changes nothing.
+code, o = run("migrate", "--check")
+check("migrate --check: would hand over, changed, exit 0",
+      o is not None and o["changed"] is True
+      and o["result"].get("would_hand_over") is True
+      and o["result"].get("already_migrated") is False and code == 0)
+
+# migrate refuses a config with an unsupported file.
+uns = os.path.join(work, "unsup")
+shutil.copytree(BASE, uns)
+with open(os.path.join(uns, "routestopped"), "w") as f:
+    f.write("eth0\n")
+code, o = run("migrate", confdir=uns)
+check("migrate: unsupported file is a located refusal, exit 1",
+      code == 1 and o is not None and o["ok"] is False
+      and o["result"]["unsupported"] == ["routestopped"])
+
+# safe-apply --check: would change, arms nothing.
+code, o = run("safe-apply", "--check")
+check("safe-apply --check: changed, not applied, not armed, exit 0",
+      o is not None and o["changed"] is True
+      and o["result"]["applied"] is False
+      and o["result"]["rollback"]["armed"] is False and code == 0)
+
+# safe-apply --commit with nothing armed is a no-op success.
+code, o = run("safe-apply", "--commit")
+check("safe-apply --commit: nothing armed is committed false, exit 0",
+      o is not None and o["result"]["committed"] is False and code == 0)
+
+# rollback with nothing armed still reports the revert it performed.
+code, o = run("rollback")
+check("rollback: reports was_armed false and a revert",
+      o is not None and o["result"]["was_armed"] is False
+      and "reverted" in o["result"])
+
+# The stdout guard must hide subprocess output at the fd level, so the
+# firewall wrapper's chatter during a real apply cannot corrupt the JSON.
+sys.path.insert(0, SRC)
+from shorewall_nft import automate as _A  # noqa: E402
+capfile = os.path.join(work, "stdout.cap")
+with open(capfile, "w") as _cf:
+    sys.stdout.flush()          # do not let buffered PASS lines land in capfile
+    _saved = os.dup(1)
+    try:
+        os.dup2(_cf.fileno(), 1)
+        with _A._quiet_stdout():
+            subprocess.run(["sh", "-c", "echo SUBPROC_NOISE"])
+        os.write(1, b"REAL_STDOUT\n")
+    finally:
+        os.dup2(_saved, 1)
+        os.close(_saved)
+with open(capfile) as f:
+    _cap = f.read()
+check("stdout guard hides subprocess output at the fd level",
+      "SUBPROC_NOISE" not in _cap and "REAL_STDOUT" in _cap)
+
 # an unknown verb is a usage error listing the verbs.
 code, o = run("frobnicate")
 check("unknown verb: exit 2, lists verbs",

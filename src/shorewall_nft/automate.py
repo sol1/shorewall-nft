@@ -10,9 +10,11 @@ import difflib
 import hashlib
 import json
 import os
+import signal
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.error
 import urllib.request
 
@@ -53,13 +55,21 @@ def _cfgerr(e):
 
 @contextlib.contextmanager
 def _quiet_stdout():
-    """Send anything the compiler prints to stderr, so stdout stays pure JSON."""
+    """Keep stdout pure JSON. Redirect at the file-descriptor level, not just
+    sys.stdout, so output from the firewall wrapper, systemctl and other
+    subprocesses (which inherit fd 1) also goes to stderr."""
+    sys.stdout.flush()
+    saved_fd = os.dup(1)
+    os.dup2(2, 1)
     saved = sys.stdout
     sys.stdout = sys.stderr
     try:
         yield
     finally:
+        sys.stdout.flush()
         sys.stdout = saved
+        os.dup2(saved_fd, 1)
+        os.close(saved_fd)
 
 
 def _compile_temp(confdir, family):
@@ -94,8 +104,8 @@ def _sha(text):
 
 # Verbs ------------------------------------------------------------------
 
-def _v_check(family, confdir, check_mode):
-    del check_mode
+def _v_check(family, confdir, check_mode, rest):
+    del check_mode, rest
     errors = []
     compiles = False
     nft_ok = False
@@ -119,8 +129,8 @@ def _v_check(family, confdir, check_mode):
                  errors=errors, exit_code=0 if ok else 1)
 
 
-def _v_status(family, confdir, check_mode):
-    del check_mode
+def _v_status(family, confdir, check_mode, rest):
+    del check_mode, rest
     vardir = cli._vardir(family)
     try:
         with open(os.path.join(vardir, "state")) as f:
@@ -148,16 +158,16 @@ def _v_status(family, confdir, check_mode):
                  exit_code=0 if running else 3)
 
 
-def _v_capabilities(family, confdir, check_mode):
-    del confdir, check_mode
+def _v_capabilities(family, confdir, check_mode, rest):
+    del confdir, check_mode, rest
     capabilities.enable_probe()
     caps = {name: bool(capabilities.lookup(name))
             for name in capabilities.CAPABILITIES}
     return _emit("capabilities", family, True, False, {"capabilities": caps})
 
 
-def _v_versioncheck(family, confdir, check_mode):
-    del confdir, check_mode
+def _v_versioncheck(family, confdir, check_mode, rest):
+    del confdir, check_mode, rest
     installed = __version__
     latest = None
     warnings = []
@@ -185,8 +195,8 @@ def _v_versioncheck(family, confdir, check_mode):
                  warnings=warnings)
 
 
-def _v_doctor(family, confdir, check_mode):
-    del check_mode
+def _v_doctor(family, confdir, check_mode, rest):
+    del check_mode, rest
     checks = []
 
     ver = subprocess.run([cli._nft(), "--version"],
@@ -229,8 +239,8 @@ def _v_doctor(family, confdir, check_mode):
                  exit_code=0 if ready else 3)
 
 
-def _v_diff(family, confdir, check_mode):
-    del check_mode
+def _v_diff(family, confdir, check_mode, rest):
+    del check_mode, rest
     vardir = cli._vardir(family)
     current_path = cli._script_path(vardir) + ".nft"
     new_path, err = _compile_temp(confdir, family)
@@ -263,7 +273,8 @@ def _v_diff(family, confdir, check_mode):
     return _emit("diff", family, True, changed, result)
 
 
-def _v_apply(family, confdir, check_mode):
+def _v_apply(family, confdir, check_mode, rest):
+    del rest
     vardir = cli._vardir(family)
     current_path = cli._script_path(vardir) + ".nft"
     new_path, err = _compile_temp(confdir, family)
@@ -306,6 +317,186 @@ def _v_apply(family, confdir, check_mode):
     return _emit("apply", family, ok, True, result, exit_code=0 if ok else 3)
 
 
+# Detached timer: sleep, then revert only if the rollback marker still exists.
+# safe-apply --commit removes the marker (and kills this process) to cancel it.
+_TIMER = ("import os,sys,time,subprocess;"
+          "t=float(sys.argv[1]);marker=sys.argv[2];revert=sys.argv[3:];"
+          "time.sleep(t);"
+          "os.path.exists(marker) and subprocess.run(revert)")
+
+
+def _int_flag(rest, name, default):
+    if name in rest:
+        i = rest.index(name)
+        if i + 1 < len(rest) and rest[i + 1].isdigit():
+            return int(rest[i + 1])
+    return default
+
+
+def _service_enabled(service):
+    try:
+        r = subprocess.run(["systemctl", "is-enabled", service],
+                           capture_output=True, text=True)
+        return r.returncode == 0
+    except FileNotFoundError:
+        return False
+
+
+def _v_rollback(family, confdir, check_mode, rest):
+    del confdir, check_mode, rest
+    vardir = cli._vardir(family)
+    marker = os.path.join(vardir, "rollback")
+    armed = os.path.exists(marker)
+    if armed:
+        os.unlink(marker)
+    with _quiet_stdout():
+        rc = cli._revert(vardir, family)
+    ok = rc == 0
+    return _emit("rollback", family, ok, True,
+                 {"reverted": ok, "was_armed": armed},
+                 exit_code=0 if ok else 3)
+
+
+def _v_safe_apply(family, confdir, check_mode, rest):
+    vardir = cli._vardir(family)
+    marker = os.path.join(vardir, "rollback")
+
+    if "--commit" in rest:
+        armed = os.path.exists(marker)
+        if armed:
+            pid = None
+            try:
+                with open(marker) as f:
+                    pid = json.load(f).get("pid")
+            except (OSError, ValueError):
+                pid = None
+            os.unlink(marker)
+            if pid:
+                try:
+                    os.kill(pid, signal.SIGTERM)
+                except OSError:
+                    pass
+        return _emit("safe-apply", family, True, False, {"committed": armed})
+
+    timeout = _int_flag(rest, "--timeout", 60)
+    new_path, err = _compile_temp(confdir, family)
+    if err:
+        return _emit("safe-apply", family, False, False, {},
+                     errors=[_cfgerr(err)], exit_code=1)
+    try:
+        with open(new_path) as f:
+            new = f.read()
+    finally:
+        os.unlink(new_path)
+    new_hash = _sha(new)
+    current_path = cli._script_path(vardir) + ".nft"
+    previous_hash = None
+    if os.path.exists(current_path):
+        with open(current_path) as f:
+            previous_hash = _sha(f.read())
+    running = cli._rule_counts(family) is not None
+    changed = new_hash != previous_hash or not running
+
+    if check_mode or not changed:
+        return _emit("safe-apply", family, True, changed,
+                     {"changed": changed, "applied": False,
+                      "rollback": {"armed": False, "timeout": timeout}})
+
+    with _quiet_stdout():
+        try:
+            rc = cli._apply(confdir, family, vardir)
+        except ConfigError as e:
+            return _emit("safe-apply", family, False, False, {},
+                         errors=[_cfgerr(e)], exit_code=1)
+        if rc != 0:
+            cli._revert(vardir, family)
+    if rc != 0:
+        return _emit("safe-apply", family, False, True,
+                     {"changed": True, "applied": False},
+                     errors=[{"file": None, "line": None,
+                              "message": "the ruleset did not load; reverted"}],
+                     exit_code=3)
+
+    deadline = time.time() + timeout
+    timer = subprocess.Popen(
+        [sys.executable, "-c", _TIMER, str(timeout), marker,
+         sys.executable, "-m", "shorewall_nft", "automate", "rollback"],
+        env=dict(os.environ, SWNFT_FAMILY=str(family), SWNFT_VARDIR=vardir),
+        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL, start_new_session=True)
+    with open(marker, "w") as f:
+        json.dump({"pid": timer.pid, "deadline": deadline,
+                   "timeout": timeout}, f)
+    return _emit("safe-apply", family, True, True,
+                 {"changed": True, "applied": True,
+                  "ruleset_sha256": new_hash,
+                  "rollback": {"armed": True, "timeout": timeout,
+                               "deadline": deadline}})
+
+
+def _v_migrate(family, confdir, check_mode, rest):
+    del rest
+    if not os.path.isdir(confdir):
+        return _emit("migrate", family, False, False,
+                     {"already_migrated": False},
+                     errors=[{"file": None, "line": None,
+                              "message": f"no configuration at {confdir}"}],
+                     exit_code=1)
+    compat = [ln.strip() for ln in cli._compat_report(confdir)[0]]
+    unsupported = cli._compat_report(confdir)[1]
+
+    path, err = _compile_temp(confdir, family)
+    if err:
+        return _emit("migrate", family, False, False,
+                     {"compat": compat, "unsupported": unsupported},
+                     errors=[_cfgerr(err)], exit_code=1)
+    try:
+        nft = cli._check_ruleset(path, family)
+    finally:
+        os.unlink(path)
+    if nft.returncode != 0:
+        return _emit("migrate", family, False, False,
+                     {"compat": compat, "unsupported": unsupported},
+                     errors=[{"file": None, "line": None,
+                              "message": "nft rejected the ruleset: "
+                              + nft.stderr.strip()[-300:]}], exit_code=1)
+    if unsupported:
+        return _emit("migrate", family, False, False,
+                     {"compat": compat, "unsupported": unsupported,
+                      "handed_over": False},
+                     errors=[{"file": None, "line": None,
+                              "message": "unsupported files present: "
+                              + ", ".join(unsupported)}], exit_code=1)
+
+    service = cli._service(family)
+    already = _service_enabled(service) and cli._rule_counts(family) is not None
+    if already:
+        return _emit("migrate", family, True, False,
+                     {"already_migrated": True, "from": "shorewall-nft",
+                      "to": "shorewall-nft", "compat": compat,
+                      "unsupported": [], "handed_over": False})
+    if check_mode:
+        return _emit("migrate", family, True, True,
+                     {"already_migrated": False, "would_hand_over": True,
+                      "compat": compat, "unsupported": []})
+
+    with _quiet_stdout():
+        cli._sysd("daemon-reload")
+        cli._sysd("enable", service)
+        rc = cli.cmd_start([], family)
+        loaded = subprocess.run(
+            [cli._nft(), "list", "table", *cli.table_for(family).split()],
+            capture_output=True).returncode == 0
+        cleared = cli._clear_legacy_iptables(family) if rc == 0 and loaded \
+            else False
+    ok = rc == 0 and loaded
+    return _emit("migrate", family, ok, True,
+                 {"already_migrated": False, "from": "shorewall-iptables",
+                  "to": "shorewall-nft", "compat": compat, "unsupported": [],
+                  "handed_over": ok, "cleared_legacy": cleared},
+                 exit_code=0 if ok else 3)
+
+
 VERBS = {
     "check": _v_check,
     "status": _v_status,
@@ -314,6 +505,9 @@ VERBS = {
     "doctor": _v_doctor,
     "diff": _v_diff,
     "apply": _v_apply,
+    "safe-apply": _v_safe_apply,
+    "rollback": _v_rollback,
+    "migrate": _v_migrate,
 }
 
 
@@ -334,7 +528,7 @@ def run(args, family):
     check_mode = "--check" in rest or "--dry-run" in rest
     confdir = cli._confdir(family)
     try:
-        return VERBS[verb](family, confdir, check_mode)
+        return VERBS[verb](family, confdir, check_mode, rest)
     except ConfigError as e:
         return _emit(verb, family, False, False, {}, errors=[_cfgerr(e)],
                      exit_code=1)
