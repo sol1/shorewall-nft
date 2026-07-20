@@ -1734,50 +1734,59 @@ class Emitter:
                         self.out(" ".join(parts)
                                  + f' comment "{n.origin}"', 2)
             self.out("}", 1)
-        if self.cfg.dnat:
+        ipkw = "ip6" if self.cfg.family == 6 else "ip"
+
+        def _dnat_body(d):
+            """The (match, action) pair for a DNAT/REDIRECT rule, without the
+            source-zone interface scoping."""
+            flags = f" {d.flags}" if d.flags else ""
+            if d.to_addr:
+                addr = _unbracket(d.to_addr)
+                if self.cfg.family == 6:
+                    # nft brackets an IPv6 dnat target only when a port follows.
+                    to = f"[{addr}]:{d.to_port}" if d.to_port else addr
+                else:
+                    to = addr + (f":{d.to_port}" if d.to_port else "")
+                action = f"dnat {ipkw} to {to}{flags}"
+            else:
+                action = f"redirect to :{d.to_port}{flags}"
+            m = []
+            if d.saddr:
+                m.append(_match_addr(d.saddr, "saddr", ipkw, self.sets))
+            if d.origdest:
+                m.append(f"{ipkw} daddr {_addr_set(d.origdest)}")
+            if "," in d.proto:
+                protos = "{ " + ", ".join(d.proto.split(",")) + " }"
+                m.append(f"meta l4proto {protos}")
+                if d.dport:
+                    m.append(f"th dport {_ports(d.dport)}")
+            elif d.proto and d.dport:
+                m.append(f"{d.proto} dport {_ports(d.dport)}")
+            elif d.proto:
+                m.append(f"meta l4proto {d.proto}")
+            return " ".join(m), action
+
+        fw = self.cfg.fw_zone
+        # A $FW-sourced DNAT/REDIRECT rewrites the firewall's own output, so it
+        # belongs in the output nat hook, not prerouting.
+        pre_dnat = [d for d in self.cfg.dnat if d.source != fw]
+        out_dnat = [d for d in self.cfg.dnat if d.source == fw]
+        if pre_dnat:
             self.out("")
             self.out("chain prerouting {", 1)
             self.out("type nat hook prerouting priority dstnat;", 2)
-            ipkw = "ip6" if self.cfg.family == 6 else "ip"
-            for d in self.cfg.dnat:
-                flags = f" {d.flags}" if d.flags else ""
-                if d.to_addr:
-                    addr = _unbracket(d.to_addr)
-                    if self.cfg.family == 6:
-                        # nft brackets an IPv6 dnat target only when a port
-                        # follows.
-                        to = f"[{addr}]:{d.to_port}" if d.to_port else addr
-                    else:
-                        to = addr + (f":{d.to_port}" if d.to_port else "")
-                    action = f"dnat {ipkw} to {to}{flags}"
-                else:
-                    action = f"redirect to :{d.to_port}{flags}"
-                m = []
-                if d.saddr:
-                    m.append(_match_addr(d.saddr, "saddr", ipkw, self.sets))
-                if d.origdest:
-                    m.append(f"{ipkw} daddr {_addr_set(d.origdest)}")
-                if "," in d.proto:
-                    protos = "{ " + ", ".join(d.proto.split(",")) + " }"
-                    m.append(f"meta l4proto {protos}")
-                    if d.dport:
-                        m.append(f"th dport {_ports(d.dport)}")
-                elif d.proto and d.dport:
-                    m.append(f"{d.proto} dport {_ports(d.dport)}")
-                elif d.proto:
-                    m.append(f"meta l4proto {d.proto}")
-                match = " ".join(m)
+            for d in pre_dnat:
+                match, action = _dnat_body(d)
                 comment = f' comment "{d.origin}"' if d.origin else ""
                 if d.source == "all":
                     # all sources: not scoped by interface or address.
-                    body = f"{match} {action}".strip()
-                    self.out(f"{body}{comment}", 2)
+                    self.out(f"{match} {action}".strip() + comment, 2)
                 else:
                     # Scope by every claim the source zone has: its interfaces
                     # and its hosts-file address ranges. A hosts-only zone has
                     # no interface of its own but must still be scoped by its
-                    # addresses, not left open. A zone with neither cannot
-                    # match anything, so say so rather than drop the rule.
+                    # addresses. A zone with neither cannot match anything, so
+                    # say so rather than drop the rule.
                     sources = self._zone_sources(d.source)
                     if not sources:
                         raise ConfigError(
@@ -1792,6 +1801,15 @@ class Emitter:
                             parts.append(match)
                         self.out(" ".join(parts + [action]).strip()
                                  + comment, 2)
+            self.out("}", 1)
+        if out_dnat:
+            self.out("")
+            self.out("chain output_dnat {", 1)
+            self.out("type nat hook output priority dstnat;", 2)
+            for d in out_dnat:
+                match, action = _dnat_body(d)
+                comment = f' comment "{d.origin}"' if d.origin else ""
+                self.out(f"{match} {action}".strip() + comment, 2)
             self.out("}", 1)
         if not self.cfg.snat:
             return
