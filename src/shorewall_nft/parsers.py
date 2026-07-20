@@ -199,6 +199,14 @@ def parse_policy(path, variables, zones=None):
         # are the documented catch-alls and are always allowed.
         z = spec.split(":")[0]
         z = fw if z == "$FW" else z
+        base = z.split("!", 1)[0]
+        if "!" in z and base in ("all", "any", "all+", "any+"):
+            # The all!zone exclusion form is documented but not implemented in
+            # the emitter yet; fail with a clear, actionable message rather
+            # than a misleading unknown-zone error or a misapplied policy.
+            raise line.error(f"policy zone exclusion {z!r} is not supported "
+                             "yet; give the excluded zones their own policy "
+                             "lines instead")
         if zones is not None and z not in ("all", "any", "all+", "any+") \
                 and z not in zones:
             raise line.error(f"unknown zone {z}")
@@ -1412,12 +1420,16 @@ def parse_accounting(path, variables, interfaces):
 
         def side(spec):
             # any and all are documented keywords meaning no constraint; a
-            # known interface name matches on that interface; anything else
-            # is an address (validated where it reaches the ruleset).
+            # known interface name matches on that interface; the combined
+            # interface:address form (shorewall-addresses(5)) scopes by both;
+            # anything else is an address (validated where it reaches nft).
             if spec in ("any", "all"):
                 return "", ""
             if spec in known:
                 return logical.get(spec, spec), ""
+            head, sep, rest = spec.partition(":")
+            if sep and head in known:
+                return logical.get(head, head), rest
             return "", spec
 
         s_iface, s_addr = side(source)

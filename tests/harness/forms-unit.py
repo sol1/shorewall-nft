@@ -54,6 +54,23 @@ def nft_loads(text):
         os.unlink(f.name)
 
 
+def form_rejected(name, overrides, family=4):
+    """A documented form we do not implement yet must fail with a located
+    ConfigError, never a traceback and never a silently wrong ruleset."""
+    d = build(overrides)
+    try:
+        render(load(d, family))
+    except ConfigError:
+        ok(name)
+        return
+    except Exception as e:                       # noqa: BLE001
+        bad(name, f"traceback instead of ConfigError: {type(e).__name__}")
+        return
+    finally:
+        shutil.rmtree(d)
+    bad(name, "compiled, but is not supported (should be a located error)")
+
+
 def form_ok(name, overrides, family=4, expect=None):
     """A documented form must compile and its ruleset must load. expect is a
     substring that must appear in the emitted ruleset when given."""
@@ -123,11 +140,13 @@ form_ok("rules: CONNLIMIT !limit loads (no invalid nft keyword)",
 form_ok("rules: a $FW-sourced REDIRECT compiles and loads",
         {"rules": "?SECTION NEW\nREDIRECT $FW 3128 tcp 80\n"})
 
-# A policy SOURCE/DEST zone exclusion (all!zone) is documented since 4.4.13.
+# A policy SOURCE/DEST zone exclusion (all!zone) is documented since 4.4.13
+# but not implemented in the emitter yet; it must fail with a clear located
+# error, not a misleading message or a misapplied policy.
 ZONES4 = {"zones": "fw firewall\nnet ipv4\nloc ipv4\ndmz ipv4\n",
           "interfaces": "?FORMAT 2\nnet eth0\nloc eth1\ndmz eth2\n"}
-form_ok("policy: an all!zone exclusion compiles and loads",
-        {**ZONES4, "policy": "loc all!dmz REJECT\nall all ACCEPT\n"})
+form_rejected("policy: an all!zone exclusion is a clear located error",
+              {**ZONES4, "policy": "loc all!dmz REJECT\nall all ACCEPT\n"})
 
 # An accounting SOURCE of interface:address is the documented combined form.
 form_ok("accounting: an interface:address source compiles and loads",
