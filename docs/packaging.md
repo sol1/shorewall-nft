@@ -180,6 +180,46 @@ Each ships: the Python package, the CLI symlinks, the macro data, the
 service unit, the man pages, and the config skeletons under
 /usr/share.
 
+## The lite runtime (Shorewall Lite)
+
+Some targets cannot run the compiler: a small embedded system, an OpenWRT
+router, anything without Python. For those we ship a second, runtime-only
+package, shorewall-nft-lite, built from the same source. It carries the
+shorewall-lite dispatcher, its config and the service, and depends only on
+nftables and iproute2, never Python. Compile the configuration on a full
+system, deploy the compiled firewall script to the target, and run it with
+shorewall-lite. See docs/design/lite.md for the model and docs/automation.md
+for driving it.
+
+The split into a second package is required, not cosmetic. Package
+dependencies are per package, so the only way to ship something installable
+that does not pull in Python is a package that does not depend on it. This
+is why upstream ships shorewall and shorewall-lite separately, and we follow
+suit. It stays one source producing two binary packages, so the cost is a
+control stanza, not a second codebase.
+
+- Debian and Ubuntu. debian/control declares a second binary package,
+  shorewall-nft-lite (Depends: nftables, iproute2), staged by
+  packaging/install-lite.sh from debian/rules. One dpkg-buildpackage
+  produces the full .deb and the lite .deb.
+- Fedora and RHEL. The spec has a `%package lite` subpackage
+  (Requires: nftables, iproute) with its own %files and systemd
+  scriptlets. One rpmbuild produces both.
+- OpenWRT. packaging/openwrt/shorewall-nft-lite/ is a feed Makefile. Copy
+  it into an OpenWRT buildroot or SDK under package/ and run
+  `make package/shorewall-nft-lite/compile`. It installs the dispatcher,
+  the config and an /etc/init.d/shorewall-lite (rc.common) init. OpenWRT
+  has nft and a shell but no Python, so the lite package fits it exactly.
+- Arch. packaging/arch/PKGBUILD is a split package (pkgbase shorewall-nft)
+  building both shorewall-nft (Depends python, nftables) and
+  shorewall-nft-lite (Depends nftables, iproute2). makepkg in that
+  directory produces both; set the checksum with updpkgsums before an AUR
+  submission.
+
+On the target the compiled firewall reaches /var/lib/shorewall-lite/firewall
+either by `shorewall load` from the admin system (planned) or by copying a
+`shorewall compile -e` script there by hand. Then `shorewall-lite start`.
+
 ## Admin experience, start to finish
 
 A migrating admin:
@@ -242,4 +282,6 @@ formats are the same. Note the nft differences and the coverage state.
 - shorewall6 as a separate service and command, or one command with a
   family flag. Today the CLI takes a family; upstream ships two
   services.
-- Whether a lite package is worth it given how small the compiler is.
+- Whether a lite package is worth it: resolved yes, for targets without
+  Python (embedded, OpenWRT). Shipped as shorewall-nft-lite; see the lite
+  runtime section above and docs/design/lite.md.

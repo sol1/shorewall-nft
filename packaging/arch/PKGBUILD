@@ -1,0 +1,35 @@
+# Maintainer: Dave Kempe <dave@sol1.com.au>
+#
+# A split package: shorewall-nft is the compiler (needs Python), and
+# shorewall-nft-lite is the Python-free runtime for a machine that cannot
+# run the compiler. Both build from one source, mirroring the deb and rpm.
+#
+# For the AUR, replace the SKIP checksum with the real one:
+#   updpkgsums    (from pacman-contrib)
+pkgbase=shorewall-nft
+pkgname=('shorewall-nft' 'shorewall-nft-lite')
+pkgver=0.1.6
+pkgrel=1
+pkgdesc="Shorewall firewall compiler and runtime for nftables"
+arch=('any')
+url="https://github.com/sol1/shorewall-nft"
+license=('GPL-2.0-only')
+makedepends=()
+source=("$pkgbase-$pkgver.tar.gz::https://github.com/sol1/shorewall-nft/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+package_shorewall-nft() {
+    pkgdesc="Shorewall firewall compiler for nftables (drop-in, generates nftables rulesets)"
+    depends=('python' 'nftables')
+    provides=('shorewall' 'shorewall6')
+    conflicts=('shorewall' 'shorewall6')
+    cd "$srcdir/$pkgbase-$pkgver"
+    DESTDIR="$pkgdir" ./packaging/install.sh packaging/shorewallrc.default
+}
+
+package_shorewall-nft-lite() {
+    pkgdesc="Shorewall Lite runtime for nftables (no compiler, no Python)"
+    depends=('nftables' 'iproute2')
+    cd "$srcdir/$pkgbase-$pkgver"
+    DESTDIR="$pkgdir" ./packaging/install-lite.sh packaging/shorewallrc.default
+}
