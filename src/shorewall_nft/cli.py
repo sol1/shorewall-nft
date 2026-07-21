@@ -1021,6 +1021,150 @@ def cmd_load(args, family):
     return _lite_deploy(args, family, "start")
 
 
+NET_OPTS = "dhcp,tcpflags,nosmurfs,routefilter,logmartians,sourceroute=0"
+LAN_OPTS = "tcpflags,nosmurfs,routefilter,logmartians"
+RFC1918 = "10.0.0.0/8,169.254.0.0/16,172.16.0.0/12,192.168.0.0/16"
+
+
+def _init_files(topology, net, loc, dmz, ssh_zones):
+    """The starter config files for a topology, keyed by filename. Interfaces
+    are named by their real device, per the init design."""
+    gateway = topology in ("gateway", "three-zone")
+
+    zones = "#ZONE\tTYPE\nfw\tfirewall\nnet\tipv4\n"
+    if gateway:
+        zones += "loc\tipv4\n"
+    if topology == "three-zone":
+        zones += "dmz\tipv4\n"
+
+    ifaces = f"?FORMAT 2\n#ZONE\tINTERFACE\tOPTIONS\nnet\t{net}\t{NET_OPTS}\n"
+    if loc:
+        ifaces += f"loc\t{loc}\t{LAN_OPTS}\n"
+    if dmz:
+        ifaces += f"dmz\t{dmz}\t{LAN_OPTS}\n"
+
+    policy = "#SOURCE\tDEST\tPOLICY\tLEVEL\n"
+    if loc:
+        policy += "loc\tnet\tACCEPT\n"
+    if dmz:
+        policy += "dmz\tnet\tACCEPT\n"
+    policy += "$FW\tnet\tACCEPT\nnet\tall\tDROP\tinfo\nall\tall\tREJECT\tinfo\n"
+
+    # A minimal safe rule set. SSH to the firewall is always allowed from the
+    # chosen zones so bootstrapping over ssh cannot lock the box out.
+    rules = "?SECTION NEW\n"
+    for zone in ssh_zones:
+        rules += f"SSH(ACCEPT)\t{zone}\t$FW\n"
+    if loc:
+        rules += "Ping(ACCEPT)\tloc\t$FW\n"
+    if dmz:
+        rules += "Ping(ACCEPT)\tdmz\t$FW\n"
+
+    conf = ("# Minimal shorewall.conf written by 'shorewall init'. See\n"
+            "# docs/settings.md for the settings shorewall-nft acts on.\n"
+            f"IP_FORWARDING={'On' if gateway else 'Off'}\n")
+
+    files = {"zones": zones, "interfaces": ifaces, "policy": policy,
+             "rules": rules, "shorewall.conf": conf}
+    if gateway:
+        files["snat"] = ("?FORMAT 2\n#ACTION\tSOURCE\tDEST\n"
+                         f"MASQUERADE\t{RFC1918}\t{net}\n")
+    return files
+
+
+def cmd_init(args, family):
+    """Bootstrap a clean configuration. Refuses to overwrite an existing one;
+    adapting an existing Shorewall config is migrate's job."""
+    topology = None
+    net = loc = dmz = ssh_from = confdir = None
+    force = False
+    i = 0
+
+    def val(flag):
+        if i + 1 >= len(args):
+            _fatal(f"{flag} needs a value")
+        return args[i + 1]
+
+    while i < len(args):
+        a = args[i]
+        if a in ("--standalone", "--gateway", "--three-zone"):
+            topology = a[2:]
+            i += 1
+        elif a == "--net":
+            net = val(a); i += 2
+        elif a == "--loc":
+            loc = val(a); i += 2
+        elif a == "--dmz":
+            dmz = val(a); i += 2
+        elif a == "--ssh-from":
+            ssh_from = val(a); i += 2
+        elif a == "--force":
+            force = True; i += 1
+        elif a in ("--dir", "-d"):
+            confdir = val(a); i += 2
+        else:
+            _fatal(f"unexpected argument {a}")
+
+    if topology is None:
+        _fatal("init needs a topology: --standalone, --gateway or "
+               "--three-zone.\nGive the interfaces with --net (and --loc, "
+               "--dmz). The interactive wizard is not built yet.")
+    if not net:
+        _fatal("--net IFACE (the uplink) is required")
+    if topology in ("gateway", "three-zone") and not loc:
+        _fatal(f"--loc IFACE (the LAN) is required for --{topology}")
+    if topology == "three-zone" and not dmz:
+        _fatal("--dmz IFACE is required for --three-zone")
+
+    if ssh_from is None:
+        ssh_from = "net" if topology == "standalone" else "loc"
+    ssh_zones = [z for z in ssh_from.split(",") if z]
+
+    confdir = confdir or _confdir(family)
+    present = [f for f in ("zones", "interfaces", "policy")
+               if os.path.exists(os.path.join(confdir, f))
+               and os.path.getsize(os.path.join(confdir, f)) > 0]
+    if present and not force:
+        _fatal(f"{confdir} already has a configuration ({', '.join(present)}).\n"
+               "init is for a clean install. To adapt an existing Shorewall\n"
+               "configuration run 'shorewall migrate'; to overwrite it here\n"
+               "re-run with --force.")
+    os.makedirs(confdir, exist_ok=True)
+    if present and force:
+        backup = confdir.rstrip("/") + ".bak-" + time.strftime("%Y%m%d%H%M%S")
+        shutil.copytree(confdir, backup)
+        print(f"Backed up the existing configuration to {backup}")
+
+    files = _init_files(topology, net, loc, dmz, ssh_zones)
+    for name, content in files.items():
+        with open(os.path.join(confdir, name), "w") as f:
+            f.write(content)
+    print(f"Wrote a {topology} starter configuration to {confdir}:")
+    print("  " + ", ".join(sorted(files)))
+
+    with tempfile.NamedTemporaryFile(suffix=".nft", delete=False) as tmp:
+        path = tmp.name
+    try:
+        try:
+            compile_config(confdir, path, family)
+        except ConfigError as e:
+            print(f"   ERROR: the starter configuration did not compile: {e}",
+                  file=sys.stderr)
+            return 1
+        nft = _check_ruleset(path, family)
+        if nft.returncode != 0:
+            print(nft.stderr, file=sys.stderr)
+            print("   ERROR: nft rejected the starter ruleset", file=sys.stderr)
+            return 1
+    finally:
+        os.unlink(path)
+    print("shorewall check: verified.")
+    print("\nNext:")
+    print("  shorewall start                    # load it now")
+    print("  systemctl enable --now shorewall   # and at boot")
+    return 0
+
+
 def _service(family):
     return "shorewall6.service" if family == 6 else "shorewall.service"
 
@@ -1428,6 +1572,7 @@ VERBS = {
     "geoip-update": cmd_geoip_update,
     "migrate": cmd_migrate,
     "load": cmd_load,
+    "init": cmd_init,
 }
 
 
