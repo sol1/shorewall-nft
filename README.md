@@ -120,7 +120,8 @@ and enables nothing, and never touches /etc/shorewall. Then:
 See docs/migration.md for moving a live Shorewall box,
 docs/automation.md for driving it from Ansible or another tool,
 docs/lite.md for running it on an embedded target without the compiler,
-and docs/packaging.md for the packaging design.
+docs/distros.md for what installs where on each distro, and
+docs/packaging.md for the packaging design.
 
 ## Supported platforms
 

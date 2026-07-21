@@ -16,6 +16,34 @@ the same, so if you know Shorewall Lite you already know this.
   firewall script under /var/lib/shorewall-lite and runs it with the
   shorewall-lite command. No compiler, no Python.
 
+## The same as upstream Shorewall Lite
+
+If you have run Shorewall Lite before, this is the same shape:
+
+- Two products: a full package with the compiler on an admin system, and a
+  runtime-only package on the target. The target never runs the compiler.
+- The same names and layout: the shorewall-lite and shorewall6-lite commands,
+  /etc/shorewall-lite for the config, /var/lib/shorewall-lite/firewall for the
+  compiled script.
+- The same deployment: shorewall load from the admin system over ssh, or a
+  hand-copied export script run with shorewall-lite start.
+- shorecap on the target captures its capabilities so the admin compiles a
+  ruleset that matches it.
+- The target needs no compiler and no compiler runtime: no Perl for upstream,
+  no Python for us.
+
+## Different from upstream Shorewall Lite
+
+- The firewall is nftables, not iptables. The compiled script loads an nft
+  ruleset with nft -f, so the target needs nft and ip, not the iptables tools.
+- The compiler is Python, not Perl. That only matters on the admin system; the
+  target has neither.
+- shorecap probes nftables conntrack helpers rather than iptables capabilities,
+  and the profile lists those.
+- Not on lite yet: dynamic multi-ISP failover (the link monitor is a Python
+  daemon) and on-target geoip updates. Static provider routing works and geoip
+  sets ship as a snapshot. See "What lite does not do" below.
+
 ## Install the runtime on the target
 
     apt install shorewall-nft-lite        # Debian, Ubuntu
