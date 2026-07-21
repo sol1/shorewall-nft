@@ -38,6 +38,7 @@ Start with what you want to do.
 ### Design notes
 
 - [shorewall automate: a machine interface](design/automate.md)
+- [shorewall init: bootstrap a clean install](design/init.md)
 - [Shorewall Lite for shorewall-nft](design/lite.md)
 - [Docker coexistence design](design/docker.md)
 - [Multi-ISP and a pure-Python link monitor](design/multi-isp-lsm.md)
