@@ -104,6 +104,7 @@ def _parse_compile_args(args):
     pathname = None
     family = None
     script = None
+    caps = None
     i = 0
 
     def val(flag):
@@ -115,6 +116,9 @@ def _parse_compile_args(args):
         a = args[i]
         if a in ("-o", "--output"):
             pathname = val(a)
+            i += 2
+        elif a == "--caps":
+            caps = val(a)
             i += 2
         elif a == "--family":
             fam = val(a)
@@ -138,7 +142,7 @@ def _parse_compile_args(args):
             i += 1
         else:
             _fatal(f"unexpected argument {a}")
-    return directory, pathname, family, script
+    return directory, pathname, family, script, caps
 
 
 def _fatal(message):
@@ -203,9 +207,11 @@ def _check_ruleset(path, family):
 
 
 def cmd_check(args, family):
-    directory, _, fam_flag, _ = _parse_compile_args(args)
+    directory, _, fam_flag, _, caps = _parse_compile_args(args)
     confdir = directory or _confdir(family)
     family = fam_flag or family
+    if caps:
+        capabilities.load_profile(caps)
     with tempfile.NamedTemporaryFile(suffix=".nft", delete=False) as tmp:
         path = tmp.name
     try:
@@ -223,9 +229,11 @@ def cmd_check(args, family):
 
 
 def cmd_compile(args, family):
-    directory, pathname, fam_flag, script = _parse_compile_args(args)
+    directory, pathname, fam_flag, script, caps = _parse_compile_args(args)
     confdir = directory or _confdir(family)
     family = fam_flag or family
+    if caps:
+        capabilities.load_profile(caps)
     flags_style = "-o" in args or "--output" in args
     if flags_style:
         # Harness style: write only what was asked for.

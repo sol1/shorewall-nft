@@ -6,6 +6,7 @@
 # live probe of a bogus helper is also checked to never claim availability.
 import os
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                 "..", "..", "src"))
@@ -60,5 +61,19 @@ check("unknown capability is false", capabilities.lookup("NO_SUCH_CAP") is False
 capabilities._probe_cache.clear()
 result = capabilities.probe_helper("definitely_not_a_helper", "tcp")
 check("bogus helper is not reported available", result in (False, None))
+
+# A capability profile (as shorecap writes it, and --caps / load consume it) is
+# used verbatim, with probing turned off, so a remote deploy matches the target.
+prof = os.path.join(tempfile.mkdtemp(), "target.caps")
+with open(prof, "w") as f:
+    f.write("# from the target\nFTP_HELPER=No\nTFTP_HELPER=Yes\nH323_HELPER=No\n")
+capabilities._probe_cache.clear()
+capabilities.enable_probe(True)
+capabilities.load_profile(prof)
+check("load_profile turns probing off", capabilities._probe_enabled is False)
+check("load_profile pins a No helper false",
+      capabilities.lookup("FTP_HELPER") is False)
+check("load_profile pins a Yes helper true",
+      capabilities.lookup("TFTP_HELPER") is True)
 
 sys.exit(1 if fails else 0)

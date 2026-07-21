@@ -21,6 +21,8 @@ SHAREBASE=$(dirname "$SHAREDIR")   # /usr/share
 say() { echo "install-lite: $*"; }
 
 install -d "$DESTDIR$SBINDIR"
+# shorecap: run on the target to capture its capabilities for --caps.
+install -m 0755 "$here/packaging/lite/shorecap" "$DESTDIR$SBINDIR/shorecap"
 for prog in shorewall-lite shorewall6-lite; do
     install -m 0755 "$here/packaging/lite/shorewall-lite" \
         "$DESTDIR$SBINDIR/$prog"

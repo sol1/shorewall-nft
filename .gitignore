@@ -11,6 +11,7 @@ debian/.debhelper/
 debian/files
 debian/debhelper-build-stamp
 debian/shorewall-nft/
+debian/shorewall-nft-lite/
 debian/*.debhelper
 debian/*.debhelper.log
 debian/*.substvars

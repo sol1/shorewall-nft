@@ -1,0 +1,46 @@
+#!/bin/sh
+# shorecap: print this kernel's capability profile, so the admin system can
+# compile a ruleset that matches this target rather than the build host.
+#
+# Run it on the lite target and capture the output on the admin system:
+#     ssh target shorecap > target.caps
+#     shorewall load --caps target.caps target
+#
+# POSIX shell; needs only nft. Each probe creates a private, hookless table,
+# so it never disturbs the running firewall, and removes it again.
+NFT=$(command -v nft 2>/dev/null || echo /usr/sbin/nft)
+
+probe() {   # $1 = nft helper type, $2 = protocol, $3 = capability name
+    if "$NFT" -f - >/dev/null 2>&1 <<EOF
+table ip shorewall_shorecap {
+	ct helper c {
+		type "$1" protocol $2
+	}
+}
+EOF
+    then
+        echo "$3=Yes"
+    else
+        echo "$3=No"
+    fi
+    "$NFT" delete table ip shorewall_shorecap >/dev/null 2>&1 || :
+}
+
+echo "# shorewall-nft capability profile"
+echo "# host $(uname -n 2>/dev/null), kernel $(uname -r 2>/dev/null)"
+echo "CT_TARGET=Yes"
+probe amanda      udp AMANDA_HELPER
+probe ftp         tcp FTP_HELPER
+probe ftp         tcp FTP0_HELPER
+probe h323        tcp H323_HELPER
+probe irc         tcp IRC_HELPER
+probe irc         tcp IRC0_HELPER
+probe netbios-ns  udp NETBIOS_NS_HELPER
+probe pptp        tcp PPTP_HELPER
+probe sane        tcp SANE_HELPER
+probe sane        tcp SANE0_HELPER
+probe sip         udp SIP_HELPER
+probe sip         udp SIP0_HELPER
+probe snmp        udp SNMP_HELPER
+probe tftp        udp TFTP_HELPER
+probe tftp        udp TFTP0_HELPER

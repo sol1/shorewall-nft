@@ -76,6 +76,7 @@ DESTDIR=%{buildroot} packaging/install-lite.sh packaging/shorewallrc.redhat
 %license LICENSE
 %{_sbindir}/shorewall-lite
 %{_sbindir}/shorewall6-lite
+%{_sbindir}/shorecap
 %dir %{_datadir}/shorewall-lite
 %dir %{_datadir}/shorewall6-lite
 %{_datadir}/shorewall-lite/version

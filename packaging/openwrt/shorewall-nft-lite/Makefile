@@ -60,6 +60,8 @@ define Package/shorewall-nft-lite/install
 		$(1)/usr/sbin/shorewall-lite
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/packaging/lite/shorewall-lite \
 		$(1)/usr/sbin/shorewall6-lite
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/packaging/lite/shorecap \
+		$(1)/usr/sbin/shorecap
 
 	$(INSTALL_DIR) $(1)/etc/shorewall-lite $(1)/etc/shorewall6-lite
 	$(INSTALL_CONF) $(PKG_BUILD_DIR)/packaging/lite/shorewall-lite.conf \

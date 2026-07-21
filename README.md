@@ -118,8 +118,9 @@ and enables nothing, and never touches /etc/shorewall. Then:
     shorewall migrate                  # hand over when ready
 
 See docs/migration.md for moving a live Shorewall box,
-docs/automation.md for driving it from Ansible or another tool, and
-docs/packaging.md for the packaging design.
+docs/automation.md for driving it from Ansible or another tool,
+docs/lite.md for running it on an embedded target without the compiler,
+and docs/packaging.md for the packaging design.
 
 ## Supported platforms
 

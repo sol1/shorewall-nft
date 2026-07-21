@@ -124,7 +124,17 @@ chmod +x "$OUT/var/shorewall6-lite/firewall"
     && pass "shorewall6-lite clear removes the ip6 table" \
     || bad "shorewall6-lite clear failed"
 
-# 6. The whole runtime never touched python.
+# 6. shorecap prints a capability profile the admin feeds to --caps, using
+#    only nft, and without disturbing a loaded ruleset.
+capout=$("$REPO/packaging/lite/shorecap" 2>/dev/null)
+if printf '%s\n' "$capout" | grep -q '^CT_TARGET=Yes$' \
+   && printf '%s\n' "$capout" | grep -Eq '^FTP_HELPER=(Yes|No)$'; then
+    pass "shorecap prints a capability profile"
+else
+    bad "shorecap output malformed: $capout"
+fi
+
+# 7. The whole runtime never touched python.
 if [ -f "$OUT/py-invoked" ]; then
     bad "the runtime invoked python: $(cat "$OUT/py-invoked")"
 else
