@@ -32,6 +32,20 @@ rewrite. Shorewall itself is dormant and does not support nftables;
 this fills that gap as distributions drop the iptables compatibility
 modules.
 
+%package lite
+Summary:        Shorewall Lite runtime for nftables (no compiler)
+Requires:       nftables
+Requires:       iproute
+%{?systemd_requires}
+
+%description lite
+The runtime half of shorewall-nft, for a target that cannot run the
+compiler: a small embedded system, an OpenWRT router, anything without
+Python. Compile the configuration on a full system with shorewall-nft,
+deploy the resulting firewall script here, and run it with the
+shorewall-lite command. It needs only a POSIX shell, nft and ip, and
+does not depend on Python.
+
 %prep
 %autosetup
 
@@ -40,6 +54,7 @@ modules.
 
 %install
 DESTDIR=%{buildroot} packaging/install.sh packaging/shorewallrc.redhat
+DESTDIR=%{buildroot} packaging/install-lite.sh packaging/shorewallrc.redhat
 
 %files
 %license LICENSE
@@ -56,6 +71,23 @@ DESTDIR=%{buildroot} packaging/install.sh packaging/shorewallrc.redhat
 %{_mandir}/man5/shorewall*netmap.5*
 %dir %{_localstatedir}/lib/shorewall-nft
 # /etc/shorewall is the administrator's, never owned by this package.
+
+%files lite
+%license LICENSE
+%{_sbindir}/shorewall-lite
+%{_sbindir}/shorewall6-lite
+%dir %{_datadir}/shorewall-lite
+%dir %{_datadir}/shorewall6-lite
+%{_datadir}/shorewall-lite/version
+%{_datadir}/shorewall6-lite/version
+%{_unitdir}/shorewall-lite.service
+%{_unitdir}/shorewall6-lite.service
+%config(noreplace) %{_sysconfdir}/shorewall-lite/shorewall-lite.conf
+%config(noreplace) %{_sysconfdir}/shorewall6-lite/shorewall6-lite.conf
+%dir %{_sysconfdir}/shorewall-lite
+%dir %{_sysconfdir}/shorewall6-lite
+%dir %{_localstatedir}/lib/shorewall-lite
+%dir %{_localstatedir}/lib/shorewall6-lite
 
 %post
 # Register the unit but do not enable or start it. The admin runs
@@ -76,6 +108,20 @@ DESTDIR=%{buildroot} packaging/install.sh packaging/shorewallrc.redhat
 %systemd_postun shorewall6.service
 %systemd_postun shorewall-lsm.service
 %systemd_postun shorewall-geoip-update.timer
+
+%post lite
+# Register the units but do not enable or start them. Deploy a firewall
+# and run `shorewall-lite start` when ready.
+%systemd_post shorewall-lite.service
+%systemd_post shorewall6-lite.service
+
+%preun lite
+%systemd_preun shorewall-lite.service
+%systemd_preun shorewall6-lite.service
+
+%postun lite
+%systemd_postun shorewall-lite.service
+%systemd_postun shorewall6-lite.service
 
 %changelog
 * Tue Jul 21 2026 Dave Kempe <dave@sol1.com.au> - 0.1.6-1

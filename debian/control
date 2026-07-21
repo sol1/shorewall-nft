@@ -23,3 +23,16 @@ Description: Shorewall firewall compiler for nftables
  drop the iptables compatibility modules, the original stops working.
  This package fills that gap while keeping the configuration and the
  command surface the same.
+
+Package: shorewall-nft-lite
+Architecture: all
+Depends: ${misc:Depends}, nftables, iproute2
+Description: Shorewall Lite runtime for nftables (no compiler)
+ The runtime half of shorewall-nft, for a target that cannot run the
+ compiler: a small embedded system, an OpenWRT router, anything without
+ Python. Compile the configuration on a full system with shorewall-nft,
+ deploy the resulting firewall script here, and run it with the
+ shorewall-lite command.
+ .
+ It needs only a POSIX shell, nft and ip. It installs no compiler and does
+ not depend on Python.

@@ -11,6 +11,8 @@ override_dh_auto_build:
 override_dh_auto_install:
 	DESTDIR=$(CURDIR)/debian/shorewall-nft \
 		packaging/install.sh packaging/shorewallrc.debian
+	DESTDIR=$(CURDIR)/debian/shorewall-nft-lite \
+		packaging/install-lite.sh packaging/shorewallrc.debian
 
 # Ship the service present but disabled and not started. The admin runs
 # shorewall migrate or shorewall start when ready.
