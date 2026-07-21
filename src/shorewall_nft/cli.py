@@ -1072,6 +1072,173 @@ def _init_files(topology, net, loc, dmz, ssh_zones):
     return files
 
 
+_VIRTUAL_IFACES = ("lo", "veth", "docker", "br-", "virbr", "vnet", "tun",
+                   "tap", "wg", "bond", "dummy")
+
+
+def _parse_links(text):
+    """[(name, state)] from `ip -o link show`, skipping lo and the obviously
+    virtual, which an operator would not put a zone on by default."""
+    out = []
+    for line in text.splitlines():
+        m = re.match(r"^\d+:\s+([^:@ ]+)", line)
+        if not m:
+            continue
+        name = m.group(1)
+        if name == "lo" or name.startswith(_VIRTUAL_IFACES):
+            continue
+        state = re.search(r"\bstate (\w+)", line)
+        out.append((name, state.group(1) if state else "?"))
+    return out
+
+
+def _parse_addrs(text):
+    """{name: first-IPv4} from `ip -o addr show`."""
+    addrs = {}
+    for line in text.splitlines():
+        m = re.match(r"^\d+:\s+(\S+)\s+inet\s+(\S+)", line)
+        if m and m.group(1) not in addrs:
+            addrs[m.group(1)] = m.group(2)
+    return addrs
+
+
+def _parse_default_iface(text):
+    """The device of the default route, from `ip route show default`."""
+    m = re.search(r"\bdev (\S+)", text)
+    return m.group(1) if m else ""
+
+
+def _detect_interfaces():
+    """(interfaces, default_iface). Each interface is (name, state, addr)."""
+    def ipout(*a):
+        return subprocess.run([_ip(), "-o", *a],
+                              capture_output=True, text=True).stdout
+    links = _parse_links(ipout("link", "show"))
+    addrs = _parse_addrs(ipout("addr", "show"))
+    default = _parse_default_iface(subprocess.run(
+        [_ip(), "route", "show", "default"],
+        capture_output=True, text=True).stdout)
+    return [(n, s, addrs.get(n, "")) for n, s in links], default
+
+
+def _ask_line(prompt):
+    """Read one answer, prompting on stderr so stdout stays clean. None on
+    end of input (a piped or empty stdin), so callers fall back to a default."""
+    sys.stderr.write(prompt + " ")
+    sys.stderr.flush()
+    line = sys.stdin.readline()
+    return None if line == "" else line.strip()
+
+
+def _ask(prompt, default=""):
+    a = _ask_line(f"{prompt}{f' [{default}]' if default else ''}:")
+    return default if a is None or a == "" else a
+
+
+def _yes(prompt, default):
+    a = _ask_line(f"{prompt} ({'Y/n' if default else 'y/N'}):")
+    return default if a is None or a == "" else a.lower() in ("y", "yes")
+
+
+def _init_write(topology, net, loc, dmz, ssh_zones, confdir, family, force):
+    """Write the starter config, refusing an existing one, then compile and
+    nft-check it. Shared by the flag path and the wizard."""
+    present = [f for f in ("zones", "interfaces", "policy")
+               if os.path.exists(os.path.join(confdir, f))
+               and os.path.getsize(os.path.join(confdir, f)) > 0]
+    if present and not force:
+        _fatal(f"{confdir} already has a configuration ({', '.join(present)}).\n"
+               "init is for a clean install. To adapt an existing Shorewall\n"
+               "configuration run 'shorewall migrate'; to overwrite it here\n"
+               "re-run with --force.")
+    os.makedirs(confdir, exist_ok=True)
+    if present and force:
+        backup = confdir.rstrip("/") + ".bak-" + time.strftime("%Y%m%d%H%M%S")
+        shutil.copytree(confdir, backup)
+        print(f"Backed up the existing configuration to {backup}")
+
+    if not ssh_zones:
+        print("Warning: no SSH-to-firewall rule was added; you could lock "
+              "yourself out.", file=sys.stderr)
+    files = _init_files(topology, net, loc, dmz, ssh_zones)
+    for name, content in files.items():
+        with open(os.path.join(confdir, name), "w") as f:
+            f.write(content)
+    print(f"Wrote a {topology} starter configuration to {confdir}:")
+    print("  " + ", ".join(sorted(files)))
+
+    with tempfile.NamedTemporaryFile(suffix=".nft", delete=False) as tmp:
+        path = tmp.name
+    try:
+        try:
+            compile_config(confdir, path, family)
+        except ConfigError as e:
+            print(f"   ERROR: the starter configuration did not compile: {e}",
+                  file=sys.stderr)
+            return 1
+        nft = _check_ruleset(path, family)
+        if nft.returncode != 0:
+            print(nft.stderr, file=sys.stderr)
+            print("   ERROR: nft rejected the starter ruleset", file=sys.stderr)
+            return 1
+    finally:
+        os.unlink(path)
+    print("shorewall check: verified.")
+    print("\nNext:")
+    print("  shorewall start                    # load it now")
+    print("  systemctl enable --now shorewall   # and at boot")
+    return 0
+
+
+def _init_wizard(family, confdir, force):
+    """Interactive bootstrap: detect the interfaces, ask a few questions, then
+    write the config through _init_write."""
+    interfaces, default = _detect_interfaces()
+    if not interfaces:
+        _fatal("could not detect any interfaces. Re-run non-interactively,\n"
+               "e.g. shorewall init --gateway --net eth0 --loc eth1")
+    print("No configuration yet. Let's create a starting point.\n",
+          file=sys.stderr)
+    print("Interfaces on this system:", file=sys.stderr)
+    for name, state, addr in interfaces:
+        tag = "  <- default route, likely uplink" if name == default else ""
+        print(f"  {name:14}{state:10}{addr}{tag}", file=sys.stderr)
+    names = [n for n, _, _ in interfaces]
+
+    print("\nTopology:  1) standalone   2) gateway   3) three-zone",
+          file=sys.stderr)
+    topos = {"1": "standalone", "2": "gateway", "3": "three-zone"}
+    choice = _ask("Choose 1, 2 or 3", "2" if len(names) >= 2 else "1")
+    topology = topos.get(choice)
+    if topology is None:
+        _fatal(f"not a topology choice: {choice!r}")
+
+    net = _ask("Uplink (net) interface", default or names[0])
+    loc = dmz = None
+    ssh_zones = []
+    if topology in ("gateway", "three-zone"):
+        rest = [n for n in names if n != net]
+        loc = _ask("LAN (loc) interface", rest[0] if rest else "")
+        if topology == "three-zone":
+            rest2 = [n for n in names if n not in (net, loc)]
+            dmz = _ask("DMZ interface", rest2[0] if rest2 else "")
+        if _yes("Allow SSH to the firewall from the LAN?", True):
+            ssh_zones.append("loc")
+        if _yes("Allow SSH from the internet (net)?", False):
+            ssh_zones.append("net")
+    else:
+        if _yes("Allow SSH to this box from the network?", True):
+            ssh_zones.append("net")
+
+    if not net or (topology != "standalone" and not loc) \
+            or (topology == "three-zone" and not dmz):
+        _fatal("an interface was not chosen; re-run non-interactively with "
+               "--net/--loc/--dmz")
+    print("", file=sys.stderr)
+    return _init_write(topology, net, loc, dmz, ssh_zones, confdir, family,
+                       force)
+
+
 def cmd_init(args, family):
     """Bootstrap a clean configuration. Refuses to overwrite an existing one;
     adapting an existing Shorewall config is migrate's job."""
@@ -1105,10 +1272,16 @@ def cmd_init(args, family):
         else:
             _fatal(f"unexpected argument {a}")
 
+    confdir = confdir or _confdir(family)
+
+    # No topology and no interfaces given: run the interactive wizard.
+    if topology is None and not (net or loc or dmz):
+        return _init_wizard(family, confdir, force)
+
     if topology is None:
-        _fatal("init needs a topology: --standalone, --gateway or "
-               "--three-zone.\nGive the interfaces with --net (and --loc, "
-               "--dmz). The interactive wizard is not built yet.")
+        _fatal("give a topology with the interfaces: --standalone, --gateway "
+               "or --three-zone.\nRun 'shorewall init' with no arguments for "
+               "the interactive wizard.")
     if not net:
         _fatal("--net IFACE (the uplink) is required")
     if topology in ("gateway", "three-zone") and not loc:
@@ -1120,49 +1293,8 @@ def cmd_init(args, family):
         ssh_from = "net" if topology == "standalone" else "loc"
     ssh_zones = [z for z in ssh_from.split(",") if z]
 
-    confdir = confdir or _confdir(family)
-    present = [f for f in ("zones", "interfaces", "policy")
-               if os.path.exists(os.path.join(confdir, f))
-               and os.path.getsize(os.path.join(confdir, f)) > 0]
-    if present and not force:
-        _fatal(f"{confdir} already has a configuration ({', '.join(present)}).\n"
-               "init is for a clean install. To adapt an existing Shorewall\n"
-               "configuration run 'shorewall migrate'; to overwrite it here\n"
-               "re-run with --force.")
-    os.makedirs(confdir, exist_ok=True)
-    if present and force:
-        backup = confdir.rstrip("/") + ".bak-" + time.strftime("%Y%m%d%H%M%S")
-        shutil.copytree(confdir, backup)
-        print(f"Backed up the existing configuration to {backup}")
-
-    files = _init_files(topology, net, loc, dmz, ssh_zones)
-    for name, content in files.items():
-        with open(os.path.join(confdir, name), "w") as f:
-            f.write(content)
-    print(f"Wrote a {topology} starter configuration to {confdir}:")
-    print("  " + ", ".join(sorted(files)))
-
-    with tempfile.NamedTemporaryFile(suffix=".nft", delete=False) as tmp:
-        path = tmp.name
-    try:
-        try:
-            compile_config(confdir, path, family)
-        except ConfigError as e:
-            print(f"   ERROR: the starter configuration did not compile: {e}",
-                  file=sys.stderr)
-            return 1
-        nft = _check_ruleset(path, family)
-        if nft.returncode != 0:
-            print(nft.stderr, file=sys.stderr)
-            print("   ERROR: nft rejected the starter ruleset", file=sys.stderr)
-            return 1
-    finally:
-        os.unlink(path)
-    print("shorewall check: verified.")
-    print("\nNext:")
-    print("  shorewall start                    # load it now")
-    print("  systemctl enable --now shorewall   # and at boot")
-    return 0
+    return _init_write(topology, net, loc, dmz, ssh_zones, confdir, family,
+                       force)
 
 
 def _service(family):
