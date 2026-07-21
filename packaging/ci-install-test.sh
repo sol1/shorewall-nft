@@ -29,23 +29,28 @@ if [ "$kind" = deb ]; then
     esac
     export DEBIAN_FRONTEND=noninteractive
     apt-get update -qq
-    deb=$(ls dist/shorewall-nft_*_all.deb)
-    # apt resolves the python3/nftables dependencies; fall back to dpkg plus
-    # a dependency fix-up for very old apt that cannot install a local file.
-    apt-get install -y "./$deb" \
-        || { dpkg -i "$deb" || true; apt-get install -y -f; }
+    # The build produces two packages: the compiler and the lite runtime.
+    # apt resolves the dependencies; fall back to dpkg plus a fix-up for very
+    # old apt that cannot install a local file.
+    install_deb() {
+        apt-get install -y "./$1" || { dpkg -i "$1" || true; apt-get install -y -f; }
+    }
+    install_deb "$(ls dist/shorewall-nft_*_all.deb)"
+    install_deb "$(ls dist/shorewall-nft-lite_*_all.deb)"
 else
-    rpm=$(ls dist/shorewall-nft-*.noarch.rpm)
+    # Both rpms install together; they own different files and do not conflict.
     if command -v dnf >/dev/null 2>&1; then
-        dnf install -y "./$rpm"
+        dnf install -y ./dist/*.noarch.rpm
     else
-        yum install -y "./$rpm"
+        yum install -y ./dist/*.noarch.rpm
     fi
 fi
 
 echo "== shorewall version =="
 shorewall version
+echo "== shorewall-lite version =="
+shorewall-lite version
 echo "== compile a sample configuration =="
 shorewall compile tests/corpus/0003-two-interfaces/config -o /tmp/out.nft
 test -s /tmp/out.nft
-echo "OK: ${PRETTY_NAME:-unknown} installed the package and compiled a ruleset"
+echo "OK: ${PRETTY_NAME:-unknown} installed both packages and compiled a ruleset"
