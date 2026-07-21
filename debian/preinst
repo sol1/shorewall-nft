@@ -10,8 +10,21 @@
 # leaving the box silently unprotected.
 set -e
 
-STASH=/var/lib/shorewall-nft/preswap
+STASH=${SWNFT_STASH:-/var/lib/shorewall-nft/preswap}
 mkdir -p "$STASH"
+
+# On upgrade, remember which stacks are running right now. dpkg unpacks every
+# package before it configures any, so this runs while the firewall is still
+# up; postinst then brings back anything the upgrade takes down (a service
+# stopped by the wider dist-upgrade, say), applying the new version. $1 is
+# 'upgrade' with the old version in $2.
+if [ "$1" = upgrade ]; then
+    rm -f "$STASH/up-v4" "$STASH/up-v6"
+    grep -q '^Started' "${SWNFT_V4STATE:-/var/lib/shorewall-nft/state}" \
+        2>/dev/null && : > "$STASH/up-v4" || true
+    grep -q '^Started' "${SWNFT_V6STATE:-/var/lib/shorewall6-nft/state}" \
+        2>/dev/null && : > "$STASH/up-v6" || true
+fi
 
 snap() {   # $1 = save command, $2 = stash file
     command -v "$1" >/dev/null 2>&1 || return 0

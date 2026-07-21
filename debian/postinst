@@ -6,7 +6,7 @@
 # ruleset is empty, so we never disturb a firewall that is actually up.
 set -e
 
-STASH=/var/lib/shorewall-nft/preswap
+STASH=${SWNFT_STASH:-/var/lib/shorewall-nft/preswap}
 NFT=$(command -v nft 2>/dev/null || echo /usr/sbin/nft)
 
 has_rules() {   # $1 = save command
@@ -46,7 +46,24 @@ if [ "$1" = "configure" ]; then
              "previous firewall was cleared and could not be preserved." \
              "Run 'shorewall migrate' now to protect this box." >&2
     fi
-    rm -f "$STASH/v4" "$STASH/v6"
+
+    # On upgrade ($2 is the old version; a fresh install has none and stays
+    # inert until `shorewall migrate`), bring back any stack that was running
+    # before the upgrade, applying the new version's ruleset. This keeps an
+    # upgrade from leaving the firewall down if the wider run stopped the
+    # service. A failure is a loud warning, not an aborted upgrade.
+    if [ -n "$2" ] && [ -e "$STASH/up-v4" ]; then
+        echo "shorewall-nft: reloading the running IPv4 firewall on the new version."
+        shorewall restart >/dev/null 2>&1 || echo "shorewall-nft: WARNING:" \
+            "'shorewall restart' failed; run it by hand to restore the firewall." >&2
+    fi
+    if [ -n "$2" ] && [ -e "$STASH/up-v6" ]; then
+        echo "shorewall-nft: reloading the running IPv6 firewall on the new version."
+        shorewall6 restart >/dev/null 2>&1 || echo "shorewall-nft: WARNING:" \
+            "'shorewall6 restart' failed; run it by hand to restore the firewall." >&2
+    fi
+
+    rm -f "$STASH/v4" "$STASH/v6" "$STASH/up-v4" "$STASH/up-v6"
 fi
 
 #DEBHELPER#
