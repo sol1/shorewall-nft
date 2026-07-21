@@ -571,11 +571,28 @@ clear_proxyarp() {{
     :
 }}
 
-load_ruleset() {{
-    tmp=$(mktemp) || exit 1
-    cat > "$tmp" << 'SWNFT_RULESET_EOF'
+emit_ruleset() {{
+    cat << 'SWNFT_RULESET_EOF'
 {ruleset}
 SWNFT_RULESET_EOF
+}}
+
+check_ruleset() {{
+    # Validate the ruleset against THIS kernel without applying it. On a
+    # lite target the kernel can differ from where the ruleset was
+    # compiled, so this fails loud rather than loading something the
+    # kernel would reject.
+    tmp=$(mktemp) || exit 1
+    emit_ruleset > "$tmp"
+    nft -c -f "$tmp"
+    rc=$?
+    rm -f "$tmp"
+    return $rc
+}}
+
+load_ruleset() {{
+    tmp=$(mktemp) || exit 1
+    emit_ruleset > "$tmp"
     # Try the whole ruleset as one atomic transaction. If it exceeds
     # the netlink socket buffer (very large rulesets), fall back to
     # the fail-closed skeleton plus rule chunks.
@@ -687,11 +704,19 @@ case "$1" in
         rm -f "$STATE/providers/$2.state"
         reroute_providers
         ;;
+    check)
+        if check_ruleset; then
+            echo "$0: ruleset is valid for this kernel"
+        else
+            echo "$0: ruleset was rejected by this kernel" >&2
+            exit 1
+        fi
+        ;;
     status)
         nft list table {table}
         ;;
     *)
-        echo "usage: $0 {{start|reload|restart|stop|clear|status}}" >&2
+        echo "usage: $0 {{start|reload|restart|stop|clear|check|status}}" >&2
         exit 2
         ;;
 esac
