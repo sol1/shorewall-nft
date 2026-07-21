@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.1.6
+Version:        0.2.0
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -125,6 +125,16 @@ DESTDIR=%{buildroot} packaging/install-lite.sh packaging/shorewallrc.redhat
 %systemd_postun shorewall6-lite.service
 
 %changelog
+* Tue Jul 21 2026 Dave Kempe <dave@sol1.com.au> - 0.2.0-1
+- Shorewall Lite: a runtime-only shorewall-nft-lite package for a target that
+  cannot run the compiler (embedded, OpenWRT, anything without Python). Compile
+  with `shorewall compile -e`, deploy with `shorewall load SYSTEM`, and run it
+  with shorewall-lite. shorecap captures the target's capabilities for
+  `--caps`. See docs/lite.md.
+- shorewall init bootstraps a clean install: standalone, gateway or three-zone,
+  with interfaces from the running system and SSH kept open. An interactive
+  wizard, or non-interactive flags. See docs/design/init.md.
+
 * Tue Jul 21 2026 Dave Kempe <dave@sol1.com.au> - 0.1.6-1
 - New `shorewall automate` JSON interface for configuration management
   (Ansible): check, status, versioncheck, capabilities, doctor, diff, apply,

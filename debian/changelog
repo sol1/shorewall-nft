@@ -1,3 +1,24 @@
+shorewall-nft (0.2.0) unstable; urgency=medium
+
+  * Shorewall Lite. A new runtime-only package, shorewall-nft-lite, runs a
+    firewall on a target that cannot run the compiler: a small embedded system,
+    an OpenWRT router, anything without Python. Compile on a full system with
+    `shorewall compile -e`, deploy with `shorewall load SYSTEM` over ssh, and
+    run it there with the shorewall-lite command. It depends only on nftables
+    and iproute2. shorecap captures the target's capabilities so a ruleset can
+    be compiled to match it with --caps. Packages for Debian, Ubuntu, Fedora,
+    RHEL, Arch and OpenWRT. See docs/lite.md and docs/distros.md.
+
+  * shorewall init bootstraps a clean install, the counterpart to migrate. On a
+    box with no configuration it writes a working starting point from the
+    standalone, gateway or three-zone topologies, with the interfaces filled in
+    from the running system and SSH to the firewall kept open so bootstrapping
+    over ssh cannot lock you out. Run it with no arguments for an interactive
+    wizard, or with flags for a scripted install. It refuses to overwrite an
+    existing configuration.
+
+ -- Dave Kempe <dave@sol1.com.au>  Tue, 21 Jul 2026 21:49:06 +1000
+
 shorewall-nft (0.1.6) unstable; urgency=medium
 
   * New `shorewall automate` interface for configuration management. Every verb
