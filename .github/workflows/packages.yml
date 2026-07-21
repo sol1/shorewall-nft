@@ -24,10 +24,11 @@ jobs:
       - name: Build the .deb
         run: dpkg-buildpackage -b -us -uc
 
-      - name: Collect the package
+      - name: Collect the packages
         run: |
           mkdir -p dist
-          mv ../shorewall-nft_*_all.deb dist/
+          # Both binary packages: the full compiler and the lite runtime.
+          mv ../shorewall-nft*_all.deb dist/
 
       - name: Install and smoke-test
         run: |
@@ -35,6 +36,14 @@ jobs:
           shorewall version
           shorewall compile tests/corpus/0003-two-interfaces/config -o /tmp/out.nft
           test -s /tmp/out.nft
+          # Lite runtime: it installs without Python, and a deployed script
+          # validates against this kernel.
+          sudo apt-get install -y ./dist/shorewall-nft-lite_*_all.deb
+          shorewall-lite version
+          shorewall compile -e tests/corpus/0003-two-interfaces/config \
+            -o /tmp/lite.nft --script /tmp/firewall
+          sudo install -m 0755 /tmp/firewall /var/lib/shorewall-lite/firewall
+          sudo shorewall-lite check
 
       - uses: actions/upload-artifact@v4
         with:
