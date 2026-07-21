@@ -117,7 +117,15 @@ The install is inert. It places the command and the service but starts
 and enables nothing, and never touches /etc/shorewall. Then:
 
     shorewall check /etc/shorewall     # validate, changes nothing
-    shorewall migrate                  # hand over when ready
+    shorewall migrate                  # hand over an existing Shorewall config
+
+On a clean box with no configuration, bootstrap a starting point instead:
+
+    shorewall init --gateway --net eth0 --loc eth1   # or --standalone, --three-zone
+
+`init` writes a working starter config (zones, interfaces, policy, NAT) from
+the classic one/two/three-interface topologies, keeps SSH to the firewall open
+so you are not locked out, and never starts anything on its own.
 
 See [docs/migration.md](docs/migration.md) for moving a live Shorewall box,
 [docs/automation.md](docs/automation.md) for driving it from Ansible or another
