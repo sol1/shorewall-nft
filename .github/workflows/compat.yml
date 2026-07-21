@@ -30,7 +30,8 @@ jobs:
       - name: Build
         run: dpkg-buildpackage -b -us -uc
       - name: Collect
-        run: mkdir -p dist && mv ../shorewall-nft_*_all.deb dist/
+        # Both binary packages: the compiler and the lite runtime.
+        run: mkdir -p dist && mv ../shorewall-nft*_all.deb dist/
       - uses: actions/upload-artifact@v4
         with:
           name: deb
