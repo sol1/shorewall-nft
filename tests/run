@@ -283,7 +283,8 @@ def main():
         flat = " ".join(f"{k}={v}" for k, v in r["layers"].items())
         print(f"{name}: {flat}")
 
-    for proof in ("wrapper-proof.sh", "lite-proof.sh", "cli-proof.sh",
+    for proof in ("wrapper-proof.sh", "lite-proof.sh",
+                  "lite-runtime-proof.sh", "cli-proof.sh",
                   "dualstack-proof.sh",
                   "seam-proof.sh", "default-route-proof.sh", "migrate-proof.sh",
                   "chunk-unit.py", "chunk-proof.sh", "validation-unit.py",

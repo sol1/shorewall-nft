@@ -1,0 +1,21 @@
+[Unit]
+Description=Shorewall Lite firewall (nftables)
+Documentation=man:shorewall-lite(8)
+# Bring the firewall up before the network, so interfaces never come up
+# unprotected. Do not run beside another firewall manager.
+Wants=network-pre.target
+Before=network-pre.target
+Conflicts=firewalld.service ufw.service
+After=
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/shorewall-lite start
+ExecStop=/usr/sbin/shorewall-lite stop
+ExecReload=/usr/sbin/shorewall-lite reload
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

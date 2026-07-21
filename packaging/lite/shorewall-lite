@@ -1,0 +1,58 @@
+#!/bin/sh
+# Shorewall Lite: run a compiled shorewall-nft firewall on a target that has
+# no compiler. The compiled firewall script carries the ruleset and does the
+# work; this locates it, points it at the lite directories, and forwards the
+# verb. POSIX shell, safe under busybox ash. See docs/lite.md.
+#
+# Installed as both shorewall-lite (IPv4) and shorewall6-lite (IPv6); the two
+# differ only in which directories they use, chosen from the command name.
+
+prog=shorewall-lite
+case "${0##*/}" in
+    shorewall6-lite) prog=shorewall6-lite ;;
+esac
+
+confdir=${SWNFT_LITE_CONFDIR:-/etc/$prog}
+conf="$confdir/$prog.conf"
+
+# Defaults. The conf may override any of these.
+VARDIR=/var/lib/$prog
+VERBOSITY=1
+LOGFILE=
+[ -f "$conf" ] && . "$conf"
+# An empty or unset PATH (the conf ships PATH= ) falls back to a sane one.
+[ -n "$PATH" ] || PATH=/usr/sbin:/sbin:/usr/bin:/bin
+
+firewall="$VARDIR/firewall"
+
+usage() {
+    echo "usage: $prog {start|stop|restart|reload|clear|check|status|version}" >&2
+    exit 2
+}
+
+verb=${1:-}
+[ -n "$verb" ] || usage
+shift
+
+case "$verb" in
+    start|stop|restart|reload|clear|check|status)
+        if [ ! -x "$firewall" ]; then
+            echo "$prog: no firewall script at $firewall." >&2
+            echo "$prog: deploy one with 'shorewall load' from the admin" >&2
+            echo "$prog: system, or copy a 'shorewall compile -e' script to" >&2
+            echo "$prog: $firewall and make it executable." >&2
+            exit 1
+        fi
+        SWNFT_VARDIR="$VARDIR"
+        SWNFT_STATE=${SWNFT_STATE:-/run/$prog}
+        export SWNFT_VARDIR SWNFT_STATE
+        exec "$firewall" "$verb" "$@"
+        ;;
+    version)
+        v=/usr/share/$prog/version
+        if [ -f "$v" ]; then cat "$v"; else echo unknown; fi
+        ;;
+    *)
+        usage
+        ;;
+esac

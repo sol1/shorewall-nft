@@ -1,0 +1,22 @@
+#!/bin/sh /etc/rc.common
+# OpenWRT init for Shorewall Lite (nftables). Install as
+# /etc/init.d/shorewall-lite and enable it. OpenWRT has nft and sh but no
+# Python, which is exactly what the lite runtime needs. See docs/lite.md.
+
+# Start before the network is configured; stop late.
+START=19
+STOP=91
+
+EXTRA_COMMANDS="status check"
+EXTRA_HELP="	status	Show the firewall status
+	check	Validate the deployed ruleset against this kernel"
+
+CMD=/usr/sbin/shorewall-lite
+
+start()   { "$CMD" start; }
+boot()    { start; }
+stop()    { "$CMD" stop; }
+restart() { "$CMD" restart; }
+reload()  { "$CMD" reload; }
+status()  { "$CMD" status; }
+check()   { "$CMD" check; }
