@@ -937,6 +937,82 @@ def _compat_report(confdir):
     return lines, unsupported
 
 
+def _rcp(localfile, system, remotepath):
+    """Copy a local file to system:remotepath. Defaults to scp; override the
+    whole command with SWNFT_LITE_RCP, which receives localfile, system and
+    remotepath as three trailing arguments (for a non-ssh transport or tests)."""
+    import shlex
+    override = os.environ.get("SWNFT_LITE_RCP")
+    if override:
+        cmd = shlex.split(override) + [localfile, system, remotepath]
+    else:
+        cmd = ["scp", localfile, f"{system}:{remotepath}"]
+    return subprocess.run(cmd).returncode
+
+
+def _rsh(system, *command):
+    """Run a command on system. Defaults to ssh; override with SWNFT_LITE_RSH,
+    which receives system then the command words."""
+    import shlex
+    override = os.environ.get("SWNFT_LITE_RSH")
+    base = shlex.split(override) if override else ["ssh"]
+    return subprocess.run(base + [system, *command]).returncode
+
+
+def _lite_deploy(args, family, remote_verb):
+    """Compile the local configuration to an export firewall script and deploy
+    it to a Shorewall Lite target over ssh, then run remote_verb there. This is
+    `shorewall load` (remote_verb start) and `shorewall reload` with a system."""
+    caps_file = None
+    rest = []
+    i = 0
+    while i < len(args):
+        if args[i] == "--caps":
+            if i + 1 >= len(args):
+                _fatal("--caps needs a file")
+            caps_file = args[i + 1]
+            i += 2
+        else:
+            rest.append(args[i])
+            i += 1
+    if len(rest) != 1:
+        _fatal("usage: shorewall load [--caps FILE] SYSTEM")
+    system = rest[0]
+    confdir = _confdir(family)
+    if not os.path.isdir(confdir):
+        _fatal(f"no configuration at {confdir}")
+    prog = "shorewall6-lite" if family == 6 else "shorewall-lite"
+    remote_firewall = f"/var/lib/{prog}/firewall"
+
+    # Compile against the target's capabilities if a profile was captured with
+    # shorecap, else the conservative static defaults, never the build host's
+    # probed kernel.
+    if caps_file:
+        capabilities.load_profile(caps_file)
+    else:
+        capabilities.enable_probe(False)
+
+    with tempfile.TemporaryDirectory(prefix="shorewall-nft-load-") as d:
+        script = os.path.join(d, "firewall")
+        try:
+            compile_config(confdir, script + ".nft", family, script_path=script)
+        except ConfigError as e:
+            _fatal(f"configuration does not compile: {e}")
+        print(f"Deploying {confdir} to {system}:{remote_firewall}")
+        if _rcp(script, system, remote_firewall) != 0:
+            _fatal(f"could not copy the firewall to {system}")
+        if _rsh(system, prog, remote_verb) != 0:
+            _fatal(f"the firewall was copied but '{prog} {remote_verb}' "
+                   f"failed on {system}")
+    print(f"{system} is running the deployed ruleset "
+          f"(validate with '{prog} check' there).")
+    return 0
+
+
+def cmd_load(args, family):
+    return _lite_deploy(args, family, "start")
+
+
 def _service(family):
     return "shorewall6.service" if family == 6 else "shorewall.service"
 
@@ -1343,6 +1419,7 @@ VERBS = {
     "savesets": cmd_savesets,
     "geoip-update": cmd_geoip_update,
     "migrate": cmd_migrate,
+    "load": cmd_load,
 }
 
 

@@ -114,6 +114,22 @@ def probe_helper(helper_type, proto):
     return result
 
 
+def load_profile(path):
+    """Load a capability profile: NAME=Yes/No lines, as shorecap writes them
+    on a target. Used verbatim, with probing off, so a remote deploy compiles
+    against the target's kernel rather than the build host's."""
+    global _probe_enabled
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            name, _, value = line.partition("=")
+            CAPABILITIES[name.strip()] = \
+                value.strip().strip('"').lower() in ("yes", "1", "true", "on")
+    _probe_enabled = False
+
+
 def lookup(name):
     if _probe_enabled and name in HELPER_PROBES:
         real = probe_helper(*HELPER_PROBES[name])

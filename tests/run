@@ -284,8 +284,8 @@ def main():
         print(f"{name}: {flat}")
 
     for proof in ("wrapper-proof.sh", "lite-proof.sh",
-                  "lite-runtime-proof.sh", "cli-proof.sh",
-                  "dualstack-proof.sh",
+                  "lite-runtime-proof.sh", "lite-deploy-proof.sh",
+                  "cli-proof.sh", "dualstack-proof.sh",
                   "seam-proof.sh", "default-route-proof.sh", "migrate-proof.sh",
                   "chunk-unit.py", "chunk-proof.sh", "validation-unit.py",
                   "hardening-unit.py", "forms-unit.py", "caps-unit.py",
