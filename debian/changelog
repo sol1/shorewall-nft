@@ -1,3 +1,15 @@
+shorewall-nft (0.2.1) unstable; urgency=medium
+
+  * An upgrade no longer leaves a running firewall down. When a package upgrade
+    is part of a wider run that stops shorewall.service (a systemd upgrade
+    cycling the service, for instance), the firewall was left stopped because
+    the package starts nothing on its own. Now preinst records which stacks are
+    running and postinst reloads them on the new version, so the firewall comes
+    back. A fresh install still starts nothing and waits for `shorewall
+    migrate`.
+
+ -- Dave Kempe <dave@sol1.com.au>  Wed, 22 Jul 2026 09:18:28 +1000
+
 shorewall-nft (0.2.0) unstable; urgency=medium
 
   * Shorewall Lite. A new runtime-only package, shorewall-nft-lite, runs a
