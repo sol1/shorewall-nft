@@ -96,9 +96,11 @@ exposed.
     upstream/        Clones of shorewall and nftables sources. Not committed.
     tests/           Test corpus and harness.
 
-Key docs: docs/verifying.md (reproduce the tests), docs/internals.md (how the
-ruleset is generated), docs/coverage.md (what is supported), docs/netmap.md
-(legacy NETMAP compatibility), CONTRIBUTING.md.
+Documentation: [docs/](docs/README.md) is the full index. Quick links:
+[migrating](docs/migration.md), [running lite on an embedded
+target](docs/lite.md), [automating with Ansible](docs/automation.md),
+[distro support and layout](docs/distros.md), [config coverage](docs/coverage.md),
+[verifying the tests](docs/verifying.md), and [how it works](docs/internals.md).
 
 ## Install
 
@@ -117,11 +119,11 @@ and enables nothing, and never touches /etc/shorewall. Then:
     shorewall check /etc/shorewall     # validate, changes nothing
     shorewall migrate                  # hand over when ready
 
-See docs/migration.md for moving a live Shorewall box,
-docs/automation.md for driving it from Ansible or another tool,
-docs/lite.md for running it on an embedded target without the compiler,
-docs/distros.md for what installs where on each distro, and
-docs/packaging.md for the packaging design.
+See [docs/migration.md](docs/migration.md) for moving a live Shorewall box,
+[docs/automation.md](docs/automation.md) for driving it from Ansible or another
+tool, [docs/lite.md](docs/lite.md) for running it on an embedded target without
+the compiler, [docs/distros.md](docs/distros.md) for what installs where on each
+distro, and [docs/packaging.md](docs/packaging.md) for the packaging design.
 
 ## Supported platforms
 
