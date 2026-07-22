@@ -1,0 +1,11 @@
+# Install paths for Gentoo. Used by packaging/install.sh (and the ebuild,
+# which drives install.sh with DESTDIR set to the image dir). Gentoo defaults
+# to OpenRC; the ebuild adds /etc/init.d/shorewall via newinitd. The systemd
+# units are installed too and are harmless on an OpenRC system.
+PYTHON=/usr/bin/python3
+SBINDIR=/usr/sbin
+SHAREDIR=/usr/share/shorewall-nft
+CONFDIR=/etc
+VARDIR=/var/lib/shorewall-nft
+SERVICEDIR=/usr/lib/systemd/system
+MANDIR=/usr/share/man

@@ -1,0 +1,40 @@
+#!/sbin/openrc-run
+# OpenRC init for shorewall-nft. Installed as /etc/init.d/shorewall and,
+# for IPv6, /etc/init.d/shorewall6 (same file, linked under both names).
+# RC_SVCNAME is the service name, so it selects the right command.
+#
+#   rc-update add shorewall default
+#   rc-service shorewall start
+#
+# The firewall comes up before networking, like the systemd unit.
+
+description="Shorewall-nft firewall (nftables)"
+command="/usr/sbin/${RC_SVCNAME}"
+
+depend() {
+	need localmount
+	before net
+	after sysctl
+}
+
+start() {
+	ebegin "Starting ${RC_SVCNAME}"
+	"${command}" start
+	eend $? "Failed to start ${RC_SVCNAME}"
+}
+
+stop() {
+	ebegin "Stopping ${RC_SVCNAME}"
+	"${command}" stop
+	eend $? "Failed to stop ${RC_SVCNAME}"
+}
+
+reload() {
+	ebegin "Reloading ${RC_SVCNAME}"
+	"${command}" reload
+	eend $? "Failed to reload ${RC_SVCNAME}"
+}
+
+status() {
+	"${command}" status
+}

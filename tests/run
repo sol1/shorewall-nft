@@ -288,7 +288,7 @@ def main():
                   "cli-proof.sh", "dualstack-proof.sh",
                   "seam-proof.sh", "default-route-proof.sh", "migrate-proof.sh",
                   "init-proof.sh", "init-wizard-proof.sh",
-                  "upgrade-restart-proof.sh",
+                  "upgrade-restart-proof.sh", "gentoo-proof.sh",
                   "chunk-unit.py", "chunk-proof.sh", "validation-unit.py",
                   "hardening-unit.py", "forms-unit.py", "caps-unit.py",
                   "automate-unit.py",

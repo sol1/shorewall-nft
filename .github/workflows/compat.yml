@@ -128,3 +128,17 @@ jobs:
           fi
           docker run --rm -v "$PWD":/work -w /work "${{ matrix.image }}" \
             sh packaging/ci-install-test.sh rpm
+
+  gentoo-source:
+    name: "gentoo: install.sh + ebuild"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install and smoke-test on a Gentoo userland
+        # No native package: Gentoo installs from source (install.sh) or the
+        # ebuild. Both are exercised in a real stage3 container. No emerge and
+        # no network, so runtime deps are not pulled; that is enough to install
+        # and compile a ruleset.
+        run: |
+          docker run --rm -v "$PWD":/work:ro -w /work gentoo/stage3 \
+            sh packaging/gentoo-ci-test.sh

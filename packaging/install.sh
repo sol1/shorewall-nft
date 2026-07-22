@@ -34,6 +34,13 @@ if [ -z "$DESTDIR" ] && [ -e "$SBINDIR/shorewall" ]; then
         owner=$(rpm -qf "$SBINDIR/shorewall" 2>/dev/null | grep -v 'not owned' \
                 || true)
     fi
+    # Gentoo/Portage: qfile (portage-utils) or equery (gentoolkit).
+    if [ -z "$owner" ] && command -v qfile >/dev/null 2>&1; then
+        owner=$(qfile -qvC "$SBINDIR/shorewall" 2>/dev/null || true)
+    fi
+    if [ -z "$owner" ] && command -v equery >/dev/null 2>&1; then
+        owner=$(equery -q belongs "$SBINDIR/shorewall" 2>/dev/null || true)
+    fi
     case "$owner" in
         ""|*shorewall-nft*) : ;;   # unowned or our own prior install
         *)

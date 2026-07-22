@@ -81,6 +81,25 @@ is the same self-contained shell script the compiler produced.
 - Arch is usr-merged: /usr/sbin is a symlink to /usr/bin, so the commands land
   in /usr/bin. Everything else is as above. Its python is /usr/bin/python3.
 
+### Gentoo
+
+- Full package (compiler and lite runtime) via an ebuild at packaging/gentoo/.
+  It reuses the shared install.sh, so the layout matches the other distros.
+  Runtime deps: python 3.7+, net-firewall/nftables, sys-apps/iproute2. Nothing
+  is compiled; the package is Python and shell.
+- Gentoo defaults to OpenRC. The ebuild installs /etc/init.d/shorewall and
+  /etc/init.d/shorewall6 (one script, keyed on the service name). Enable with
+  `rc-update add shorewall default`. The systemd units are installed too and
+  work on a systemd Gentoo. Its python is /usr/bin/python3.
+- There is no ebuild in an official Gentoo repo yet. Copy
+  packaging/gentoo/shorewall-nft-<ver>.ebuild into an overlay under
+  net-firewall/shorewall-nft/, run `ebuild <file> manifest`, then emerge it.
+- To install from source instead, run
+  `./packaging/install.sh packaging/shorewallrc.gentoo`. That installer refuses
+  to overwrite a shorewall command Portage owns (it checks qfile and equery),
+  so unmerge net-firewall/shorewall first, or use the ebuild, which replaces it
+  cleanly.
+
 ### OpenWRT
 
 - Only `shorewall-nft-lite`. OpenWRT has nft and a shell but no Python, so the
