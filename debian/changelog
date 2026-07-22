@@ -1,3 +1,13 @@
+shorewall-nft (0.2.2) unstable; urgency=medium
+
+  * Gentoo support. Install from source with packaging/install.sh and
+    packaging/shorewallrc.gentoo, or from the ebuild at packaging/gentoo/ in an
+    overlay. Both reuse the shared installer, so the layout matches the other
+    distros. An OpenRC init serves both families, and install.sh will not
+    overwrite a shorewall command that Portage owns.
+
+ -- Dave Kempe <dave@sol1.com.au>  Thu, 23 Jul 2026 07:14:00 +1000
+
 shorewall-nft (0.2.1) unstable; urgency=medium
 
   * An upgrade no longer leaves a running firewall down. When a package upgrade

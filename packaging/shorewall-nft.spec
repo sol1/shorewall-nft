@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.2.1
+Version:        0.2.2
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -125,6 +125,9 @@ DESTDIR=%{buildroot} packaging/install-lite.sh packaging/shorewallrc.redhat
 %systemd_postun shorewall6-lite.service
 
 %changelog
+* Thu Jul 23 2026 Dave Kempe <dave@sol1.com.au> - 0.2.2-1
+- Gentoo support: an ebuild, an OpenRC init script and a source install path.
+
 * Wed Jul 22 2026 Dave Kempe <dave@sol1.com.au> - 0.2.1-1
 - An upgrade no longer leaves a running firewall down. preinst records which
   stacks were running; postinst reloads them on the new version. A firewall
