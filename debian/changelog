@@ -1,3 +1,15 @@
+shorewall-nft (0.2.4) unstable; urgency=medium
+
+  * Three fixes from shorewall-users feedback. Rules may use the all/any
+    meta-zone with an address restriction (all:192.168.45.0/24), which failed
+    with "unknown zone all". shorewall6 rtrules accept bracketed IPv6 addresses
+    ([2607:...::/64]) instead of reading them as interface names. The rpfilter
+    interface option is now enforced as a strict reverse-path check rather than
+    accepted and warned; established traffic is exempt and the DHCP handshake
+    is let through.
+
+ -- Dave Kempe <dave@sol1.com.au>  Thu, 23 Jul 2026 17:25:00 +1000
+
 shorewall-nft (0.2.3) unstable; urgency=medium
 
   * Fix #10 (rpm only). Upgrading the legacy shorewall rpm to shorewall-nft no

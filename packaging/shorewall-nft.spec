@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.2.3
+Version:        0.2.4
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -156,6 +156,11 @@ exit 0
 %systemd_postun shorewall6-lite.service
 
 %changelog
+* Thu Jul 23 2026 Dave Kempe <dave@sol1.com.au> - 0.2.4-1
+- rules: the all/any meta-zone may carry an address, e.g. all:192.168.45.0/24.
+- rtrules: bracketed IPv6 addresses parse instead of erroring as interfaces.
+- interfaces: the rpfilter option is enforced (a strict reverse-path check).
+
 * Thu Jul 23 2026 Dave Kempe <dave@sol1.com.au> - 0.2.3-1
 - Fix #10: upgrading the legacy shorewall rpm no longer loses /etc/shorewall.
   The config is snapshotted in %pretrans and restored in %posttrans.
