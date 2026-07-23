@@ -26,6 +26,16 @@ def _is_ip(spec):
         return False
 
 
+def _unbracket(a):
+    """Strip the brackets from a [address] literal. rtrules bracket IPv6
+    addresses so their colons are not read as the interface:address
+    separator, e.g. [2607:f2c0:f00e:b700::/64] or eth0:[2607::1]."""
+    a = a.strip()
+    if a.startswith("[") and a.endswith("]"):
+        return a[1:-1]
+    return a
+
+
 # Builtin actions. Invalid(P) matches ct state invalid, disposition P.
 STATE_ACTIONS = {"Invalid": "invalid"}
 
@@ -115,20 +125,21 @@ def parse_zones(path, variables):
 IFACE_OPTIONS_ACTIVE = {
     "dhcp", "routeback", "physical", "tcpflags", "nosmurfs", "routefilter",
     "logmartians", "sourceroute", "forward", "proxyarp", "proxyndp",
-    "arp_filter", "arp_ignore", "accept_ra", "mss",
+    "arp_filter", "arp_ignore", "accept_ra", "mss", "rpfilter",
 }
 # Options recognized but not yet acted on. Accepted so real configs
 # compile; each is a known no-op we can implement later.
 IFACE_OPTIONS_ACCEPTED = {
     "optional", "required", "wait", "bridge", "loopback", "maclist",
-    "blacklist", "nets", "sfilter", "rpfilter", "upnp", "upnpclient",
+    "blacklist", "nets", "sfilter", "upnp", "upnpclient",
     "destonly", "sourceonly", "ignore", "unmanaged", "dbl", "nodbl",
     "omitanycast", "detectnets", "norfc1918", "tcpflags", "wait",
 }
 # Accepted no-ops that provide anti-spoofing upstream. Silently ignoring
 # them would leave an interface less protected than the config asks for, so
-# each use is warned about until we enforce it.
-IFACE_OPTIONS_ANTISPOOF = {"sfilter", "rpfilter", "norfc1918"}
+# each use is warned about until we enforce it. rpfilter is enforced now
+# (a reverse-path fib check), so it is no longer here.
+IFACE_OPTIONS_ANTISPOOF = {"sfilter", "norfc1918"}
 IFACE_OPTIONS_KNOWN = IFACE_OPTIONS_ACTIVE | IFACE_OPTIONS_ACCEPTED
 
 
@@ -366,9 +377,9 @@ def parse_blrules(path, variables, fw_zone, family=4, zones=None):
             raise line.error(f"unsupported blrules action {name}")
 
         def zone_of(spec):
-            if spec in ("all", "any"):
-                return "all", ""
             zone, _, addr = spec.partition(":")
+            if zone in ("all", "any"):
+                return "all", addr
             zone = fw_zone if zone == "$FW" else zone
             # An undeclared zone here produces an unscoped rule that applies
             # on every interface, bypassing the rules that follow it.
@@ -414,12 +425,14 @@ def parse_rules(path, variables, fw_zone, family=4, zones=None):
             raise line.error(f"action modifier {mod} not supported yet")
 
         def zone_of(spec):
-            """Split a zone[:address] source or destination."""
-            if spec in ("all", "any"):
-                return "all", ""
-            if spec in ("all+", "any+") or "!" in spec.split(":")[0]:
-                raise line.error(f"zone qualifier {spec} not supported yet")
+            """Split a zone[:address] source or destination. all and any are
+            the catch-all meta-zones and may carry an address restriction,
+            e.g. all:192.168.45.0/24, so split the address off first."""
             zone, _, addr = spec.partition(":")
+            if zone in ("all", "any"):
+                return "all", addr
+            if zone in ("all+", "any+") or "!" in zone:
+                raise line.error(f"zone qualifier {spec} not supported yet")
             zone = fw_zone if zone == "$FW" else zone
             # A typo'd or undeclared zone would land in no chain and the rule
             # would be silently dropped, so reject it here.
@@ -1251,13 +1264,22 @@ def parse_rtrules(path, variables, interfaces, providers):
                 if not source and not dest:
                     raise line.error("you must specify either the source "
                                      "or destination in a rtrules entry")
-                r = RtRule(source="", dest=dest, provider=provider,
+                r = RtRule(source="", dest=_unbracket(dest), provider=provider,
                            priority=int(priority), mark=mark,
                            persistent=persistent, origin=origin)
                 if not source:
                     pass
                 elif source.startswith("&"):
                     r.runtime_iface = logical.get(source[1:], source[1:])
+                elif source.startswith("["):
+                    # A bracketed IPv6 address or network. Brackets keep its
+                    # colons out of the interface:address split.
+                    r.source = _unbracket(source)
+                elif ":" in source and "[" in source:
+                    # interface:[IPv6-address], the two combined.
+                    iface, _, addr = source.partition(":")
+                    r.iif = logical.get(iface, iface)
+                    r.source = _unbracket(addr)
                 elif _is_ip(source):
                     # A bare address or network, v4 or v6. Checked before the
                     # colon split so an IPv6 source is not read as iface:addr.

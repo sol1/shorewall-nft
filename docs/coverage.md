@@ -12,7 +12,7 @@ parsers, and by test.
 | shorewall.conf | Global settings read as variables. The subset we act on (logging, IP_FORWARDING, ROUTE_FILTER, DOCKER, defaults) is honored; unknown keys are ignored as upstream does. |
 | params | Shell variable definitions, including sourced files and sequential expansion. |
 | zones | Types ip/ipv4/ipv6/firewall; parent:child nesting; unsupported types fail loud. |
-| interfaces | Options dhcp, routeback, tcpflags, nosmurfs, routefilter, logmartians, sourceroute, forward, proxyarp, arp; wildcard globs; unknown options fail loud. |
+| interfaces | Options dhcp, routeback, tcpflags, nosmurfs, routefilter, rpfilter (strict reverse-path fib check, established traffic exempt), logmartians, sourceroute, forward, proxyarp, arp; wildcard globs; unknown options fail loud. sfilter and norfc1918 are accepted but warned, not yet enforced. |
 | policy | Default actions (Broadcast/Multicast drop), file-order precedence, implicit intra-zone accept, CONTINUE, QUEUE/NFQUEUE, log levels. |
 | rules | All 15 columns: action, source, dest, proto, ports, origdest, rate, user, mark, connlimit, time. Macros, DNAT, REDIRECT, sections. |
 | hosts | Zone membership scoped to addresses on an interface, with declaration-order precedence. |

@@ -122,6 +122,21 @@ def parse_tcclasses(text):
         os.unlink(p)
 
 
+def parse_rtrules(text):
+    ifaces = [Interface(zone="net", logical="eth0", physical="eth0",
+                        options={}),
+              Interface(zone="net", logical="eth1", physical="eth1",
+                        options={})]
+    pp = _tmp("teksavvy 1 1 - eth0 -\nrogers 2 2 - eth1 -\n", ".providers")
+    rr = _tmp(text, ".rtrules")
+    try:
+        provs = parsers.parse_providers(pp, {}, ifaces)
+        return parsers.parse_rtrules(rr, {}, ifaces, provs)
+    finally:
+        os.unlink(pp)
+        os.unlink(rr)
+
+
 (ok if rejects(lambda: parse_providers("isp1 1 1 - eth0 $(reboot)\n"))
  else bad)("providers: an injected gateway is rejected")
 (ok if len(parse_providers("isp1 1 1 - eth0 203.0.113.1\n")) == 1
@@ -130,6 +145,26 @@ def parse_tcclasses(text):
  else bad)("interfaces: an injected physical name is rejected")
 (ok if rejects(lambda: parse_tcclasses("eth0 1 10mbit $(reboot) 1\n"))
  else bad)("tcclasses: an injected CEIL is rejected")
+
+# --- rtrules: bracketed IPv6 SOURCE/DEST (reported on shorewall-users). The
+# brackets keep the address colons out of the interface:address split. ---
+_rr = parse_rtrules("[2607:f2c0:f00e:b700::/64] [2607:f2c0:f00e:b700::/64] "
+                    "main 900\n")
+(ok if _rr and _rr[0].source == "2607:f2c0:f00e:b700::/64"
+    and _rr[0].dest == "2607:f2c0:f00e:b700::/64" and not _rr[0].iif
+ else bad)("rtrules: bracketed IPv6 source and dest are addresses, not ifaces")
+_rr = parse_rtrules("[2607:fea8:be20:7fc::/64] - rogers 901!\n")
+(ok if _rr and _rr[0].source == "2607:fea8:be20:7fc::/64" and not _rr[0].iif
+    and _rr[0].persistent
+ else bad)("rtrules: bracketed IPv6 source with no dest parses")
+_rr = parse_rtrules("eth0:[2607:f2c0:f00e:b700::1] - teksavvy 902\n")
+(ok if _rr and _rr[0].iif == "eth0"
+    and _rr[0].source == "2607:f2c0:f00e:b700::1"
+ else bad)("rtrules: interface:[IPv6] combines the interface and address")
+# a plain IPv4 interface:address must still work
+_rr = parse_rtrules("eth0:192.168.1.0/24 - teksavvy 903\n")
+(ok if _rr and _rr[0].iif == "eth0" and _rr[0].source == "192.168.1.0/24"
+ else bad)("rtrules: IPv4 interface:address still parses")
 
 # --- config permission check: warn by default, error when strict ---
 d = tempfile.mkdtemp()

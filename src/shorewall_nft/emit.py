@@ -956,6 +956,17 @@ class Emitter:
                 out.append(i.physical)
         return out
 
+    def _rpfilter_ifaces(self):
+        """Interfaces with the rpfilter option: a reverse-path check drops a
+        packet whose source has no route back through the arriving
+        interface."""
+        out = []
+        for i in self.cfg.interfaces:
+            v = i.options.get("rpfilter")
+            if v and v not in (False, "0", "no"):
+                out.append(i.physical)
+        return out
+
     def _docker_coexist(self):
         """Keep the forward drop policy from clobbering Docker. Accept
         traffic on the Docker bridges so Docker's own table stays the
@@ -981,9 +992,11 @@ class Emitter:
         return f"{m} " if m else ""
 
     def _interface_filters(self, hook):
-        """Jump arriving traffic through the smurf and tcp-flag checks
-        for interfaces that carry those options, replicating upstream's
-        per-source-interface smurfs and tcpflags jumps."""
+        """Jump arriving traffic through the reverse-path, smurf and
+        tcp-flag checks for interfaces that carry those options, replicating
+        upstream's per-source-interface jumps."""
+        for iface in self._rpfilter_ifaces():
+            self.out(f'{self._iif_match(iface)}jump rpfilter', 2)
         for iface in self._nosmurfs_ifaces():
             self.out(f'{self._iif_match(iface)}ct state new,invalid,untracked '
                      "jump smurfs", 2)
@@ -1621,8 +1634,27 @@ class Emitter:
         return [_if_match(key, i) for i in ifaces]
 
     def _filter_chains(self):
-        """The smurfs and tcpflags check chains, translated from upstream
-        Misc.pm. Only emitted when an interface uses them."""
+        """The rpfilter, smurfs and tcpflags check chains, translated from
+        upstream Misc.pm. Only emitted when an interface uses them."""
+        if self._rpfilter_ifaces():
+            # Strict reverse-path filter: drop a packet whose source address
+            # has no route back through the interface it arrived on. Only
+            # new/related/invalid are checked; established traffic is exempt,
+            # so asymmetric return traffic on a multi-ISP box is not caught,
+            # matching upstream's state-limited rpfilter match. A DHCP client
+            # with no address yet (0.0.0.0 -> broadcast) has no route back, so
+            # the handshake is let through first.
+            disp = self.cfg.variables.get("RPFILTER_DISPOSITION", "drop").upper()
+            verdict = "reject" if disp.replace("A_", "") == "REJECT" else "drop"
+            self.out("")
+            self.out("chain rpfilter {", 1)
+            if self.cfg.family == 4:
+                # A DHCP client with no address yet sends from 0.0.0.0 to the
+                # server port and has no route back; let the handshake through.
+                self.out("ip saddr 0.0.0.0 udp dport 67 return", 2)
+            self.out("ct state established return", 2)
+            self.out(f"fib saddr . iif oif missing {verdict}", 2)
+            self.out("}", 1)
         level = self.cfg.variables.get("TCP_FLAGS_LOG_LEVEL", "info").lower()
         if self._nosmurfs_ifaces():
             ipkw = "ip6" if self.cfg.family == 6 else "ip"

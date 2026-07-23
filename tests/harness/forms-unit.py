@@ -132,6 +132,26 @@ form_ok("rules: USER value compiles and loads",
 form_ok("rules: CONNLIMIT !limit loads (no invalid nft keyword)",
         {"rules": "?SECTION NEW\nDROP net $FW tcp 22 - - - - - !10\n"})
 
+# --- rules: the 'all'/'any' meta-zone carrying an address restriction, e.g.
+#     DROP net all:192.168.45.0/24 (reported on shorewall-users) ---
+form_ok("rules: dest all:<net> compiles, loads, applies the address",
+        {"rules": "?SECTION NEW\nDROP net all:192.168.45.0/24\n"},
+        expect="192.168.45.0/24")
+form_ok("rules: source all:<net> compiles, loads, applies the address",
+        {"rules": "?SECTION NEW\nDROP all:10.0.0.0/8 net\n"},
+        expect="10.0.0.0/8")
+
+# --- rpfilter: reverse-path anti-spoofing is enforced, not just accepted
+#     (shorewall-users). The fib check and its ruleset must load. ---
+form_ok("interfaces: rpfilter emits a reverse-path drop that loads",
+        {"zones": "fw firewall\nnet ipv4\nloc ipv4\n",
+         "interfaces": "?FORMAT 2\nnet eth0 rpfilter\nloc eth1\n"},
+        expect="fib saddr . iif oif missing drop")
+form_ok("interfaces: rpfilter lets the DHCP client handshake through",
+        {"zones": "fw firewall\nnet ipv4\nloc ipv4\n",
+         "interfaces": "?FORMAT 2\nnet eth0 rpfilter,dhcp\nloc eth1\n"},
+        expect="ip saddr 0.0.0.0 udp dport 67 return")
+
 # --- SOURCE/DEST forms from shorewall-addresses(5) and shorewall-exclusion(5)
 # that regressed after 0.1.0 ---
 
