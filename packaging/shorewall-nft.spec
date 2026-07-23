@@ -110,6 +110,37 @@ DESTDIR=%{buildroot} packaging/install-lite.sh packaging/shorewallrc.redhat
 %systemd_postun shorewall-lsm.service
 %systemd_postun shorewall-geoip-update.timer
 
+%pretrans
+# The old shorewall/shorewall6 packages own /etc/shorewall{,6} as %config.
+# When rpm erases them to make way for shorewall-nft it deletes the unmodified
+# files and renames the modified ones to .rpmsave. This package does not own
+# that configuration (it is the administrator's), so snapshot it here and
+# restore it in %posttrans, keeping the admin's config across the swap.
+for d in shorewall shorewall6; do
+    c=%{_sysconfdir}/$d
+    s=%{_localstatedir}/lib/shorewall-nft/preswap/$d
+    if [ -d "$c" ] && [ -n "$(ls -A "$c" 2>/dev/null)" ]; then
+        rm -rf "$s"; mkdir -p "$s"
+        cp -a "$c"/. "$s"/
+    fi
+done
+exit 0
+
+%posttrans
+for d in shorewall shorewall6; do
+    c=%{_sysconfdir}/$d
+    s=%{_localstatedir}/lib/shorewall-nft/preswap/$d
+    [ -d "$s" ] || continue
+    ( cd "$s" && find . -type f ) | while read -r f; do
+        f=${f#./}; dest="$c/$f"
+        # restore only what the transaction removed; never overwrite a survivor
+        [ -e "$dest" ] || { mkdir -p "$(dirname "$dest")"; cp -a "$s/$f" "$dest"; }
+        rm -f "$dest.rpmsave"   # identical to what we just restored
+    done
+    rm -rf "$s"
+done
+exit 0
+
 %post lite
 # Register the units but do not enable or start them. Deploy a firewall
 # and run `shorewall-lite start` when ready.

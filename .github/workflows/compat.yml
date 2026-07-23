@@ -142,3 +142,16 @@ jobs:
         run: |
           docker run --rm -v "$PWD":/work:ro -w /work gentoo/stage3 \
             sh packaging/gentoo-ci-test.sh
+
+  rpm-upgrade:
+    name: "rpm: upgrade from legacy shorewall (#10)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Upgrading the legacy shorewall rpm must keep /etc/shorewall
+        # Builds our rpm and a stand-in shorewall-5.2.8 that owns the config as
+        # %config(noreplace), then upgrades and checks the admin's config
+        # survives the swap (the %pretrans/%posttrans preserve/restore).
+        run: |
+          docker run --rm -v "$PWD":/work:ro -w /work fedora:41 \
+            sh packaging/rpm-upgrade-test.sh
