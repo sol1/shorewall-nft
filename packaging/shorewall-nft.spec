@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.2.2
+Version:        0.2.3
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -156,6 +156,10 @@ exit 0
 %systemd_postun shorewall6-lite.service
 
 %changelog
+* Thu Jul 23 2026 Dave Kempe <dave@sol1.com.au> - 0.2.3-1
+- Fix #10: upgrading the legacy shorewall rpm no longer loses /etc/shorewall.
+  The config is snapshotted in %pretrans and restored in %posttrans.
+
 * Thu Jul 23 2026 Dave Kempe <dave@sol1.com.au> - 0.2.2-1
 - Gentoo support: an ebuild, an OpenRC init script and a source install path.
 

@@ -1,3 +1,14 @@
+shorewall-nft (0.2.3) unstable; urgency=medium
+
+  * Fix #10 (rpm only). Upgrading the legacy shorewall rpm to shorewall-nft no
+    longer loses /etc/shorewall. Because shorewall-nft obsoletes the old
+    shorewall package, which owned the config, rpm deleted the unmodified files
+    and renamed the modified ones to .rpmsave when it was erased. The config is
+    now snapshotted before the swap and restored afterward. The deb was never
+    affected, since dpkg keeps conffiles on package removal.
+
+ -- Dave Kempe <dave@sol1.com.au>  Thu, 23 Jul 2026 09:30:00 +1000
+
 shorewall-nft (0.2.2) unstable; urgency=medium
 
   * Gentoo support. Install from source with packaging/install.sh and
