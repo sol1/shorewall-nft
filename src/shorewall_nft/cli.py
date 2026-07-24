@@ -1674,9 +1674,101 @@ def cmd_automate(args, family):
     return automate.run(args, family)
 
 
+def _recent_shorewall_log(n=15):
+    """The last n kernel-log lines that carry one of our nft log prefixes.
+    Tries journalctl, then the syslog files, then dmesg. Oldest first, [] if
+    none found. No privilege beyond what the source itself needs."""
+    def tail(lines):
+        return [ln for ln in lines if "shorewall" in ln][-n:]
+    if shutil.which("journalctl"):
+        r = subprocess.run(["journalctl", "-k", "-n", "800", "--no-pager",
+                            "-o", "short-iso"], capture_output=True, text=True)
+        if r.returncode == 0 and "shorewall" in r.stdout:
+            return tail(r.stdout.splitlines())
+    for path in ("/var/log/kern.log", "/var/log/messages", "/var/log/syslog"):
+        try:
+            with open(path, errors="replace") as f:
+                hits = tail(f.read().splitlines())
+            if hits:
+                return hits
+        except OSError:
+            continue
+    if shutil.which("dmesg"):
+        r = subprocess.run(["dmesg", "-T"], capture_output=True, text=True)
+        if r.returncode == 0:
+            return tail(r.stdout.splitlines())
+    return []
+
+
+def _monitor_frame(family):
+    """One classic monitor frame: the status block, then recent log hits."""
+    cmd_status([], family)
+    print("\nRecent firewall log:")
+    hits = _recent_shorewall_log()
+    if hits:
+        for ln in hits:
+            print("  " + ln[-160:])
+    else:
+        print("  (no recent shorewall log hits; check LOG rules and logging)")
+
+
+def _fancy_install_hint():
+    for line in (
+        "shorewall monitor fancy needs the optional 'textual' TUI library.",
+        "It is not installed by the package. Install it one of these ways:",
+        "    pipx install textual                 # isolated, recommended",
+        "    apt install python3-textual          # if your distro has it",
+        "    python3 -m venv ~/.cache/swnft-tui && \\",
+        "      ~/.cache/swnft-tui/bin/pip install textual",
+        "Until then, 'shorewall monitor' gives the classic view.",
+    ):
+        print(line, file=sys.stderr)
+
+
+def cmd_monitor(args, family):
+    """A live view of the firewall. `monitor` is the classic refreshing text
+    screen (stdlib, always available). `monitor fancy` is a TUI that uses an
+    optional library the package does not depend on."""
+    once = "--once" in args or not sys.stdout.isatty()
+    interval = 5
+    for i, a in enumerate(args):
+        if a in ("--interval", "-i") and i + 1 < len(args):
+            try:
+                interval = max(1, int(args[i + 1]))
+            except ValueError:
+                pass
+    if "fancy" in args:
+        try:
+            import textual  # noqa: F401
+        except ImportError:
+            _fancy_install_hint()
+            return 1
+        try:
+            from . import monitor_tui
+        except ImportError:
+            print("shorewall-nft: the fancy monitor is not in this build yet; "
+                  "use 'shorewall monitor'.", file=sys.stderr)
+            return 1
+        return monitor_tui.run(family, interval)
+    try:
+        while True:
+            if not once:
+                sys.stdout.write("\033[2J\033[3J\033[H")
+            _monitor_frame(family)
+            if once:
+                break
+            print(f"\n(refreshing every {interval}s; Ctrl-C to quit)")
+            sys.stdout.flush()
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        print()
+    return 0
+
+
 VERBS = {
     "version": cmd_version,
     "automate": cmd_automate,
+    "monitor": cmd_monitor,
     "enable": cmd_enable,
     "disable": cmd_disable,
     "reenable": cmd_reenable,

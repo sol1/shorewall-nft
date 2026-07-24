@@ -43,6 +43,7 @@ Start with what you want to do.
 - [Docker coexistence design](design/docker.md)
 - [Multi-ISP and a pure-Python link monitor](design/multi-isp-lsm.md)
 - [Support for older nftables (Debian 10/11, Ubuntu 20.04)](design/legacy-nft.md)
+- [shorewall monitor: a live view of the firewall](design/monitor.md)
 
 ### Research
 
