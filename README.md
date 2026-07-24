@@ -47,8 +47,11 @@ do to live packets.
   for shorewall6. They never collide, so a box can run both at once, and neither
   filters the other's protocol. The ruleset never flushes tables owned by other
   software.
-- Baseline: nftables 1.0.2 or later, as shipped by Ubuntu 22.04 and Debian 12.
-  CI runs the suite against nftables 1.0.2.
+- Baseline: nftables 1.0.2 (Ubuntu 22.04, Debian 12) for the full feature set.
+  The compiler adapts down to nftables 0.9.0 (Debian 10) by probing what the
+  local nft and kernel accept, so an older release loads an equivalent ruleset.
+  CI runs the differential suite against 1.0.2 and loads every ruleset with
+  each supported release's own nft.
 
 ## Compatibility
 
@@ -135,13 +138,23 @@ distro, and [docs/packaging.md](docs/packaging.md) for the packaging design.
 
 ## Supported platforms
 
-The packages install and run on any distribution with Python 3.7 or later
-and nftables: Debian 10 and up, Ubuntu 20.04 and up, RHEL, Rocky and
-AlmaLinux 9 and up, Fedora, and their derivatives. The `.deb` is
-`Architecture: all` and the `.rpm` is `noarch`, so one build serves every
-release. Releases older than these ship Python below 3.7 and are not
-supported. The Compat CI workflow install-tests the packages on each of
-these on every change.
+Debian 10 and up, Ubuntu 20.04 and up, RHEL, Rocky and AlmaLinux 9 and up,
+Fedora, and their derivatives. The one hard requirement is Python 3.7 or
+later. The compiler adapts its output to whatever nftables the box runs, from
+0.9.0 (Debian 10) to current, by probing what the local nft and kernel accept.
+A mixed fleet takes one package and one configuration, with no per-release
+branching.
+
+A few features need a newer nftables than the oldest releases ship. These are
+refused at check time with a clear, located message, never emitted as rules
+that will not load: NETMAP needs nftables 0.9.5 (Ubuntu 20.04 has 0.9.3), and
+ECN control needs the tcp flag names added after 0.9.0 (Debian 10). The rest of
+the configuration compiles and loads.
+
+The `.deb` is `Architecture: all` and the `.rpm` is `noarch`, so one build
+serves every release. Releases older than these ship Python below 3.7 and are
+not supported. Compat CI install-tests the packages and loads every corpus
+ruleset with each release's own nftables on every change.
 
 ## Multi-ISP and failover
 

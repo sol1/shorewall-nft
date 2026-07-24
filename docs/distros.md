@@ -50,9 +50,17 @@ is the same self-contained shell script the compiler produced.
 
 ### Debian and Ubuntu
 
-- Packages: `shorewall-nft` (Depends: python3 >= 3.7, nftables) and
+- Packages: `shorewall-nft` (Depends: python3 >= 3.7, nftables, netbase) and
   `shorewall-nft-lite` (Depends: nftables, iproute2), both Architecture: all,
-  from one dpkg-buildpackage.
+  from one dpkg-buildpackage. netbase provides /etc/protocols, which an older
+  nft reads to resolve ipv6-icmp.
+- Debian 10 and up, Ubuntu 20.04 and up. The compiler probes the local nft and
+  kernel and emits the form they load: named priorities and concatenated
+  dispatch on a modern box, numeric priorities and a de-concatenated cascade on
+  Debian 10 (nft 0.9.0, kernel 4.19). See docs/design/legacy-nft.md. NETMAP
+  (needs nft 0.9.5) and ECN control (needs flag names after 0.9.0) are refused
+  at check time on the releases whose nft is too old, not emitted as rules that
+  fail to load.
 - The full package Provides/Conflicts/Replaces shorewall, shorewall6 and
   shorewall-core, so it takes over cleanly from the old Shorewall.
 - Services are registered through dh_installsystemd and left disabled and not

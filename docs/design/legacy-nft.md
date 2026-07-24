@@ -188,8 +188,9 @@ ruleset. Compile-only is what hid this problem in the first place.
   whole corpus loads on Debian 10, with ECN and NETMAP cleanly gated. `meta
   hour` time matches are the one known 0.9.0 gap not yet gated; no corpus
   config exercises it, so it is deferred until a config needs it.
-- Phase 3. Docs say Debian 10 and up, Ubuntu 20.04 and up, truthfully. Bullseye
-  stays a packages.sol1.net target. Release.
+- Phase 3. Done. README and docs/distros.md say Debian 10 and up, Ubuntu 20.04
+  and up, and describe the auto-adaptation. Bullseye stays a packages.sol1.net
+  target. Shipped in the release that carries P1 and P2.
 
 ## Open questions
 
