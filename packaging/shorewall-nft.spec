@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.2.4
+Version:        0.2.5
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -156,6 +156,12 @@ exit 0
 %systemd_postun shorewall6-lite.service
 
 %changelog
+* Fri Jul 24 2026 Dave Kempe <dave@sol1.com.au> - 0.2.5-1
+- Support older nftables (Debian 10/11, Ubuntu 20.04). The compiler probes the
+  local nft and kernel and emits the form they load: numeric priorities,
+  bitwise flags, no nat family qualifier and a de-concatenated dispatch on old
+  nft. NETMAP and ECN are refused with a located error where nft is too old.
+
 * Thu Jul 23 2026 Dave Kempe <dave@sol1.com.au> - 0.2.4-1
 - rules: the all/any meta-zone may carry an address, e.g. all:192.168.45.0/24.
 - rtrules: bracketed IPv6 addresses parse instead of erroring as interfaces.

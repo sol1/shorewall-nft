@@ -1,3 +1,16 @@
+shorewall-nft (0.2.5) unstable; urgency=medium
+
+  * Support older nftables: Debian 10 and 11 and Ubuntu 20.04, whose nft (0.9.0
+    to 0.9.8) is below the 1.0.2 baseline. The compiler probes the local nft
+    and kernel and emits the form they load: numeric chain priorities, bitwise
+    tcp flags, no nat family qualifier, and a de-concatenated zone dispatch on a
+    pre-5.3 kernel. Modern releases are unchanged. NETMAP (needs nft 0.9.5) and
+    ECN control (needs flag names after 0.9.0) are refused at check time with a
+    located error rather than emitted as rules that cannot load. The package
+    now also depends on netbase for /etc/protocols.
+
+ -- Dave Kempe <dave@sol1.com.au>  Fri, 24 Jul 2026 14:52:00 +1000
+
 shorewall-nft (0.2.4) unstable; urgency=medium
 
   * Three fixes from shorewall-users feedback. Rules may use the all/any

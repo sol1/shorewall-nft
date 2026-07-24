@@ -8,7 +8,7 @@
 #   updpkgsums    (from pacman-contrib)
 pkgbase=shorewall-nft
 pkgname=('shorewall-nft' 'shorewall-nft-lite')
-pkgver=0.2.4
+pkgver=0.2.5
 pkgrel=1
 pkgdesc="Shorewall firewall compiler and runtime for nftables"
 arch=('any')
