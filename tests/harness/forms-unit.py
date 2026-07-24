@@ -234,28 +234,40 @@ form_ok("mss: clamp emits bitwise flags, not the mask shorthand",
          "interfaces": "?FORMAT 2\nnet eth0 mss=1400\nloc eth1\n"},
         expect="tcp flags & (syn|rst) == syn")
 
-# --- legacy nft: with named priorities gated off (Debian 10, nft 0.9.0), the
-#     ruleset uses numeric priorities, keeps bitwise flags, and still loads ---
-capabilities.CAPABILITIES["NFT_NAMED_PRIORITY"] = False
+# --- legacy nft (Debian 10, nft 0.9.0): every fallback forced on at once
+#     must still compile to a loadable ruleset. Numeric priorities, bitwise
+#     flags, no nat family qualifier, and a de-concatenated dispatch. ---
+_LEGACY = ("NFT_NAMED_PRIORITY", "NFT_NAT_FAMILY", "NFT_CONCAT_MAPS")
+for _c in _LEGACY:
+    capabilities.CAPABILITIES[_c] = False
 try:
-    d = build({"interfaces": "?FORMAT 2\nnet eth0 mss=1400\nloc eth1\n",
-               "zones": "fw firewall\nnet ipv4\nloc ipv4\n"})
+    d = build({"zones": "fw firewall\nnet ipv4\nloc ipv4\n",
+               "interfaces": "?FORMAT 2\nnet eth0 mss=1400\nloc eth1\n",
+               "rules": "?SECTION NEW\nDNAT net loc:10.0.0.9 tcp 8080\n"})
     try:
         text = render(load(d, 4))
     finally:
         shutil.rmtree(d)
     loads, msg = nft_loads(text)
-    numeric = bool(re.search(r"priority -?\d+;", text))
-    named = bool(re.search(r"priority (filter|mangle|dstnat|srcnat);", text))
+    checks = {
+        "numeric priorities": bool(re.search(r"priority -?\d+;", text))
+        and not re.search(r"priority (filter|mangle|dstnat|srcnat);", text),
+        "bitwise flags": "tcp flags & (syn|rst) == syn" in text,
+        "nat 'to' without family": "dnat to " in text
+        and "dnat ip to" not in text,
+        "de-concatenated dispatch": "iifname . oifname vmap" not in text
+        and 'oifname "eth1" jump' in text,
+    }
     if not loads:
-        bad("legacy priorities: ruleset did not load", msg)
-    elif named or not numeric:
-        bad("legacy priorities", f"numeric={numeric} named-left={named}")
-    elif "tcp flags & (syn|rst) == syn" not in text:
-        bad("legacy priorities: flags not bitwise")
+        bad("legacy stack: ruleset did not load", msg)
     else:
-        ok("legacy: named priorities gated off give numeric that loads")
+        missing = [k for k, v in checks.items() if not v]
+        if missing:
+            bad("legacy stack", "not applied: " + ", ".join(missing))
+        else:
+            ok("legacy: all fallbacks together compile to loadable output")
 finally:
-    capabilities.CAPABILITIES["NFT_NAMED_PRIORITY"] = True
+    for _c in _LEGACY:
+        capabilities.CAPABILITIES[_c] = True
 
 sys.exit(1 if fails else 0)

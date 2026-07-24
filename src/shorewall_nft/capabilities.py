@@ -39,6 +39,9 @@ CAPABILITIES = {
     # with probing off; the real commands probe and override on an old nft.
     "NFT_NAMED_PRIORITY": True,
     "NFT_PREFIX_NAT": True,
+    "NFT_NAT_FAMILY": True,
+    "NFT_TCP_ECN": True,
+    "NFT_CONCAT_MAPS": True,
 }
 
 # A conntrack-helper capability maps to the nft ct helper type and a
@@ -76,6 +79,23 @@ SYNTAX_PROBES = {
                       "\t\ttype nat hook prerouting priority -100;\n"
                       "\t\tdnat ip prefix to ip daddr map "
                       "{ 10.0.0.0/24 : 192.168.0.0/24 }\n\t}\n}\n",
+    # The family qualifier before a nat "to" (dnat ip to ...). nft 0.9.0 has
+    # no such form; plain "dnat to" works everywhere, so drop it there.
+    "NFT_NAT_FAMILY": "table ip shorewall_capcheck {\n\tchain c {\n"
+                      "\t\ttype nat hook prerouting priority -100;\n"
+                      "\t\tdnat ip to 10.0.0.1\n\t}\n}\n",
+    # The tcp ecn and cwr flag names, used by ECN control. nft 0.9.0 does not
+    # know them (0.9.3 does).
+    "NFT_TCP_ECN": "table ip shorewall_capcheck {\n\tchain c {\n"
+                   "\t\ttcp flags & (syn|ecn|cwr) == syn|ecn|cwr accept\n"
+                   "\t}\n}\n",
+    # Concatenated verdict maps (iifname . oifname vmap), the zone dispatch.
+    # The userspace parses them from 0.9.0, but the kernel needs set
+    # concatenation, added in 5.3. Debian 10's stock 4.19 kernel lacks it, so
+    # this is probed by loading, which exercises the kernel too.
+    "NFT_CONCAT_MAPS": "table ip shorewall_capcheck {\n\tchain a { }\n"
+                       "\tchain c {\n\t\tiifname . oifname vmap "
+                       '{ "lo" . "lo" : jump a }\n\t}\n}\n',
 }
 
 _probe_enabled = False

@@ -25,15 +25,35 @@ sh /work/packaging/install.sh /work/packaging/shorewallrc.debian >/tmp/i.log 2>&
     || { echo "INSTALL FAILED (install.sh)"; tail -5 /tmp/i.log; exit 1; }
 
 echo "### $PRETTY_NAME  nft $(nft --version 2>/dev/null | awk '{print $2}')  python $(python3 --version 2>&1 | awk '{print $2}')"
-# Show which priority form the probe selected here, for the record.
-shorewall compile /work/tests/corpus/0003-two-interfaces/config -o /tmp/p.nft >/dev/null 2>&1
+
+# FORCE_LEGACY compiles with every legacy fallback forced on, via a caps
+# profile, regardless of what the box probes. This exercises the oldest forms
+# (numeric priorities, no nat family qualifier, de-concatenated dispatch) on
+# the distro's real nft userspace, which is as close as a shared-kernel
+# container gets to a stock Debian 10 (nft 0.9.0, kernel 4.19).
+CAPS=""
+if [ "${FORCE_LEGACY:-0}" = "1" ]; then
+    CAPS=/tmp/legacy.caps
+    cat > "$CAPS" <<EOF
+NFT_NAMED_PRIORITY=No
+NFT_NAT_FAMILY=No
+NFT_CONCAT_MAPS=No
+NFT_PREFIX_NAT=No
+NFT_TCP_ECN=No
+EOF
+    echo "### forcing legacy fallbacks (caps profile)"
+fi
+capsarg=""; [ -n "$CAPS" ] && capsarg="--caps $CAPS"
+
+# Show which priority form is selected here, for the record.
+shorewall compile /work/tests/corpus/0003-two-interfaces/config $capsarg -o /tmp/p.nft >/dev/null 2>&1
 echo "priority form: $(grep -m1 -oE 'hook input priority [^;]+' /tmp/p.nft)"
 
 pass=0; fail=0; gated=0; failed=""
 for c in /work/tests/corpus/*/; do
     name=$(basename "$c"); [ -d "$c/config" ] || continue
     fam=4; case "$name" in *v6*) fam=6;; esac
-    if ! shorewall compile "$c/config" -o /tmp/o.nft --family "$fam" \
+    if ! shorewall compile "$c/config" $capsarg -o /tmp/o.nft --family "$fam" \
             >/tmp/c.log 2>&1; then
         # A capability gate (e.g. NETMAP on nft < 0.9.5) is an honest,
         # located refusal, not a load failure. Show it and move on.

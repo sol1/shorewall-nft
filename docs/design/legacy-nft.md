@@ -170,19 +170,38 @@ ruleset. Compile-only is what hid this problem in the first place.
   - The capability probe now always uses `unshare -r -n`, so it works under a
     restricted root (a container without CAP_SYS_ADMIN) instead of silently
     falling back to the compile-time default.
-- Phase 2. `NFT_CONCAT_MAPS` probe and the de-concatenated dispatch fallback.
-  `NFT_DNAT_TO` and `NFT_META_TIME` for 0.9.0. This ships Debian 10, including
-  a stock 4.19 kernel. The larger chunk.
+- Phase 2. Debian 10 (nft 0.9.0). Done. The load proof found four 0.9.0
+  blockers beyond the priority names, each handled by a probe:
+  - The nat family qualifier (`dnat ip to`). 0.9.0 has no such form; plain
+    `dnat to` loads everywhere, so it is dropped when `NFT_NAT_FAMILY` is off.
+  - The tcp `ecn`/`cwr` flag names, used by ECN control. Gated on `NFT_TCP_ECN`;
+    an ecn file is refused at compile with a located error on 0.9.0.
+  - Concatenated verdict maps in the kernel. 0.9.0 userspace parses them, but a
+    pre-5.3 kernel (Debian 10's stock 4.19) does not. `NFT_CONCAT_MAPS`, probed
+    by loading so the kernel counts, selects a de-concatenated dispatch: one
+    plain `iifname .. oifname .. jump` rule per interface pair, the upstream
+    cascade.
+  - The ECN chain priority, a named-priority site the first pass missed.
+  A shared-kernel container cannot present a 4.19 kernel, so a forced-legacy
+  mode (FORCE_LEGACY, a legacy-load job in Compat) compiles with every fallback
+  on and loads the result on the real 0.9.0 and 0.9.3 userspaces. Result: the
+  whole corpus loads on Debian 10, with ECN and NETMAP cleanly gated. `meta
+  hour` time matches are the one known 0.9.0 gap not yet gated; no corpus
+  config exercises it, so it is deferred until a config needs it.
 - Phase 3. Docs say Debian 10 and up, Ubuntu 20.04 and up, truthfully. Bullseye
   stays a packages.sol1.net target. Release.
 
 ## Open questions
 
-- The exact 0.9.0 construct behind the `0005-dnat` line-132 error, the `to`
-  token. Pin it in Phase 2 and confirm the nat rewrite covers every nat form,
-  not just the one config.
-- Whether we emit any named set with a concatenated type, which 0.9.0 also
-  rejects. Audit in Phase 2.
-- Stock buster kernel 4.19. Ship the dispatch fallback, or require the
-  buster-backports 5.10 kernel and skip it. Decide with the customer's actual
-  kernels in hand.
+- Resolved. The `0005-dnat` line-132 error was the nat family qualifier
+  (`dnat ip to`), not a bare `to`. The gate covers every nat `to` site (one2one
+  pre/post/out, dnat, snat), which the whole corpus loading on 0.9.0 confirms.
+- Resolved. The de-concatenated dispatch fallback ships (NFT_CONCAT_MAPS),
+  probed by loading so it selects itself on a pre-5.3 kernel. A stock-4.19
+  buster therefore needs no backport kernel.
+- `meta hour` time matches on nft 0.9.0. Not yet gated; no corpus config uses
+  a TIME rule, so it is deferred. Add an NFT_META_TIME gate when a config needs
+  it, matching the ECN and NETMAP gates.
+- Whether any emitted named set uses a concatenated type, which 0.9.0 also
+  rejects. The corpus does not hit it (it all loads on 0.9.0); revisit if a
+  config with concatenated named sets turns up.

@@ -654,6 +654,12 @@ class Emitter:
         # Keep readable priority names where the local nft accepts them; fall
         # back to numbers on an old nft that lacks the names.
         self.named_priority = capabilities.lookup("NFT_NAMED_PRIORITY")
+        # Family qualifier on a nat 'to' (dnat ip to ...); dropped on nft 0.9.0.
+        self.nat_family = capabilities.lookup("NFT_NAT_FAMILY")
+        # Concatenated verdict maps for zone dispatch; a plain rule cascade
+        # replaces them where the kernel has no set concatenation (before 5.3,
+        # Debian 10's stock kernel).
+        self.concat_maps = capabilities.lookup("NFT_CONCAT_MAPS")
         # Distinct default-action strings in use, each gets a chain.
         self._default_chains = {}
         seen = set()
@@ -673,6 +679,13 @@ class Emitter:
 
     def _prio(self, spec):
         return _priority_token(spec, self.named_priority)
+
+    def _nat_fam(self, ipkw):
+        """The family qualifier before a nat 'to' (e.g. 'ip ' or 'ip6 '),
+        kept where the nft accepts it and dropped on nft 0.9.0, which has no
+        'dnat ip to' form. Plain 'dnat to' loads on every nft. The netmap
+        prefix form keeps its qualifier and is gated separately."""
+        return f"{ipkw} " if self.nat_family else ""
 
     def render(self):
         cfg = self.cfg
@@ -1138,10 +1151,16 @@ class Emitter:
                             ordered.append((rank, " ".join(m) +
                                             f" jump {self._chain_for(z1, z2)}"))
                         else:
-                            entries.append(f'"{i1}" . "{i2}"'
-                                           f" : jump {self._chain_for(z1, z2)}")
-        if entries:
-            self.out("iifname . oifname vmap { " + ", ".join(entries) + " }", 2)
+                            entries.append((i1, i2, self._chain_for(z1, z2)))
+        if entries and self.concat_maps:
+            vm = ", ".join(f'"{i1}" . "{i2}" : jump {c}' for i1, i2, c in entries)
+            self.out("iifname . oifname vmap { " + vm + " }", 2)
+        elif entries:
+            # No set concatenation in the kernel (before 5.3): one plain rule
+            # per interface pair, the upstream cascade. The pairs are distinct,
+            # so order among them does not matter.
+            for i1, i2, c in entries:
+                self.out(f'iifname "{i1}" oifname "{i2}" jump {c}', 2)
         seen = set()
         for _, line in sorted(ordered, key=lambda e: e[0]):
             if line not in seen:
@@ -1563,11 +1582,17 @@ class Emitter:
         Applied on output and postrouting as upstream does."""
         if not self.cfg.ecn:
             return
+        if not capabilities.lookup("NFT_TCP_ECN"):
+            origin = self.cfg.ecn[0][2] or "ecn"
+            raise ConfigError(
+                f"{origin}: ECN control needs the tcp ecn and cwr flag names "
+                "added after nftables 0.9.0; this system's nftables is older. "
+                "Drop the ecn file or upgrade nftables.")
         ipkw = "ip6" if self.cfg.family == 6 else "ip"
         for hook, prio in (("output", "mangle"), ("postrouting", "mangle")):
             self.out("")
             self.out(f"chain ecn_{hook} {{", 1)
-            self.out(f"type filter hook {hook} priority {prio};", 2)
+            self.out(f"type filter hook {hook} priority {self._prio(prio)};", 2)
             for iface, hosts, origin in self.cfg.ecn:
                 m = [t for t in [_if_match("oifname", iface)] if t]
                 if hosts:
@@ -1743,7 +1768,8 @@ class Emitter:
                 dev = f"{ifm} " if ifm else ""
                 comment = f' comment "{n.origin}"' if n.origin else ""
                 self.out(f"{dev}{ipkw6} daddr {n.external} "
-                         f"dnat {ipkw6} to {n.internal}{comment}", 2)
+                         f"dnat {self._nat_fam(ipkw6)}to {n.internal}"
+                         f"{comment}", 2)
             self.out("}", 1)
             self.out("")
             self.out("chain nat_one2one_post {", 1)
@@ -1754,7 +1780,8 @@ class Emitter:
                 dev = f"{ifm} " if ifm else ""
                 comment = f' comment "{n.origin}"' if n.origin else ""
                 self.out(f"{dev}{ipkw6} saddr {n.internal} "
-                         f"snat {ipkw6} to {n.external}{comment}", 2)
+                         f"snat {self._nat_fam(ipkw6)}to {n.external}"
+                         f"{comment}", 2)
             self.out("}", 1)
             if any(n.local for n in self.cfg.nat):
                 self.out("")
@@ -1766,7 +1793,8 @@ class Emitter:
                 for n in self.cfg.nat:
                     if n.local:
                         self.out(f"{ipkw6} daddr {n.external} "
-                                 f"dnat {ipkw6} to {n.internal}", 2)
+                                 f"dnat {self._nat_fam(ipkw6)}to "
+                                 f"{n.internal}", 2)
                 self.out("}", 1)
         if self.cfg.netmap and not capabilities.lookup("NFT_PREFIX_NAT"):
             n = self.cfg.netmap[0]
@@ -1826,7 +1854,7 @@ class Emitter:
                     to = f"[{addr}]:{d.to_port}" if d.to_port else addr
                 else:
                     to = addr + (f":{d.to_port}" if d.to_port else "")
-                action = f"dnat {ipkw} to {to}{flags}"
+                action = f"dnat {self._nat_fam(ipkw)}to {to}{flags}"
             else:
                 action = f"redirect to :{d.to_port}{flags}"
             m = []
@@ -1930,7 +1958,8 @@ class Emitter:
                     verdict += f" to :{s.to_addr}"
                 verdict += flags
             else:
-                verdict = f"snat {ipkw} to {_unbracket(s.to_addr)}{flags}"
+                verdict = (f"snat {self._nat_fam(ipkw)}to "
+                           f"{_unbracket(s.to_addr)}{flags}")
             comment = f' comment "{s.origin}"' if s.origin else ""
             self.out(" ".join(m) + f" {verdict}{comment}", 2)
         self.out("}", 1)

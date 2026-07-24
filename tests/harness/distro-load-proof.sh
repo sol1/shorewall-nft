@@ -19,7 +19,8 @@ fi
 rc=0
 for img in $DISTROS; do
     docker run --rm --cap-add=NET_ADMIN --security-opt seccomp=unconfined \
-        -e "STRICT=${STRICT:-0}" -v "$REPO":/work:ro "$img" \
+        -e "STRICT=${STRICT:-0}" -e "FORCE_LEGACY=${FORCE_LEGACY:-0}" \
+        -v "$REPO":/work:ro "$img" \
         sh /work/packaging/distro-load-test.sh || rc=1
 done
 exit "$rc"

@@ -164,8 +164,9 @@ jobs:
       matrix:
         # Every corpus ruleset must actually load with the distro's own nft,
         # not just compile. This is what catches an nft too old to load our
-        # output. Debian 10 (nft 0.9.0) is added once its fallbacks land (P2).
+        # output.
         image:
+          - debian:10
           - debian:11
           - debian:12
           - debian:13
@@ -177,9 +178,31 @@ jobs:
       - name: Install from source and load every ruleset with the distro's nft
         # NET_ADMIN and unconfined seccomp let nft -f and the capability
         # probe's unshare work as on real hardware. STRICT fails on any load
-        # failure; a capability-gated construct (NETMAP on nft < 0.9.5) is a
-        # clean refusal, not a failure.
+        # failure; a capability-gated construct (NETMAP on nft < 0.9.5, ECN on
+        # nft 0.9.0) is a clean refusal, not a failure.
         run: |
           docker run --rm --cap-add=NET_ADMIN --security-opt seccomp=unconfined \
             -e STRICT=1 -v "$PWD":/work:ro "${{ matrix.image }}" \
+            sh /work/packaging/distro-load-test.sh
+
+  legacy-load:
+    name: "load (forced legacy): ${{ matrix.image }}"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Force every legacy fallback on and load against the oldest nft
+        # userspaces. A shared-kernel container cannot present a pre-5.3 kernel,
+        # so this validates that the de-concatenated dispatch, numeric
+        # priorities and no-family nat parse and load on nft 0.9.0/0.9.3, the
+        # closest proof of the stock Debian 10 (kernel 4.19) path.
+        image:
+          - debian:10
+          - ubuntu:20.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Load the forced-legacy ruleset on the old nft
+        run: |
+          docker run --rm --cap-add=NET_ADMIN --security-opt seccomp=unconfined \
+            -e STRICT=1 -e FORCE_LEGACY=1 -v "$PWD":/work:ro "${{ matrix.image }}" \
             sh /work/packaging/distro-load-test.sh
