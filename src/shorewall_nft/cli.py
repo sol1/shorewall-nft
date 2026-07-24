@@ -6,6 +6,7 @@ timeout. Verbs that are not implemented yet fail with a message naming
 the gap. They must never succeed silently or die with a traceback.
 """
 import ipaddress
+import json
 import os
 import re
 import select
@@ -1700,9 +1701,44 @@ def _recent_shorewall_log(n=15):
     return []
 
 
+def _read_counters(family):
+    """Our named monitor counters, {name: (packets, bytes)}. Empty if the
+    table, the counters (COUNTERS=Yes) or nft itself are not there."""
+    fam = "ip6" if family == 6 else "ip"
+    r = subprocess.run([_nft(), "-j", "list", "counters", "table", fam,
+                        "shorewall"], capture_output=True, text=True)
+    if r.returncode != 0:
+        return {}
+    try:
+        doc = json.loads(r.stdout)
+    except (ValueError, TypeError):
+        return {}
+    out = {}
+    for obj in doc.get("nftables", []):
+        c = obj.get("counter")
+        if isinstance(c, dict) and "name" in c:
+            out[c["name"]] = (c.get("packets", 0), c.get("bytes", 0))
+    return out
+
+
 def _monitor_frame(family):
-    """One classic monitor frame: the status block, then recent log hits."""
+    """One classic monitor frame: the status block, the zone counters if
+    COUNTERS is on, then recent log hits."""
     cmd_status([], family)
+    counters = _read_counters(family)
+    traffic = sorted(n for n in counters if n.startswith("t_"))
+    if traffic:
+        print("\nZone traffic since load (COUNTERS):")
+        for n in traffic:
+            pkts, byts = counters[n]
+            print(f"  {n[2:]:<18} {byts:>14,} bytes {pkts:>12,} pkts")
+        denied = sorted(n for n in counters
+                        if n.startswith("d_") and counters[n][0])
+        if denied:
+            print("  denied:")
+            for n in denied:
+                pkts, byts = counters[n]
+                print(f"    {n[2:]:<16} {pkts:>12,} pkts")
     print("\nRecent firewall log:")
     hits = _recent_shorewall_log()
     if hits:

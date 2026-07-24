@@ -270,4 +270,35 @@ finally:
     for _c in _LEGACY:
         capabilities.CAPABILITIES[_c] = True
 
+# --- COUNTERS=Yes puts readable named counters on the zone-pair chains and
+#     the policy denies, still loads, and is absent by default (monitor reads
+#     these via nft -j) ---
+d = build({})
+try:
+    cfg = load(d, 4)
+    cfg.variables["COUNTERS"] = "Yes"
+    text = render(cfg)
+finally:
+    shutil.rmtree(d)
+loads, msg = nft_loads(text)
+decl = bool(re.search(r"counter t_\w+ \{ \}", text))
+traffic = bool(re.search(r"counter name t_\w+", text))
+deny = bool(re.search(r"counter name d_\w+ (drop|reject)", text))
+if not loads:
+    bad("COUNTERS: ruleset did not load", msg)
+elif not (decl and traffic and deny):
+    bad("COUNTERS", f"decl={decl} traffic={traffic} deny={deny}")
+else:
+    ok("COUNTERS=Yes emits loadable named counters for the monitor")
+
+d = build({})
+try:
+    text = render(load(d, 4))
+finally:
+    shutil.rmtree(d)
+if "counter name t_" in text:
+    bad("COUNTERS default", "counters emitted with the setting off")
+else:
+    ok("COUNTERS off by default: no monitor counters emitted")
+
 sys.exit(1 if fails else 0)

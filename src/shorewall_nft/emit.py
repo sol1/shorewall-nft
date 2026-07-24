@@ -660,6 +660,11 @@ class Emitter:
         # replaces them where the kernel has no set concatenation (before 5.3,
         # Debian 10's stock kernel).
         self.concat_maps = capabilities.lookup("NFT_CONCAT_MAPS")
+        # COUNTERS=Yes puts named counters on the zone-pair chains and the
+        # policy denies, so `shorewall monitor` can read per-pair traffic and
+        # drop figures. Off by default: a box that never monitors pays nothing.
+        self.counters = cfg.variables.get("COUNTERS", "No").lower() in (
+            "yes", "1", "true", "on")
         # Distinct default-action strings in use, each gets a chain.
         self._default_chains = {}
         seen = set()
@@ -747,6 +752,15 @@ class Emitter:
             self.out("}", 1)
         if self.sets:
             self.out("")
+        # Named counters for the monitor, declared before the chains that
+        # reference them: t_<chain> for traffic through a zone-pair chain,
+        # d_<chain> for what its policy denies.
+        if self.counters:
+            for chain in self._counter_chains():
+                self.out(f"counter t_{chain} {{ }}", 1)
+                self.out(f"counter d_{chain} {{ }}", 1)
+            if self._counter_chains():
+                self.out("")
         self._hook_chain("input")
         self._hook_chain("output")
         self._hook_chain("forward")
@@ -831,6 +845,20 @@ class Emitter:
         ifaces = self._zone_ifaces(zone)
         return any(i.options.get("routeback") for i in ifaces) or len(ifaces) > 1
 
+    def _counter_chains(self):
+        """Zone-pair chain names that carry monitor counters, the same set
+        render emits: the per-pair chains and the shared policy chains. Order
+        matches so the declared counter names line up with the referenced
+        ones."""
+        pair, shared = [], []
+        for z1, z2 in self._pairs():
+            name = self._chain_for(z1, z2)
+            if name == f"{z1}2{z2}":
+                pair.append(name)
+            elif name not in shared:
+                shared.append(name)
+        return list(dict.fromkeys(pair)) + sorted(shared)
+
     def _rules_for(self, z1, z2):
         return [r for r in self.cfg.rules
                 if r.source in (z1, "all") and r.dest in (z2, "all")]
@@ -883,7 +911,10 @@ class Emitter:
             self.out(f'log prefix "shorewall:{chain}:{policy.policy}:" '
                      f"level {policy.loglevel.lower()}", 2)
         if policy.policy in ("ACCEPT", "DROP", "REJECT", "QUEUE", "NFQUEUE"):
-            self.out(_verdict(policy.policy, policy.param), 2)
+            verdict = _verdict(policy.policy, policy.param)
+            if self.counters and policy.policy in ("DROP", "REJECT"):
+                verdict = f"counter name d_{chain} {verdict}"
+            self.out(verdict, 2)
         elif policy.policy == "NONE":
             pass
         elif policy.policy == "CONTINUE":
@@ -895,6 +926,8 @@ class Emitter:
         """A shared chain carrying only a policy disposition."""
         policy = self._policy_for(z1, z2)
         self.out(f"chain {name} {{", 1)
+        if self.counters:
+            self.out(f"counter name t_{name}", 2)
         if self.cfg.family == 6:
             self.out("meta l4proto ipv6-icmp jump AllowICMPs", 2)
         self.out("ct state established,related accept", 2)
@@ -1203,6 +1236,8 @@ class Emitter:
     def _pair_chain(self, z1, z2):
         chain = f"{z1}2{z2}"
         self.out(f"chain {chain} {{", 1)
+        if self.counters:
+            self.out(f"counter name t_{chain}", 2)
         if self.cfg.family == 6:
             self.out("meta l4proto ipv6-icmp jump AllowICMPs", 2)
 
