@@ -289,7 +289,7 @@ def main():
                   "seam-proof.sh", "default-route-proof.sh", "migrate-proof.sh",
                   "init-proof.sh", "init-wizard-proof.sh",
                   "upgrade-restart-proof.sh", "gentoo-proof.sh",
-                  "monitor-proof.sh",
+                  "monitor-proof.sh", "monitor-tui-unit.py",
                   "chunk-unit.py", "chunk-proof.sh", "validation-unit.py",
                   "hardening-unit.py", "forms-unit.py", "caps-unit.py",
                   "automate-unit.py",

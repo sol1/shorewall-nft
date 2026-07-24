@@ -1750,15 +1750,73 @@ def _monitor_frame(family):
 
 def _fancy_install_hint():
     for line in (
-        "shorewall monitor fancy needs the optional 'textual' TUI library.",
+        "shorewall monitor fancy needs the optional 'rich' library.",
         "It is not installed by the package. Install it one of these ways:",
-        "    pipx install textual                 # isolated, recommended",
-        "    apt install python3-textual          # if your distro has it",
-        "    python3 -m venv ~/.cache/swnft-tui && \\",
-        "      ~/.cache/swnft-tui/bin/pip install textual",
+        "    apt install python3-rich             # Debian/Ubuntu",
+        "    dnf install python3-rich             # Fedora/RHEL",
+        "    pipx install rich                    # any distro, isolated",
         "Until then, 'shorewall monitor' gives the classic view.",
     ):
         print(line, file=sys.stderr)
+
+
+def _iface_bytes():
+    """rx and tx bytes per interface from /proc/net/dev, {iface: (rx, tx)}."""
+    stats = {}
+    try:
+        with open("/proc/net/dev") as f:
+            for line in f:
+                if ":" not in line:
+                    continue
+                name, _, rest = line.partition(":")
+                cols = rest.split()
+                if len(cols) >= 16:
+                    stats[name.strip()] = (int(cols[0]), int(cols[8]))
+    except OSError:
+        pass
+    return stats
+
+
+def _zone_map(family):
+    """physical interface -> zone name, from the configuration. {} if the
+    config cannot be read."""
+    try:
+        from .compile import load
+        cfg = load(_confdir(family), family)
+        return {i.physical: i.zone for i in cfg.interfaces if i.zone}
+    except Exception:                             # noqa: BLE001
+        return {}
+
+
+def _monitor_sample(family, prev, interval):
+    """One monitor data frame: per-interface rates and zone counters,
+    differenced against prev. Returns (data, next_prev). Pure stdlib, so the
+    fancy renderer stays presentation-only and this stays testable."""
+    cur_if = _iface_bytes()
+    cur_cnt = _read_counters(family)
+    zmap = prev.get("zmap") or _zone_map(family)
+    span = max(interval, 1)
+
+    def rate(cur, old):
+        return max(0, cur - old) / span if old is not None else 0.0
+
+    ifaces = []
+    for name in sorted(cur_if):
+        rx, tx = cur_if[name]
+        prx, ptx = prev.get("if", {}).get(name, (None, None))
+        ifaces.append({"iface": name, "zone": zmap.get(name, "-"),
+                       "rx_bps": rate(rx, prx) * 8, "tx_bps": rate(tx, ptx) * 8})
+    zones = []
+    for n in sorted(k for k in cur_cnt if k.startswith("t_")):
+        pkts, byts = cur_cnt[n]
+        _, pbyts = prev.get("cnt", {}).get(n, (0, 0))
+        zones.append({"pair": n[2:], "bytes": byts, "pkts": pkts,
+                      "bps": rate(byts, pbyts) * 8})
+    denies = [{"pair": n[2:], "pkts": cur_cnt[n][0], "bytes": cur_cnt[n][1]}
+              for n in sorted(cur_cnt) if n.startswith("d_") and cur_cnt[n][0]]
+    data = {"ifaces": ifaces, "zones": zones, "denies": denies,
+            "counters_on": bool(cur_cnt)}
+    return data, {"if": cur_if, "cnt": cur_cnt, "zmap": zmap}
 
 
 def cmd_monitor(args, family):
@@ -1775,17 +1833,12 @@ def cmd_monitor(args, family):
                 pass
     if "fancy" in args:
         try:
-            import textual  # noqa: F401
+            import rich  # noqa: F401
         except ImportError:
             _fancy_install_hint()
             return 1
-        try:
-            from . import monitor_tui
-        except ImportError:
-            print("shorewall-nft: the fancy monitor is not in this build yet; "
-                  "use 'shorewall monitor'.", file=sys.stderr)
-            return 1
-        return monitor_tui.run(family, interval)
+        from . import monitor_tui
+        return monitor_tui.run(family, interval, once=once)
     try:
         while True:
             if not once:

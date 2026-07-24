@@ -28,15 +28,20 @@ printf '%s\n' "$out" | grep -qi "Recent firewall log" \
 run monitor --once >/dev/null 2>&1
 [ "$?" != 2 ] && pass "monitor is a registered verb" || bad "monitor unknown"
 
-# 3. monitor fancy without the TUI library: a located install hint, nonzero,
-#    never a traceback. (The harness has no textual installed.)
-err=$(run monitor fancy 2>&1 >/dev/null); rc=$?
-[ "$rc" != 0 ] && pass "fancy without the library exits nonzero" \
-    || bad "fancy rc=$rc"
-printf '%s\n' "$err" | grep -qiE "textual|not in this build" \
-    && pass "fancy prints an install hint, not a traceback" \
-    || bad "fancy gave no hint: $err"
-printf '%s\n' "$err" | grep -qi "Traceback" && bad "fancy raised a traceback" \
+# 3. monitor fancy: with rich present it renders a frame (non-tty implies one
+#    shot); without rich it prints a located install hint. Never a traceback.
+out=$(run monitor fancy 2>&1); rc=$?
+if PYTHONPATH="$REPO/src" python3 -c "import rich" 2>/dev/null; then
+    printf '%s\n' "$out" | grep -qi "Interfaces" \
+        && pass "fancy renders a frame with rich" || bad "fancy did not render"
+    [ "$rc" = 0 ] && pass "fancy exits 0 with rich" || bad "fancy rc=$rc"
+else
+    printf '%s\n' "$out" | grep -qi "rich" \
+        && pass "fancy hints the rich install" || bad "fancy gave no hint"
+    [ "$rc" != 0 ] && pass "fancy without rich exits nonzero" \
+        || bad "fancy rc=$rc"
+fi
+printf '%s\n' "$out" | grep -qi "Traceback" && bad "fancy raised a traceback" \
     || pass "fancy did not traceback"
 
 [ "$FAIL" = 0 ] && echo "monitor-proof: all passed"

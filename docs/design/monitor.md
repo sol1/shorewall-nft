@@ -57,9 +57,13 @@ plain `shorewall monitor` in the meantime. Once the admin installs the library,
 fancy lights up. The library is textual (or rich); the import is behind a small
 shim so the choice can change without touching the command.
 
-Because a distro may not package the library, the install hint offers the
-options that work on a PEP 668 system: pipx, a virtualenv, or the distro
-package if there is one. The hint is printed, never run for the admin.
+The library is rich. It renders a genuinely nice dashboard (panels, coloured
+rate bars, a zone matrix), it is packaged by the distros (python3-rich), so the
+install hint is a clean `apt`/`dnf install`, and it renders headlessly into a
+string, so the frame is testable. The import sits behind a shim, so the choice
+can change (textual for a full interactive app) without touching the command.
+The hint is printed, never run for the admin. A full interactive TUI (textual)
+is a possible later upgrade on the same optional-import path.
 
 ## Classic monitor
 
@@ -93,5 +97,10 @@ so the command is scriptable and testable.
 - Phase 1. The COUNTERS setting and emission. The classic `monitor` command,
   the verb registration, tests. A working `shorewall monitor` and the counter
   foundation.
-- Phase 2. The fancy TUI: the lazy import and install hint, the per-interface
-  and zone-matrix panels, the deny panel.
+- Phase 2. Done. The fancy TUI (monitor_tui.py, rich) with a header, a
+  per-interface throughput table with rate bars, the zone-traffic table and a
+  deny table, reading /proc/net/dev and the COUNTERS counters. rich is imported
+  lazily; absent, `monitor fancy` prints the install hint. The data layer is
+  pure stdlib in cli (testable without rich); the render is a pure function of
+  the sample, tested headlessly where rich is present (monitor-tui-unit) and
+  skipped where it is not.
