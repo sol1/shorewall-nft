@@ -301,4 +301,20 @@ if "counter name t_" in text:
 else:
     ok("COUNTERS off by default: no monitor counters emitted")
 
+# --- a bare interface name in a rule's address column is a located error, so
+#     the offending line is findable (reported on shorewall-users) ---
+d = build({"rules": "?SECTION NEW\nACCEPT $FW net:cable\n"})
+try:
+    render(load(d, 4))
+    bad("bad address column should be rejected")
+except ConfigError as e:
+    if "rules:" in str(e) and "cable" in str(e):
+        ok("bad address column is a located error naming the line")
+    else:
+        bad("address-column error not located", str(e))
+except Exception as e:                                   # noqa: BLE001
+    bad("address-column error", f"traceback: {type(e).__name__}")
+finally:
+    shutil.rmtree(d)
+
 sys.exit(1 if fails else 0)

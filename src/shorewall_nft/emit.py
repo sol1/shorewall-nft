@@ -353,10 +353,16 @@ def _rule_match(rule, family=4, sets=None):
     pre = []
     if rule.invalid:
         pre.append("ct state invalid")
-    src_alts = (_match_addr_alts(rule.saddr, "saddr", ipkw, sets)
-                if rule.saddr else [None])
-    dst_alts = (_match_addr_alts(rule.daddr, "daddr", ipkw, sets)
-                if rule.daddr else [None])
+    # Locate an address-column error (e.g. a bare interface name where an
+    # address is expected) at the rule that carried it, not just the token.
+    try:
+        src_alts = (_match_addr_alts(rule.saddr, "saddr", ipkw, sets)
+                    if rule.saddr else [None])
+        dst_alts = (_match_addr_alts(rule.daddr, "daddr", ipkw, sets)
+                    if rule.daddr else [None])
+    except ConfigError as e:
+        origin = getattr(rule, "origin", "")
+        raise ConfigError(f"{origin}: {e}" if origin else str(e))
     post = []
     if rule.origdest:
         post.append(f"ct original {ipkw} daddr {_addr_set(rule.origdest)}")

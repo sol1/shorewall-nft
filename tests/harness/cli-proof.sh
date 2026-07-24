@@ -92,5 +92,20 @@ sw iprange 192.168.1.4-192.168.1.9 | grep -q "192.168.1.4/30" \
 sw logwatch >/dev/null 2>&1 && bad "logwatch should report a gap" \
     || ok "unimplemented verb reports its gap"
 
+# A shorewall6-named confdir implies IPv6 without --family, so a direct
+# `check /etc/shorewall6` does not silently compile a v6 config as v4.
+cp -r "$REPO/tests/corpus/0010-v6-two-interfaces/config" "$WORK/shorewall6"
+if sw check "$WORK/shorewall6" 2>&1 | grep -q "compiling for IPv6"; then
+    ok "shorewall6 confdir infers IPv6"
+else
+    bad "shorewall6 confdir did not infer IPv6"
+fi
+if sw check "$WORK/shorewall6" --family 4 2>&1 | grep -q "compiling for IPv6"
+then
+    bad "explicit --family was overridden by the path"
+else
+    ok "explicit --family wins over the path inference"
+fi
+
 [ "$fail" = 0 ] && echo "cli-proof: all passed"
 exit $fail

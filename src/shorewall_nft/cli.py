@@ -35,6 +35,22 @@ def _confdir(family):
     return os.environ.get("SWNFT_CONFDIR", default)
 
 
+def _infer_family(confdir, family, fam_flag):
+    """A confdir that is plainly a shorewall6 tree implies IPv6. So
+    `check /etc/shorewall6` without --family does the right thing rather than
+    compiling a v6 config as v4 and emitting `ip` matches for v6 addresses.
+    An explicit --family always wins; the packaged shorewall6 command already
+    sets the family, so this only helps a direct run against a path."""
+    if (not fam_flag and family != 6
+            and os.path.basename(os.path.normpath(confdir)).startswith(
+                "shorewall6")):
+        print(f"shorewall-nft: {confdir} is a shorewall6 configuration; "
+              "compiling for IPv6 (pass --family to override)",
+              file=sys.stderr)
+        return 6
+    return family
+
+
 def _vardir(family):
     default = ("/var/lib/shorewall6-nft" if family == 6
                else "/var/lib/shorewall-nft")
@@ -211,6 +227,7 @@ def cmd_check(args, family):
     directory, _, fam_flag, _, caps = _parse_compile_args(args)
     confdir = directory or _confdir(family)
     family = fam_flag or family
+    family = _infer_family(confdir, family, fam_flag)
     if caps:
         capabilities.load_profile(caps)
     with tempfile.NamedTemporaryFile(suffix=".nft", delete=False) as tmp:
@@ -233,6 +250,7 @@ def cmd_compile(args, family):
     directory, pathname, fam_flag, script, caps = _parse_compile_args(args)
     confdir = directory or _confdir(family)
     family = fam_flag or family
+    family = _infer_family(confdir, family, fam_flag)
     if caps:
         capabilities.load_profile(caps)
     flags_style = "-o" in args or "--output" in args
