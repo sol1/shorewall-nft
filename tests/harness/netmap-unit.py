@@ -176,4 +176,18 @@ conflict = ("SNAT 10.0.0.0/24 NET_IF 11.0.0.0/24\n"
 _, _, error = compile_with(4, conflict)
 check("overlapping contradictory mapping rejected", bool(error and "conflicting" in error))
 
+# On an nft without prefix NAT (0.9.3, Ubuntu 20.04) NETMAP is refused with a
+# located, actionable error rather than an unloadable ruleset. The gate is on
+# a capability, so it fires whatever the build host runs.
+from shorewall_nft import capabilities  # noqa: E402
+capabilities.CAPABILITIES["NFT_PREFIX_NAT"] = False
+try:
+    _, _, error = compile_with(4, ("DNAT 10.10.11.0/24 NET_IF 192.168.1.0/24\n"))
+    check("NETMAP gated off names nftables 0.9.5",
+          bool(error and "0.9.5" in error and "netmap:" in error))
+    cfg, text, error = compile_with(4, remove=True)
+    check("no netmap entries: the gate does not fire", not error)
+finally:
+    capabilities.CAPABILITIES["NFT_PREFIX_NAT"] = True
+
 sys.exit(1 if fails else 0)

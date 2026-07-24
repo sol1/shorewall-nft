@@ -155,3 +155,31 @@ jobs:
         run: |
           docker run --rm -v "$PWD":/work:ro -w /work fedora:41 \
             sh packaging/rpm-upgrade-test.sh
+
+  load-compat:
+    name: "load: ${{ matrix.image }}"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Every corpus ruleset must actually load with the distro's own nft,
+        # not just compile. This is what catches an nft too old to load our
+        # output. Debian 10 (nft 0.9.0) is added once its fallbacks land (P2).
+        image:
+          - debian:11
+          - debian:12
+          - debian:13
+          - ubuntu:20.04
+          - ubuntu:22.04
+          - ubuntu:24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install from source and load every ruleset with the distro's nft
+        # NET_ADMIN and unconfined seccomp let nft -f and the capability
+        # probe's unshare work as on real hardware. STRICT fails on any load
+        # failure; a capability-gated construct (NETMAP on nft < 0.9.5) is a
+        # clean refusal, not a failure.
+        run: |
+          docker run --rm --cap-add=NET_ADMIN --security-opt seccomp=unconfined \
+            -e STRICT=1 -v "$PWD":/work:ro "${{ matrix.image }}" \
+            sh /work/packaging/distro-load-test.sh

@@ -8,6 +8,7 @@ stays readable to Shorewall users.
 """
 import re
 
+from . import capabilities
 from .errors import ConfigError
 from .model import Policy
 
@@ -624,11 +625,35 @@ def external_sets(cfg):
     return out
 
 
+# Named base-chain priorities and their numeric values. The names are
+# aliases for these standard netfilter priorities; nft 0.9.0 (Debian 10)
+# has no names, so the emitter falls back to the numbers there.
+_PRIORITY = {"raw": -300, "mangle": -150, "dstnat": -100, "filter": 0,
+             "security": 50, "srcnat": 100}
+
+
+def _priority_token(spec, named):
+    """Render a base-chain priority. Keep the readable name where the local
+    nft accepts it (named True), use the numeric value where it does not (nft
+    0.9.0). spec is a name with an optional signed offset, for example
+    'filter', 'dstnat - 10' or 'filter - 5'."""
+    if named:
+        return spec
+    parts = spec.split()
+    base = _PRIORITY[parts[0]]
+    if len(parts) == 3:                          # name, sign, offset
+        base += int(parts[2]) if parts[1] == "+" else -int(parts[2])
+    return str(base)
+
+
 class Emitter:
     def __init__(self, cfg):
         self.cfg = cfg
         self.lines = []
         self.sets = set()
+        # Keep readable priority names where the local nft accepts them; fall
+        # back to numbers on an old nft that lacks the names.
+        self.named_priority = capabilities.lookup("NFT_NAMED_PRIORITY")
         # Distinct default-action strings in use, each gets a chain.
         self._default_chains = {}
         seen = set()
@@ -645,6 +670,9 @@ class Emitter:
 
     def out(self, line, indent=0):
         self.lines.append("    " * indent + line)
+
+    def _prio(self, spec):
+        return _priority_token(spec, self.named_priority)
 
     def render(self):
         cfg = self.cfg
@@ -889,7 +917,8 @@ class Emitter:
     def _hook_chain(self, hook):
         fw = self.cfg.fw_zone
         self.out(f"chain {hook} {{", 1)
-        self.out(f"type filter hook {hook} priority filter; policy drop;", 2)
+        self.out(f"type filter hook {hook} priority {self._prio('filter')}; "
+                 "policy drop;", 2)
         if hook == "input":
             self.out('iif "lo" accept', 2)
         elif hook == "output":
@@ -1210,7 +1239,8 @@ class Emitter:
             if not rules:
                 continue
             self.out(f"chain helper_{hook} {{", 1)
-            self.out(f"type filter hook {hook} priority filter;", 2)
+            self.out(f"type filter hook {hook} priority "
+                     f"{self._prio('filter')};", 2)
             for h in rules:
                 name = seen[(h.helper, h.proto)]
                 comment = f' comment "{h.origin}"' if h.origin else ""
@@ -1281,7 +1311,8 @@ class Emitter:
             emit_chain_body(chain)
             self.out("}", 1)
         self.out("chain accounting {", 1)
-        self.out("type filter hook forward priority filter - 5;", 2)
+        self.out(f"type filter hook forward priority "
+                 f"{self._prio('filter - 5')};", 2)
         emit_chain_body("accounting")
         self.out("}", 1)
 
@@ -1343,7 +1374,8 @@ class Emitter:
 
         self.out("")
         self.out("chain mangle_prerouting {", 1)
-        self.out("type filter hook prerouting priority mangle;", 2)
+        self.out(f"type filter hook prerouting priority {self._prio('mangle')};",
+                 2)
         if tracked:
             self.out("meta mark set ct mark and 0xff", 2)
         for r in by_chain.get("prerouting", []):
@@ -1365,7 +1397,8 @@ class Emitter:
             self.out("}", 1)
         self.out("")
         self.out("chain mangle_forward {", 1)
-        self.out("type filter hook forward priority mangle;", 2)
+        self.out(f"type filter hook forward priority {self._prio('mangle')};",
+                 2)
         if tracked or tc_active:
             self.out("meta mark set mark and 0xffffff00", 2)
         for r in by_chain.get("forward", []):
@@ -1374,14 +1407,16 @@ class Emitter:
         if by_chain.get("input"):
             self.out("")
             self.out("chain mangle_input {", 1)
-            self.out("type filter hook input priority mangle;", 2)
+            self.out(f"type filter hook input priority {self._prio('mangle')};",
+                     2)
             for r in by_chain["input"]:
                 self.out(self._mangle_statement(r), 2)
             self.out("}", 1)
         if tracked or by_chain.get("output"):
             self.out("")
             self.out("chain mangle_output {", 1)
-            self.out("type route hook output priority mangle;", 2)
+            self.out(f"type route hook output priority {self._prio('mangle')};",
+                     2)
             if tracked:
                 self.out("meta mark set ct mark and 0xff", 2)
             for r in by_chain.get("output", []):
@@ -1390,7 +1425,8 @@ class Emitter:
         if by_chain.get("postrouting"):
             self.out("")
             self.out("chain mangle_postrouting {", 1)
-            self.out("type filter hook postrouting priority mangle;", 2)
+            self.out("type filter hook postrouting priority "
+                     f"{self._prio('mangle')};", 2)
             for r in by_chain["postrouting"]:
                 self.out(self._mangle_statement(r), 2)
             self.out("}", 1)
@@ -1467,10 +1503,12 @@ class Emitter:
                       for i in self.cfg.interfaces if i.options.get("mss")]
         if not mss_ifaces and not self.cfg.clampmss:
             return
-        syn = "tcp flags syn / syn,rst"
+        # The bitwise form loads on every nft; the "syn / syn,rst" mask
+        # shorthand does not parse on nft 0.9.x.
+        syn = "tcp flags & (syn|rst) == syn"
         self.out("")
         self.out("chain mss_clamp {", 1)
-        self.out("type filter hook forward priority mangle;", 2)
+        self.out(f"type filter hook forward priority {self._prio('mangle')};", 2)
         # Per-interface clamps first, only lowering an MSS above the
         # target, as upstream's --mss value: guard does.
         for iface, value in mss_ifaces:
@@ -1494,7 +1532,8 @@ class Emitter:
         ipkw = "ip6" if self.cfg.family == 6 else "ip"
         self.out("")
         self.out("chain tcpri {", 1)
-        self.out("type filter hook postrouting priority mangle;", 2)
+        self.out("type filter hook postrouting priority "
+                 f"{self._prio('mangle')};", 2)
         for p in self.cfg.tcpri:
             m = []
             if p.interface:
@@ -1697,7 +1736,8 @@ class Emitter:
         if self.cfg.nat:
             self.out("")
             self.out("chain nat_one2one_pre {", 1)
-            self.out("type nat hook prerouting priority dstnat - 10;", 2)
+            self.out("type nat hook prerouting priority "
+                     f"{self._prio('dstnat - 10')};", 2)
             for n in self.cfg.nat:
                 ifm = "" if n.allints else _if_match("iifname", n.interface)
                 dev = f"{ifm} " if ifm else ""
@@ -1707,7 +1747,8 @@ class Emitter:
             self.out("}", 1)
             self.out("")
             self.out("chain nat_one2one_post {", 1)
-            self.out("type nat hook postrouting priority srcnat - 10;", 2)
+            self.out("type nat hook postrouting priority "
+                     f"{self._prio('srcnat - 10')};", 2)
             for n in self.cfg.nat:
                 ifm = "" if n.allints else _if_match("oifname", n.interface)
                 dev = f"{ifm} " if ifm else ""
@@ -1727,10 +1768,17 @@ class Emitter:
                         self.out(f"{ipkw6} daddr {n.external} "
                                  f"dnat {ipkw6} to {n.internal}", 2)
                 self.out("}", 1)
+        if self.cfg.netmap and not capabilities.lookup("NFT_PREFIX_NAT"):
+            n = self.cfg.netmap[0]
+            raise ConfigError(
+                f"{n.origin}: NETMAP needs the prefix-NAT support added in "
+                "nftables 0.9.5; this system's nftables is older (Ubuntu 20.04 "
+                "ships 0.9.3). Upgrade nftables or drop the netmap entry.")
         if self.cfg.netmap:
             self.out("")
             self.out("chain netmap_pre {", 1)
-            self.out("type nat hook prerouting priority dstnat - 5;", 2)
+            self.out("type nat hook prerouting priority "
+                     f"{self._prio('dstnat - 5')};", 2)
             for n in self.cfg.netmap:
                 if n.kind == "DNAT":
                     ifm = _if_match("iifname", n.interface)
@@ -1748,7 +1796,8 @@ class Emitter:
             self.out("}", 1)
             self.out("")
             self.out("chain netmap_post {", 1)
-            self.out("type nat hook postrouting priority srcnat - 5;", 2)
+            self.out("type nat hook postrouting priority "
+                     f"{self._prio('srcnat - 5')};", 2)
             for n in self.cfg.netmap:
                 if n.kind == "SNAT":
                     ifm = _if_match("oifname", n.interface)
@@ -1804,7 +1853,8 @@ class Emitter:
         if pre_dnat:
             self.out("")
             self.out("chain prerouting {", 1)
-            self.out("type nat hook prerouting priority dstnat;", 2)
+            self.out(f"type nat hook prerouting priority {self._prio('dstnat')};",
+                     2)
             for d in pre_dnat:
                 match, action = _dnat_body(d)
                 comment = f' comment "{d.origin}"' if d.origin else ""
@@ -1848,7 +1898,8 @@ class Emitter:
             return
         self.out("")
         self.out("chain postrouting {", 1)
-        self.out("type nat hook postrouting priority srcnat;", 2)
+        self.out(f"type nat hook postrouting priority {self._prio('srcnat')};",
+                 2)
         ipkw = "ip6" if self.cfg.family == 6 else "ip"
         for s in self.cfg.snat:
             m = [t for t in [_if_match("oifname", s.interface)] if t]
@@ -1969,9 +2020,12 @@ def render_stop(cfg):
         lines.append("    }")
         lines.append("")
 
+    named_priority = capabilities.lookup("NFT_NAMED_PRIORITY")
+
     def chain(name, policy, body):
+        prio = _priority_token("filter", named_priority)
         lines.append(f"    chain {name} {{")
-        lines.append(f"        type filter hook {name} priority filter; "
+        lines.append(f"        type filter hook {name} priority {prio}; "
                      f"policy {policy};")
         for b in body:
             lines.append(f"        {b}")

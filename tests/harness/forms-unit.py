@@ -6,6 +6,7 @@
 # A form that only shorewall-nft cannot express yet must fail with a located
 # ConfigError, never a traceback and never an unloadable ruleset.
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -13,6 +14,7 @@ import tempfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                 "..", "..", "src"))
+from shorewall_nft import capabilities  # noqa: E402
 from shorewall_nft.compile import load  # noqa: E402
 from shorewall_nft.emit import render  # noqa: E402
 from shorewall_nft.errors import ConfigError  # noqa: E402
@@ -224,5 +226,36 @@ form_ok("conntrack: the stock file with AUTOHELPERS=Yes assigns helpers",
 form_ok("conntrack: an explicit CT:helper assignment compiles and loads",
         {"conntrack": "?FORMAT 3\nCT:helper:ftp:PO - - tcp 21\n"},
         expect='type "ftp" protocol tcp')
+
+# --- MSS clamp uses the bitwise flags form, which loads on every nft; the
+#     "syn / syn,rst" mask shorthand does not parse on nft 0.9.x ---
+form_ok("mss: clamp emits bitwise flags, not the mask shorthand",
+        {"zones": "fw firewall\nnet ipv4\nloc ipv4\n",
+         "interfaces": "?FORMAT 2\nnet eth0 mss=1400\nloc eth1\n"},
+        expect="tcp flags & (syn|rst) == syn")
+
+# --- legacy nft: with named priorities gated off (Debian 10, nft 0.9.0), the
+#     ruleset uses numeric priorities, keeps bitwise flags, and still loads ---
+capabilities.CAPABILITIES["NFT_NAMED_PRIORITY"] = False
+try:
+    d = build({"interfaces": "?FORMAT 2\nnet eth0 mss=1400\nloc eth1\n",
+               "zones": "fw firewall\nnet ipv4\nloc ipv4\n"})
+    try:
+        text = render(load(d, 4))
+    finally:
+        shutil.rmtree(d)
+    loads, msg = nft_loads(text)
+    numeric = bool(re.search(r"priority -?\d+;", text))
+    named = bool(re.search(r"priority (filter|mangle|dstnat|srcnat);", text))
+    if not loads:
+        bad("legacy priorities: ruleset did not load", msg)
+    elif named or not numeric:
+        bad("legacy priorities", f"numeric={numeric} named-left={named}")
+    elif "tcp flags & (syn|rst) == syn" not in text:
+        bad("legacy priorities: flags not bitwise")
+    else:
+        ok("legacy: named priorities gated off give numeric that loads")
+finally:
+    capabilities.CAPABILITIES["NFT_NAMED_PRIORITY"] = True
 
 sys.exit(1 if fails else 0)

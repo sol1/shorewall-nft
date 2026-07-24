@@ -155,6 +155,21 @@ ruleset. Compile-only is what hid this problem in the first place.
   The per-release load proof. This ships Debian 11 and Ubuntu 20.04, whose only
   blockers are these two, and whose kernels already do concatenation. Proven:
   the four representative configs load on both once transformed.
+
+  Done. The per-release load proof (tests/harness/distro-load-proof.sh, a
+  load-compat job in Compat) installs from source and loads every corpus
+  ruleset with the distro's own nft. Results: Debian 11, 12, 13 and Ubuntu
+  20.04, 22.04, 24.04 all load the whole corpus, except NETMAP on Ubuntu 20.04.
+  Two things the proof turned up, both handled:
+  - NETMAP prefix NAT needs nft 0.9.5; Ubuntu 20.04 has 0.9.3. Gated on a new
+    `NFT_PREFIX_NAT` probe, so a netmap config is refused at compile with a
+    located error naming 0.9.5, not emitted into an unloadable ruleset.
+  - Old nft resolves the `ipv6-icmp` protocol name through /etc/protocols. The
+    package now depends on netbase, which provides it; a real system always has
+    it, the minimal base images did not.
+  - The capability probe now always uses `unshare -r -n`, so it works under a
+    restricted root (a container without CAP_SYS_ADMIN) instead of silently
+    falling back to the compile-time default.
 - Phase 2. `NFT_CONCAT_MAPS` probe and the de-concatenated dispatch fallback.
   `NFT_DNAT_TO` and `NFT_META_TIME` for 0.9.0. This ships Debian 10, including
   a stock 4.19 kernel. The larger chunk.

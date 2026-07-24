@@ -57,6 +57,26 @@ check("probe on: unknown result falls back to the default",
 check("non-helper capability is static", capabilities.lookup("CT_TARGET") is True)
 check("unknown capability is false", capabilities.lookup("NO_SUCH_CAP") is False)
 
+# Syntax capabilities are probed by loading, like helpers, with injected
+# results for determinism. NFT_NAMED_PRIORITY defaults on (modern nft) and is
+# gated off only when the probe says the construct does not load (nft 0.9.0).
+capabilities._probe_cache.clear()
+capabilities.enable_probe(False)
+check("syntax cap: probe off uses the static default (named priorities on)",
+      capabilities.lookup("NFT_NAMED_PRIORITY") is True)
+capabilities.enable_probe(True)
+capabilities._probe_cache["syntax:NFT_NAMED_PRIORITY"] = False
+check("syntax cap: probe on, unsupported construct gates off",
+      capabilities.lookup("NFT_NAMED_PRIORITY") is False)
+capabilities._probe_cache["syntax:NFT_NAMED_PRIORITY"] = True
+check("syntax cap: probe on, supported construct stays on",
+      capabilities.lookup("NFT_NAMED_PRIORITY") is True)
+capabilities._probe_cache["syntax:NFT_NAMED_PRIORITY"] = None
+check("syntax cap: unknown result falls back to the default",
+      capabilities.lookup("NFT_NAMED_PRIORITY") is True)
+capabilities._probe_cache.clear()
+capabilities.enable_probe(False)
+
 # A live probe of a helper that does not exist must never claim availability.
 capabilities._probe_cache.clear()
 result = capabilities.probe_helper("definitely_not_a_helper", "tcp")

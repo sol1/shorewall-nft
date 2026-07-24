@@ -9,7 +9,7 @@ Rules-Requires-Root: no
 
 Package: shorewall-nft
 Architecture: all
-Depends: ${misc:Depends}, python3 (>= 3.7), nftables
+Depends: ${misc:Depends}, python3 (>= 3.7), nftables, netbase
 Provides: shorewall, shorewall6, shorewall-core
 Conflicts: shorewall, shorewall6, shorewall-core
 Replaces: shorewall, shorewall6, shorewall-core

@@ -34,6 +34,11 @@ CAPABILITIES = {
     "NFLOG_TARGET": True,
     "MANGLE_ENABLED": True,
     "NAT_ENABLED": True,
+    # Emitter syntax capabilities, probed by loading (see SYNTAX_PROBES), not
+    # by ?IF. Default to the modern answer so the corpus stays byte-identical
+    # with probing off; the real commands probe and override on an old nft.
+    "NFT_NAMED_PRIORITY": True,
+    "NFT_PREFIX_NAT": True,
 }
 
 # A conntrack-helper capability maps to the nft ct helper type and a
@@ -54,6 +59,23 @@ HELPER_PROBES = {
     "SNMP_HELPER": ("snmp", "udp"),
     "TFTP_HELPER": ("tftp", "udp"),
     "TFTP0_HELPER": ("tftp", "udp"),
+}
+
+# A syntax capability maps to a small ruleset that uses the construct. If the
+# local nft loads it the construct is supported, otherwise the emitter uses a
+# fallback form. Probed by loading, so a kernel gap counts too, not only a
+# parser gap. NFT_NAMED_PRIORITY: named base-chain priorities, absent on the
+# nft 0.9.0 that Debian 10 ships (0.9.3 and later have them).
+SYNTAX_PROBES = {
+    "NFT_NAMED_PRIORITY": "table ip shorewall_capcheck {\n\tchain c {\n"
+                          "\t\ttype filter hook input priority filter;\n"
+                          "\t}\n}\n",
+    # Prefix NAT (NETMAP). The "ip prefix to ... map" form needs nft 0.9.5;
+    # Ubuntu 20.04 ships 0.9.3, which cannot parse it.
+    "NFT_PREFIX_NAT": "table ip shorewall_capcheck {\n\tchain c {\n"
+                      "\t\ttype nat hook prerouting priority -100;\n"
+                      "\t\tdnat ip prefix to ip daddr map "
+                      "{ 10.0.0.0/24 : 192.168.0.0/24 }\n\t}\n}\n",
 }
 
 _probe_enabled = False
@@ -77,11 +99,12 @@ def _nft_bin():
 def _load(ruleset):
     """Load a ruleset in a throwaway network namespace. True on success,
     False if nft rejects it, None if the sandbox cannot run at all."""
-    cmd = ["unshare"]
-    if os.geteuid() != 0:
-        # An unprivileged caller needs a user namespace for CAP_NET_ADMIN.
-        cmd.append("-r")
-    cmd += ["-n", _nft_bin(), "-f", "-"]
+    # Map to root in a new user namespace (-r) as well as a new network
+    # namespace (-n). Real root does not strictly need -r, but a restricted
+    # root (a container without CAP_SYS_ADMIN) does to create the netns, and
+    # -r is harmless for real root. Without it the probe silently could not run
+    # in such environments and fell back to the compile-time default.
+    cmd = ["unshare", "-r", "-n", _nft_bin(), "-f", "-"]
     try:
         r = subprocess.run(cmd, input=ruleset, capture_output=True, text=True)
     except OSError:
@@ -114,6 +137,17 @@ def probe_helper(helper_type, proto):
     return result
 
 
+def probe_syntax(name):
+    """True if the local nft loads the construct for this syntax capability,
+    False if not, None if we cannot tell."""
+    key = f"syntax:{name}"
+    if key in _probe_cache:
+        return _probe_cache[key]
+    result = _load(SYNTAX_PROBES[name]) if _sandbox() else None
+    _probe_cache[key] = result
+    return result
+
+
 def load_profile(path):
     """Load a capability profile: NAME=Yes/No lines, as shorecap writes them
     on a target. Used verbatim, with probing off, so a remote deploy compiles
@@ -133,6 +167,10 @@ def load_profile(path):
 def lookup(name):
     if _probe_enabled and name in HELPER_PROBES:
         real = probe_helper(*HELPER_PROBES[name])
+        if real is not None:
+            return real
+    if _probe_enabled and name in SYNTAX_PROBES:
+        real = probe_syntax(name)
         if real is not None:
             return real
     return CAPABILITIES.get(name, False)
