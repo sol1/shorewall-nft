@@ -235,14 +235,19 @@ def _addr_set(spec):
     return negate + parts[0]
 
 
-def _match_addr(spec, side, ipkw, sets):
+def _match_addr(spec, side, ipkw, sets, ifmap=None):
     """Build the match for one address column. Handles plain address
     lists, +ipset references (named nft sets, recorded in sets) and
-    ~mac-address matches."""
+    ~mac-address matches. With ifmap, a bare interface name in the column is
+    the documented zone:[!]interface form (shorewall-rules(5)): it matches
+    the arriving (source) or leaving (dest) interface, not an address."""
     negate = ""
     if spec.startswith("!"):
         negate = "!= "
         spec = spec[1:]
+    if ifmap and spec in ifmap:
+        key = "iifname" if side == "saddr" else "oifname"
+        return f'{key} {negate}"{ifmap[spec]}"'
     parts = [p for p in spec.split(",") if p]
     if not parts:
         raise ConfigError(f"empty address column: {spec!r}")
@@ -290,7 +295,7 @@ def _match_addr(spec, side, ipkw, sets):
     return f"{ipkw} {side} {negate}{body}"
 
 
-def _match_addr_alts(spec, side, ipkw, sets):
+def _match_addr_alts(spec, side, ipkw, sets, ifmap=None):
     """Return the match alternatives for one address column.
 
     A column may hold plain addresses, +ipset references, ~MAC addresses
@@ -316,13 +321,13 @@ def _match_addr_alts(spec, side, ipkw, sets):
     groups = ([",".join(addrs)] if addrs else []) \
         + ([",".join(macs)] if macs else []) + setrefs + geoips
     if len(groups) <= 1:
-        return [_match_addr(spec, side, ipkw, sets)]
+        return [_match_addr(spec, side, ipkw, sets, ifmap)]
     if negate:
         # An AND of exclusions, all in one rule: source is none of them.
-        return [" ".join(_match_addr("!" + g, side, ipkw, sets)
+        return [" ".join(_match_addr("!" + g, side, ipkw, sets, ifmap)
                          for g in groups)]
     # An OR, one rule per group.
-    return [_match_addr(g, side, ipkw, sets) for g in groups]
+    return [_match_addr(g, side, ipkw, sets, ifmap) for g in groups]
 
 
 _ADDR_OK = re.compile(r"^[0-9a-fA-F:.]+(/\d+)?(-[0-9a-fA-F:.]+)?$")
@@ -342,7 +347,7 @@ def _validate_addr(part):
                           f"column: {part}")
 
 
-def _rule_match(rule, family=4, sets=None):
+def _rule_match(rule, family=4, sets=None, ifmap=None):
     """Return the rule's match clauses as a list of alternatives, one nft
     rule each. A rule with a mixed source or destination column fans out
     into several (see _match_addr_alts); the common rule is a single
@@ -356,9 +361,9 @@ def _rule_match(rule, family=4, sets=None):
     # Locate an address-column error (e.g. a bare interface name where an
     # address is expected) at the rule that carried it, not just the token.
     try:
-        src_alts = (_match_addr_alts(rule.saddr, "saddr", ipkw, sets)
+        src_alts = (_match_addr_alts(rule.saddr, "saddr", ipkw, sets, ifmap)
                     if rule.saddr else [None])
-        dst_alts = (_match_addr_alts(rule.daddr, "daddr", ipkw, sets)
+        dst_alts = (_match_addr_alts(rule.daddr, "daddr", ipkw, sets, ifmap)
                     if rule.daddr else [None])
     except ConfigError as e:
         origin = getattr(rule, "origin", "")
@@ -586,14 +591,27 @@ def _verdict(action, param=""):
     return verdicts[action]
 
 
+def _ifmap(cfg):
+    """Every interface name, logical and physical, mapped to its physical
+    name, so a zone:interface reference resolves whichever name the config
+    used."""
+    m = {}
+    for i in cfg.interfaces:
+        m[i.physical] = i.physical
+        if i.logical:
+            m[i.logical] = i.physical
+    return m
+
+
 def _collect_sets(cfg, sink):
     """Add every +ipset name referenced anywhere in the config to sink.
     Covers rules, blrules, snat, dnat and mangle, so the table declares a
     set before any chain refers to it, whichever file the reference is
     in."""
     ipkw = "ip6" if cfg.family == 6 else "ip"
+    ifmap = _ifmap(cfg)
     for rule in list(cfg.rules) + list(cfg.blrules):
-        _rule_match(rule, cfg.family, sink)
+        _rule_match(rule, cfg.family, sink, ifmap)
     for d in cfg.dnat:
         if d.saddr:
             _match_addr(d.saddr, "saddr", ipkw, sink)
@@ -671,6 +689,8 @@ class Emitter:
         # drop figures. Off by default: a box that never monitors pays nothing.
         self.counters = cfg.variables.get("COUNTERS", "No").lower() in (
             "yes", "1", "true", "on")
+        # Interface names, for the zone:interface source/dest form.
+        self.ifmap = _ifmap(cfg)
         # Distinct default-action strings in use, each gets a chain.
         self._default_chains = {}
         seen = set()
@@ -1210,7 +1230,7 @@ class Emitter:
         # A mixed source or destination column fans out into several rules,
         # one per match alternative, all sharing this rule's verdict.
         comment = f' comment "{rule.origin}"' if rule.origin else ""
-        matches = _rule_match(rule, self.cfg.family, self.sets)
+        matches = _rule_match(rule, self.cfg.family, self.sets, self.ifmap)
 
         def with_state(match):
             return f"ct state {state} {match}".strip() if state else match
@@ -1716,7 +1736,7 @@ class Emitter:
             # name globs, which nft 1.0.2 mishandles (as _docker_coexist notes).
             for sa in src_alts:
                 for da in dst_alts:
-                    for base in _rule_match(r, self.cfg.family, self.sets):
+                    for base in _rule_match(r, self.cfg.family, self.sets, self.ifmap):
                         parts = [p for p in (sa, da, base) if p]
                         self.out(" ".join(parts + [verdict]).strip()
                                  + comment, 2)

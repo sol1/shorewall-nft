@@ -1,0 +1,58 @@
+description = "zone:interface scoping. One zone on two interfaces; SSH allowed only from WAN, HTTP only from WAN2."
+family = 4
+
+[[links]]
+node_a = "wan"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+[[links]]
+node_a = "wan2"
+dev_a = "s0"
+addr_a = "10.0.3.2/24"
+node_b = "fw"
+dev_b = "eth1"
+addr_b = "10.0.3.1/24"
+
+[routes]
+wan = "10.0.2.1"
+wan2 = "10.0.3.1"
+
+[[probes]]
+id = "wan-to-fw-tcp22"
+from = "wan"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 22
+expect = "allow"
+
+[[probes]]
+id = "wan-to-fw-tcp80"
+from = "wan"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 80
+expect = "drop"
+
+[[probes]]
+id = "wan2-to-fw-tcp80"
+from = "wan2"
+to = "fw"
+addr = "10.0.3.1"
+proto = "tcp"
+port = 80
+expect = "allow"
+
+[[probes]]
+id = "wan2-to-fw-tcp22"
+from = "wan2"
+to = "fw"
+addr = "10.0.3.1"
+proto = "tcp"
+port = 22
+expect = "drop"

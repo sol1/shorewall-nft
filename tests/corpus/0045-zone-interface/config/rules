@@ -1,0 +1,5 @@
+?SECTION NEW
+# zone:interface scopes a rule to one interface of a multi-interface zone.
+# SSH is allowed only from WAN (eth0), HTTP only from WAN2 (eth1).
+ACCEPT	net:WAN		$FW		tcp	22
+ACCEPT	net:WAN2	$FW		tcp	80
