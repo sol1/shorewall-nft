@@ -218,6 +218,36 @@ form_ok("rules: a bare IPv6 address is not mistaken for an interface",
 form_rejected("rules: zone:interface:address with an unknown interface",
               {"rules": "?SECTION NEW\nACCEPT net:BADIF:10.0.0.5 $FW tcp 22\n"})
 
+# --- rules: address exclusion (shorewall-exclusion(5)). A leading ! is the
+# pure-exclusion case; included!excluded matches the include and not the
+# exclude. Both lists may be comma-separated. ---
+form_ok("rules: a pure !exclusion matches everything but the list",
+        {"rules": "?SECTION NEW\nACCEPT net:!10.0.0.0/24 $FW tcp 22\n"},
+        expect="ip saddr != 10.0.0.0/24")
+form_ok("rules: included!excluded matches the include and not the exclude",
+        {"rules": "?SECTION NEW\n"
+         "ACCEPT net:155.186.235.0/24!155.186.235.16/28 $FW tcp 22\n"},
+        expect="ip saddr 155.186.235.0/24 ip saddr != 155.186.235.16/28")
+form_ok("rules: included!excluded with a multi-address exclude list",
+        {"rules": "?SECTION NEW\n"
+         "ACCEPT net:10.0.0.0/8!10.1.0.0/16,10.2.0.0/16 $FW tcp 22\n"},
+        expect="ip saddr 10.0.0.0/8 ip saddr != { 10.1.0.0/16, 10.2.0.0/16 }")
+form_ok("rules: interface then included!excluded together",
+        {"rules": "?SECTION NEW\n"
+         "ACCEPT net:NET_IF:10.0.0.0/24!10.0.0.5 $FW tcp 22\n"},
+        expect='iifname "eth0" ip saddr 10.0.0.0/24 ip saddr != 10.0.0.5')
+form_ok("rules: a DEST exclusion negates the destination",
+        {"rules": "?SECTION NEW\nACCEPT $FW net:10.0.0.0/8!10.1.0.0/16 tcp 22\n"},
+        expect="ip daddr 10.0.0.0/8 ip daddr != 10.1.0.0/16")
+# The exclusion ! must not swallow a negated geoip code (^!CC), which carries
+# its own ! and is not an address.
+form_ok("rules: ^!CC stays a negated geoip, not an exclusion",
+        {"rules": "?SECTION NEW\nACCEPT net:^!de $FW tcp 22\n"},
+        expect="ip saddr != @geoip_de")
+# A trailing ! with no exclude list is malformed and must be a located error.
+form_rejected("rules: a trailing ! with no exclusion is a located error",
+              {"rules": "?SECTION NEW\nACCEPT net:10.0.0.0/8! $FW tcp 22\n"})
+
 # --- conntrack: the stock /etc/shorewall/conntrack file ships on every
 # install. It is ?FORMAT 3 and assigns conntrack helpers, gated on the
 # AUTOHELPERS setting and the helper capabilities. Migrating any real system

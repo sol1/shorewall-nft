@@ -258,6 +258,18 @@ def _match_addr(spec, side, ipkw, sets, ifmap=None):
             key = "iifname" if side == "saddr" else "oifname"
             addr = _match_addr(rest, side, ipkw, sets, ifmap)
             return f'{key} {negate}"{ifmap[iface]}" {addr}'
+    # Address exclusion (shorewall-exclusion(5)): included[,...]!excluded[,...].
+    # A leading ! is the pure-exclusion case (empty include) and was stripped
+    # into negate above. A ! that remains separates an include list from an
+    # exclude list, so match the include and not the exclude. Sets, MACs and
+    # geoip codes carry their own ! (^!CC) and are not addresses, so leave them.
+    if "!" in spec and not negate and spec[0] not in "^+~":
+        incl, _, excl = spec.partition("!")
+        if not incl or not excl:
+            raise ConfigError(f"malformed address exclusion: {spec}")
+        incl_m = _match_addr(incl, side, ipkw, sets, ifmap)
+        excl_m = _match_addr("!" + excl, side, ipkw, sets, ifmap)
+        return f"{incl_m} {excl_m}"
     parts = [p for p in spec.split(",") if p]
     if not parts:
         raise ConfigError(f"empty address column: {spec!r}")

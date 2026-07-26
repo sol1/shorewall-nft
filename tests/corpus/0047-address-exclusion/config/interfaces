@@ -1,0 +1,4 @@
+?FORMAT 2
+# One zone on one interface. The rule excludes one host from an allowed
+# subnet with the documented included!excluded form.
+net	WAN	tcpflags,physical=eth0

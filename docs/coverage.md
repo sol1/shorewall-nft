@@ -14,7 +14,7 @@ parsers, and by test.
 | zones | Types ip/ipv4/ipv6/firewall; parent:child nesting; unsupported types fail loud. |
 | interfaces | Options dhcp, routeback, tcpflags, nosmurfs, routefilter, rpfilter (strict reverse-path fib check, established traffic exempt), logmartians, sourceroute, forward, proxyarp, arp; wildcard globs; unknown options fail loud. sfilter and norfc1918 are accepted but warned, not yet enforced. |
 | policy | Default actions (Broadcast/Multicast drop), file-order precedence, implicit intra-zone accept, CONTINUE, QUEUE/NFQUEUE, log levels. |
-| rules | All 15 columns: action, source, dest, proto, ports, origdest, rate, user, mark, connlimit, time. Macros, DNAT, REDIRECT, sections. |
+| rules | All 15 columns: action, source, dest, proto, ports, origdest, rate, user, mark, connlimit, time. Macros, DNAT, REDIRECT, sections. SOURCE/DEST forms: addresses and lists, ranges, +ipset, ~MAC, ^geoip country codes, zone:[!]interface, zone:interface:address, and the included!excluded exclusion. |
 | hosts | Zone membership scoped to addresses on an interface, with declaration-order precedence. |
 | masq | Legacy SNAT format, folded into the snat model. |
 | snat | SNAT and MASQUERADE, address and port targets, random/persistent/detect, FORMAT 2, per-source and per-dest, mark and user. |

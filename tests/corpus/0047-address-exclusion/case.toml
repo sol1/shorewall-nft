@@ -1,0 +1,51 @@
+description = "Address exclusion. SSH is allowed from the 10.0.2.0/24 subnet except the host 10.0.2.9 (the included!excluded form)."
+family = 4
+
+[[links]]
+node_a = "wan"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+# Two more addresses on the WAN node: one is the excluded host, one is another
+# in-subnet host, so probes can arrive from each.
+[extra_addrs]
+wan = ["10.0.2.9/24@s0", "10.0.2.50/24@s0"]
+
+[routes]
+wan = "10.0.2.1"
+
+# In the subnet and not excluded: allowed.
+[[probes]]
+id = "in-subnet-allowed"
+from = "wan"
+source = "10.0.2.2"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 22
+expect = "allow"
+
+# The excluded host: dropped even though it is in the subnet.
+[[probes]]
+id = "excluded-host-dropped"
+from = "wan"
+source = "10.0.2.9"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 22
+expect = "drop"
+
+# Another in-subnet host, not the excluded one: allowed.
+[[probes]]
+id = "other-in-subnet-allowed"
+from = "wan"
+source = "10.0.2.50"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 22
+expect = "allow"
