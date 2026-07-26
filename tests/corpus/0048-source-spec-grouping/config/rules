@@ -1,0 +1,4 @@
+?SECTION NEW
+# zone:(...) groups a single source-spec (shorewall-rules(5), 5.1.0+). Here
+# an interface and an address list: SSH from WAN, source 10.0.2.2 or 10.0.2.50.
+ACCEPT	net:(WAN:10.0.2.2,10.0.2.50)	$FW	tcp	22

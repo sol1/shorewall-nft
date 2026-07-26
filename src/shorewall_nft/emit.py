@@ -215,6 +215,16 @@ def _unbracket(addr):
     return addr
 
 
+def _unwrap_group(spec):
+    """zone:(spec) is a grouping wrapper for a single source-spec, equal to
+    zone:spec (shorewall-rules(5), since 5.1.0). Upstream compiles
+    net:(WAN:10.0.2.5,10.0.2.6) exactly as net:WAN:10.0.2.5,10.0.2.6, so
+    strip a surrounding pair of parentheses and handle the content as usual."""
+    if len(spec) >= 2 and spec[0] == "(" and spec[-1] == ")":
+        return spec[1:-1]
+    return spec
+
+
 # A set name: an nft identifier. The name reaches the DYNSETS shell
 # assignment in the root script, so a metacharacter here would inject.
 _SETNAME = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]*$")
@@ -241,6 +251,7 @@ def _match_addr(spec, side, ipkw, sets, ifmap=None):
     ~mac-address matches. With ifmap, a bare interface name in the column is
     the documented zone:[!]interface form (shorewall-rules(5)): it matches
     the arriving (source) or leaving (dest) interface, not an address."""
+    spec = _unwrap_group(spec)
     negate = ""
     if spec.startswith("!"):
         negate = "!= "
@@ -333,6 +344,7 @@ def _match_addr_alts(spec, side, ipkw, sets, ifmap=None):
     single alternative, but with one negated clause per group (upstream
     builds an exclusion chain that returns on any of them).
     """
+    spec = _unwrap_group(spec)
     negate = spec.startswith("!")
     body = spec[1:] if negate else spec
     # zone:[!]interface:address[,...]: peel the interface and AND it onto every

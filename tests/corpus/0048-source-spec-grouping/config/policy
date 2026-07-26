@@ -1,0 +1,3 @@
+$FW	net		ACCEPT
+net	all		DROP		$LOG_LEVEL
+all	all		REJECT		$LOG_LEVEL

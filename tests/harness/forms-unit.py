@@ -248,6 +248,38 @@ form_ok("rules: ^!CC stays a negated geoip, not an exclusion",
 form_rejected("rules: a trailing ! with no exclusion is a located error",
               {"rules": "?SECTION NEW\nACCEPT net:10.0.0.0/8! $FW tcp 22\n"})
 
+# --- rules: zone:(...) grouping (shorewall-rules(5), 5.1.0+). A grouping
+# wrapper for a single source-spec; upstream compiles net:(X) exactly as
+# net:X, so we strip the parentheses and reuse the inner handling. ---
+form_ok("rules: zone:(interface) is the bare interface form",
+        {"rules": "?SECTION NEW\nACCEPT net:(NET_IF) $FW tcp 22\n"},
+        expect='iifname "eth0"')
+form_ok("rules: zone:(interface:address,address) groups iface and a list",
+        {"rules": "?SECTION NEW\nACCEPT net:(NET_IF:10.0.2.5,10.0.2.6) $FW tcp 22\n"},
+        expect='iifname "eth0" ip saddr { 10.0.2.5, 10.0.2.6 }')
+form_ok("rules: zone:(address,address) groups an address list",
+        {"rules": "?SECTION NEW\nACCEPT net:(10.0.2.5,10.0.3.5) $FW tcp 22\n"},
+        expect="ip saddr { 10.0.2.5, 10.0.3.5 }")
+form_ok("rules: zone:(included!excluded) groups an exclusion",
+        {"rules": "?SECTION NEW\nACCEPT net:(10.0.2.0/24!10.0.2.9) $FW tcp 22\n"},
+        expect="ip saddr 10.0.2.0/24 ip saddr != 10.0.2.9")
+
+
+# The wrapper must be an exact no-op: net:(X) and net:X emit the same match.
+def _match_of(source):
+    d = build({"rules": f"?SECTION NEW\nACCEPT {source} $FW tcp 22\n"})
+    try:
+        line = [l for l in render(load(d, 4)).splitlines() if "dport 22" in l][0]
+    finally:
+        shutil.rmtree(d)
+    return line.split("dport 22")[0].strip()
+
+
+if _match_of("net:(NET_IF:10.0.2.5,10.0.2.6)") == _match_of("net:NET_IF:10.0.2.5,10.0.2.6"):
+    ok("rules: zone:(X) emits exactly the same match as zone:X")
+else:
+    bad("rules: zone:(X) not identical to zone:X")
+
 # --- conntrack: the stock /etc/shorewall/conntrack file ships on every
 # install. It is ?FORMAT 3 and assigns conntrack helpers, gated on the
 # AUTOHELPERS setting and the helper capabilities. Migrating any real system

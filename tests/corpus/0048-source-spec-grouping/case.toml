@@ -1,0 +1,70 @@
+description = "Parenthesised source-spec grouping. net:(WAN:10.0.2.2,10.0.2.50) groups an interface with an address list; it must behave exactly as the unparenthesised form."
+family = 4
+
+[[links]]
+node_a = "wan"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+[[links]]
+node_a = "wan2"
+dev_a = "s0"
+addr_a = "10.0.3.2/24"
+node_b = "fw"
+dev_b = "eth1"
+addr_b = "10.0.3.1/24"
+
+# Extra addresses on the WAN node: one more in the allowed list, one not in it.
+[extra_addrs]
+wan = ["10.0.2.50/24@s0", "10.0.2.9/24@s0"]
+
+[routes]
+wan = "10.0.2.1"
+wan2 = "10.0.3.1"
+
+# In the grouped list, on the right interface: allowed.
+[[probes]]
+id = "wan-first-addr-allowed"
+from = "wan"
+source = "10.0.2.2"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 22
+expect = "allow"
+
+# The other address in the grouped list: also allowed.
+[[probes]]
+id = "wan-second-addr-allowed"
+from = "wan"
+source = "10.0.2.50"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 22
+expect = "allow"
+
+# Right interface, an address not in the grouped list: dropped.
+[[probes]]
+id = "wan-other-addr-dropped"
+from = "wan"
+source = "10.0.2.9"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 22
+expect = "drop"
+
+# A listed address family but arriving on the wrong interface: dropped.
+[[probes]]
+id = "wan2-wrong-iface-dropped"
+from = "wan2"
+source = "10.0.3.2"
+to = "fw"
+addr = "10.0.3.1"
+proto = "tcp"
+port = 22
+expect = "drop"
