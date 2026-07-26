@@ -1,0 +1,4 @@
+?FORMAT 2
+# One zone on one interface. A rule scopes its destination to the firewall's
+# own primary address with the &interface form.
+net	WAN	tcpflags,physical=eth0

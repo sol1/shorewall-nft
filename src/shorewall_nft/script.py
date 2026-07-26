@@ -514,6 +514,26 @@ save_dynamic_sets() {{
     done
 }}
 
+# &interface sets: setname:device pairs, each filled at load with the
+# interface's current primary address. Empty in the ruleset; the wrapper
+# resolves the address here, the way upstream resolves $SW_<IF>_ADDRESS.
+IFACE_ADDR_SETS="{ifaddr_sets}"
+
+fill_iface_addrs() {{
+    [ -n "$IFACE_ADDR_SETS" ] || return 0
+    for pair in $IFACE_ADDR_SETS; do
+        set=${{pair%%:*}}
+        dev=${{pair#*:}}
+        addr=$(ip {ipf} -o addr show dev "$dev" scope global 2>/dev/null \\
+               | head -n1 | awk '{{print $4}}')
+        addr=${{addr%%/*}}
+        # No address (interface down or DHCP not up yet) leaves the set empty,
+        # which matches nothing, rather than a bogus rule.
+        [ -n "$addr" ] && nft add element {table} "$set" "{{ $addr }}" \\
+            2>/dev/null || :
+    done
+}}
+
 {extensions}
 apply_sysctls() {{
 {sysctls}
@@ -639,6 +659,9 @@ case "$1" in
         # then reload them after, so live entries survive a reload.
         save_dynamic_sets
         load_ruleset || {{ echo "$0: ruleset load failed" >&2; exit 1; }}
+        # Fill the &interface address sets from the live interfaces, so the
+        # rules that reference them match the current primary addresses.
+        fill_iface_addrs
         # Enable forwarding and the per-interface sysctls only after the
         # filter is loaded, so there is never a window with forwarding on
         # and no ruleset.
@@ -778,12 +801,13 @@ def _extensions(cfg):
 
 def render_script(cfg, ruleset, stop_ruleset):
     from . import chunk
-    from .emit import table_for, external_sets
+    from .emit import table_for, external_sets, iface_addr_sets
     table = table_for(cfg.family)
     ipf = "-6" if cfg.family == 6 else "-4"
     vardir_default = ("/var/lib/shorewall6-nft" if cfg.family == 6
                       else "/var/lib/shorewall-nft")
     dynsets = " ".join(external_sets(cfg))
+    ifaddr_sets = " ".join(f"{s}:{p}" for s, p in iface_addr_sets(cfg))
     sysctls = "\n".join(f"    sysctl -qw {s}" for s in _sysctls(cfg)) or "    :"
     routing_build, routing_clear, routing_restore = _routing(cfg)
     # Simple shaping (tcinterfaces) and classful shaping (tcdevices)
@@ -794,6 +818,7 @@ def render_script(cfg, ruleset, stop_ruleset):
     return TEMPLATE.format(confdir=cfg.confdir, sysctls=sysctls,
                            table=table, ipf=ipf,
                            vardir_default=vardir_default, dynsets=dynsets,
+                           ifaddr_sets=ifaddr_sets,
                            extensions=_extensions(cfg),
                            routing_build=routing_build,
                            routing_clear=routing_clear,

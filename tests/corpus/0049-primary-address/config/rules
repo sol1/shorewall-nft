@@ -1,0 +1,4 @@
+?SECTION NEW
+# SSH to the firewall is allowed only at its WAN primary address (&WAN),
+# resolved at load time. A secondary address on the same interface is not it.
+ACCEPT	net	$FW:&WAN	tcp	22

@@ -225,6 +225,13 @@ def _unwrap_group(spec):
     return spec
 
 
+def _ifaddr_setname(phys):
+    """The nft set name that holds the current primary address of a physical
+    interface, for the &interface form. Sanitised so a VLAN name like
+    eth0.151 is a valid nft identifier."""
+    return "_ifaddr_" + re.sub(r"[^0-9A-Za-z]", "_", phys)
+
+
 # A set name: an nft identifier. The name reaches the DYNSETS shell
 # assignment in the root script, so a metacharacter here would inject.
 _SETNAME = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]*$")
@@ -269,6 +276,17 @@ def _match_addr(spec, side, ipkw, sets, ifmap=None):
             key = "iifname" if side == "saddr" else "oifname"
             addr = _match_addr(rest, side, ipkw, sets, ifmap)
             return f'{key} {negate}"{ifmap[iface]}" {addr}'
+    # &interface: match the interface's current primary address
+    # (shorewall-rules(5)). nft has no match for an interface's address, so we
+    # declare an empty named set and the lifecycle script fills it from
+    # `ip addr` at load, the way upstream resolves $SW_<IF>_ADDRESS at runtime.
+    if spec.startswith("&"):
+        logical = spec[1:]
+        phys = ifmap.get(logical) if ifmap else None
+        if phys is None:
+            raise ConfigError(f"&{logical}: unknown interface")
+        sets.add(f"ifaddr:{phys}")
+        return f"{ipkw} {side} {negate}@{_ifaddr_setname(phys)}"
     # Address exclusion (shorewall-exclusion(5)): included[,...]!excluded[,...].
     # A leading ! is the pure-exclusion case (empty include) and was stripped
     # into negate above. A ! that remains separates an include list from an
@@ -686,11 +704,25 @@ def external_sets(cfg):
     _collect_sets(cfg, sink)
     out = []
     for name in sorted(sink):
-        if name.startswith("geoip:"):
+        if name.startswith("geoip:") or name.startswith("ifaddr:"):
             continue
         defn = cfg.ipsets.get(name)
         if not (defn and defn.elements):
             out.append(name)
+    return out
+
+
+def iface_addr_sets(cfg):
+    """(setname, physical) for every &interface referenced, so the lifecycle
+    script can fill each set with the interface's current primary address at
+    load. Mirrors the &interface -> ifaddr: marker added in _match_addr."""
+    sink = set()
+    _collect_sets(cfg, sink)
+    out = []
+    for name in sorted(sink):
+        if name.startswith("ifaddr:"):
+            phys = name.split(":", 1)[1]
+            out.append((_ifaddr_setname(phys), phys))
     return out
 
 
@@ -788,6 +820,13 @@ class Emitter:
                 # The pre-aggregated country data needs no auto-merge.
                 self.out(f"set geoip_{name.split(':', 1)[1]} {{", 1)
                 self.out(f"type {addr_type}; flags interval;", 2)
+                self.out("}", 1)
+                continue
+            if name.startswith("ifaddr:"):
+                # An empty set for the &interface form, filled at load with
+                # the interface's primary address by the lifecycle script.
+                self.out(f"set {_ifaddr_setname(name.split(':', 1)[1])} {{", 1)
+                self.out(f"type {addr_type};", 2)
                 self.out("}", 1)
                 continue
             defn = cfg.ipsets.get(name)
@@ -2126,6 +2165,12 @@ def render_stop(cfg):
         if name.startswith("geoip:"):
             lines.append(f"    set geoip_{name.split(':', 1)[1]} {{")
             lines.append(f"        type {addr_type}; flags interval;")
+            lines.append("    }")
+            lines.append("")
+            continue
+        if name.startswith("ifaddr:"):
+            lines.append(f"    set {_ifaddr_setname(name.split(':', 1)[1])} {{")
+            lines.append(f"        type {addr_type};")
             lines.append("    }")
             lines.append("")
             continue

@@ -1,0 +1,41 @@
+description = "The &interface form. A rule scopes its destination to the firewall's WAN primary address, resolved at load time. Script mode, since the address is filled by the lifecycle script the way upstream fills $SW_<IF>_ADDRESS."
+family = 4
+mode = "script"
+
+[[links]]
+node_a = "wan"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+# A second address on the firewall's WAN interface. &WAN is the primary
+# (first) address, 10.0.2.1, not this one.
+[extra_addrs]
+fw = ["10.0.2.99/24@eth0"]
+
+[routes]
+wan = "10.0.2.1"
+
+# To the WAN primary address (&WAN = 10.0.2.1): allowed.
+[[probes]]
+id = "to-primary-allowed"
+from = "wan"
+source = "10.0.2.2"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 22
+expect = "allow"
+
+# To a secondary address on the same interface: not &WAN, so dropped.
+[[probes]]
+id = "to-secondary-dropped"
+from = "wan"
+source = "10.0.2.2"
+to = "fw"
+addr = "10.0.2.99"
+proto = "tcp"
+port = 22
+expect = "drop"

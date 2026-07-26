@@ -280,6 +280,36 @@ if _match_of("net:(NET_IF:10.0.2.5,10.0.2.6)") == _match_of("net:NET_IF:10.0.2.5
 else:
     bad("rules: zone:(X) not identical to zone:X")
 
+# --- rules: &interface, the interface's primary address (shorewall-rules(5)).
+# nft cannot match an interface's current address, so we declare an empty set
+# and the lifecycle script fills it at load, the way upstream resolves
+# $SW_<IF>_ADDRESS at runtime. The base zone net is on NET_IF (physical eth0). ---
+form_ok("rules: &interface SOURCE emits an @set match that loads",
+        {"rules": "?SECTION NEW\nACCEPT net:&NET_IF $FW tcp 22\n"},
+        expect="ip saddr @_ifaddr_eth0")
+form_ok("rules: &interface DEST scopes the destination to that address",
+        {"rules": "?SECTION NEW\nACCEPT $FW net:&NET_IF tcp 22\n"},
+        expect="ip daddr @_ifaddr_eth0")
+form_ok("rules: &interface declares the address set empty",
+        {"rules": "?SECTION NEW\nACCEPT net:&NET_IF $FW tcp 22\n"},
+        expect="set _ifaddr_eth0 {")
+form_rejected("rules: &unknown-interface is a located error",
+              {"rules": "?SECTION NEW\nACCEPT net:&BADIF $FW tcp 22\n"})
+
+# The generated lifecycle script must fill the set from the live interface.
+_d = build({"rules": "?SECTION NEW\nACCEPT net:&NET_IF $FW tcp 22\n"})
+try:
+    from shorewall_nft.script import render_script  # noqa: E402
+    from shorewall_nft.emit import render_stop  # noqa: E402
+    _cfg = load(_d, 4)
+    _scr = render_script(_cfg, render(_cfg), render_stop(_cfg))
+finally:
+    shutil.rmtree(_d)
+if 'IFACE_ADDR_SETS="_ifaddr_eth0:eth0"' in _scr and "fill_iface_addrs" in _scr:
+    ok("&interface: the wrapper fills the address set from the live interface")
+else:
+    bad("&interface: wrapper missing the fill logic")
+
 # --- conntrack: the stock /etc/shorewall/conntrack file ships on every
 # install. It is ?FORMAT 3 and assigns conntrack helpers, gated on the
 # AUTOHELPERS setting and the helper capabilities. Migrating any real system
