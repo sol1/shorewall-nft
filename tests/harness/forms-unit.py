@@ -182,6 +182,42 @@ form_rejected("policy: an all!zone exclusion is a clear located error",
 form_ok("accounting: an interface:address source compiles and loads",
         {"accounting": "COUNT accounting eth0:192.168.1.0/24\n"})
 
+# --- rules: zone:interface:address, the three-part SOURCE/DEST form
+# (shorewall-rules(5)). Both the interface and the address must match. The base
+# zone net is on interface NET_IF (physical eth0). ---
+form_ok("rules: zone:interface:address SOURCE matches iif and saddr",
+        {"rules": "?SECTION NEW\nACCEPT net:NET_IF:10.0.0.5 $FW tcp 22\n"},
+        expect='iifname "eth0" ip saddr 10.0.0.5')
+form_ok("rules: zone:interface:address DEST matches oif and daddr",
+        {"rules": "?SECTION NEW\nACCEPT $FW net:NET_IF:10.0.0.5 tcp 22\n"},
+        expect='oifname "eth0" ip daddr 10.0.0.5')
+form_ok("rules: zone:interface:address with an address list",
+        {"rules": "?SECTION NEW\nACCEPT net:NET_IF:10.0.0.5,10.0.0.6 $FW tcp 22\n"},
+        expect='iifname "eth0" ip saddr { 10.0.0.5, 10.0.0.6 }')
+form_ok("rules: zone:!interface:address negates the interface, keeps the addr",
+        {"rules": "?SECTION NEW\nACCEPT net:!NET_IF:10.0.0.5 $FW tcp 22\n"},
+        expect='iifname != "eth0" ip saddr 10.0.0.5')
+
+# The same form in IPv6: the address has colons too, so the disambiguation
+# (left part is an interface only if it is in the interface map) matters.
+# A family=6 load reads shorewall6.conf, which the base does not carry, so give
+# a plain policy that does not lean on the base $LOG_LEVEL from shorewall.conf.
+V6 = {"zones": "fw firewall\nnet ipv6\n",
+      "interfaces": "?FORMAT 2\nnet NET_IF physical=eth0\n",
+      "policy": "$FW net ACCEPT\nnet all DROP\nall all REJECT\n"}
+form_ok("rules: zone:interface:address in IPv6 matches iif and ip6 saddr",
+        {**V6, "rules": "?SECTION NEW\nACCEPT net:NET_IF:2001:db8::5 $FW tcp 22\n"},
+        family=6, expect='iifname "eth0" ip6 saddr 2001:db8::5')
+form_ok("rules: a bare IPv6 address is not mistaken for an interface",
+        {**V6, "rules": "?SECTION NEW\nACCEPT net:2001:db8::5 $FW tcp 22\n"},
+        family=6, expect="ip6 saddr 2001:db8::5")
+
+# An unknown interface in the three-part form is a located error, not a
+# silently wrong ruleset (the token is not in the interface map, so it cannot
+# be an address either).
+form_rejected("rules: zone:interface:address with an unknown interface",
+              {"rules": "?SECTION NEW\nACCEPT net:BADIF:10.0.0.5 $FW tcp 22\n"})
+
 # --- conntrack: the stock /etc/shorewall/conntrack file ships on every
 # install. It is ?FORMAT 3 and assigns conntrack helpers, gated on the
 # AUTOHELPERS setting and the helper capabilities. Migrating any real system

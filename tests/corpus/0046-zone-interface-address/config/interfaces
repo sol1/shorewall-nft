@@ -1,0 +1,5 @@
+?FORMAT 2
+# One zone, two interfaces. The rules scope by interface with the documented
+# zone:interface form, and logical names exercise logical-to-physical mapping.
+net	WAN	tcpflags,physical=eth0
+net	WAN2	tcpflags,physical=eth1

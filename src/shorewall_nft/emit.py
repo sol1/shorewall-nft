@@ -248,6 +248,16 @@ def _match_addr(spec, side, ipkw, sets, ifmap=None):
     if ifmap and spec in ifmap:
         key = "iifname" if side == "saddr" else "oifname"
         return f'{key} {negate}"{ifmap[spec]}"'
+    # zone:[!]interface:address[,...]: the interface and the address must both
+    # match (shorewall-rules(5)). Peel the interface, match the rest as an
+    # address. The left part is only treated as an interface when it is in
+    # ifmap, so an IPv6 address (colons too) is never mistaken for this form.
+    if ifmap and ":" in spec:
+        iface, _, rest = spec.partition(":")
+        if iface in ifmap and rest:
+            key = "iifname" if side == "saddr" else "oifname"
+            addr = _match_addr(rest, side, ipkw, sets, ifmap)
+            return f'{key} {negate}"{ifmap[iface]}" {addr}'
     parts = [p for p in spec.split(",") if p]
     if not parts:
         raise ConfigError(f"empty address column: {spec!r}")
@@ -313,6 +323,17 @@ def _match_addr_alts(spec, side, ipkw, sets, ifmap=None):
     """
     negate = spec.startswith("!")
     body = spec[1:] if negate else spec
+    # zone:[!]interface:address[,...]: peel the interface and AND it onto every
+    # address alternative that follows, so a mixed address part still fans out
+    # correctly with the interface required on each rule.
+    if ifmap and ":" in body:
+        iface, _, rest = body.partition(":")
+        if iface in ifmap and rest:
+            key = "iifname" if side == "saddr" else "oifname"
+            neg = "!= " if negate else ""
+            pre = f'{key} {neg}"{ifmap[iface]}"'
+            return [f"{pre} {alt}" for alt in
+                    _match_addr_alts(rest, side, ipkw, sets, ifmap)]
     parts = [p for p in body.split(",") if p]
     addrs = [p for p in parts if p[0] not in "+^~"]
     macs = [p for p in parts if p.startswith("~")]

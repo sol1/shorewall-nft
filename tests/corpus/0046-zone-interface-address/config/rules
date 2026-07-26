@@ -1,0 +1,8 @@
+?SECTION NEW
+# zone:interface:address scopes a rule to one interface AND one address, the
+# documented three-part SOURCE form (shorewall-rules(5)). SSH is allowed only
+# from 10.0.2.2 arriving on WAN (eth0); HTTP only from 10.0.3.2 arriving on
+# WAN2 (eth1). A packet on the right interface with the wrong source address
+# must not match.
+ACCEPT	net:WAN:10.0.2.2	$FW		tcp	22
+ACCEPT	net:WAN2:10.0.3.2	$FW		tcp	80

@@ -1,0 +1,86 @@
+description = "zone:interface:address scoping. A rule matches only when both the interface and the source address match. SSH allowed from 10.0.2.2 on WAN, HTTP from 10.0.3.2 on WAN2."
+family = 4
+
+[[links]]
+node_a = "wan"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+[[links]]
+node_a = "wan2"
+dev_a = "s0"
+addr_a = "10.0.3.2/24"
+node_b = "fw"
+dev_b = "eth1"
+addr_b = "10.0.3.1/24"
+
+# A second address on the WAN node, so a probe can arrive on the right
+# interface (eth0) but with a source address the rule does not name.
+[extra_addrs]
+wan = ["10.0.2.9/24@s0"]
+
+[routes]
+wan = "10.0.2.1"
+wan2 = "10.0.3.1"
+
+# Right interface and right address: SSH is allowed.
+[[probes]]
+id = "wan-ssh-right-addr"
+from = "wan"
+source = "10.0.2.2"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 22
+expect = "allow"
+
+# Right interface, wrong source address: the address half of the rule must
+# fail the match, so this is dropped. This is the address dimension.
+[[probes]]
+id = "wan-ssh-wrong-addr"
+from = "wan"
+source = "10.0.2.9"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 22
+expect = "drop"
+
+# Right source address for the HTTP rule but arriving on the wrong interface
+# (WAN2 carries the SSH probe here): the interface half must fail. This is the
+# interface dimension.
+[[probes]]
+id = "wan2-ssh-wrong-iface"
+from = "wan2"
+source = "10.0.3.2"
+to = "fw"
+addr = "10.0.3.1"
+proto = "tcp"
+port = 22
+expect = "drop"
+
+# Right interface and right address for the HTTP rule: allowed.
+[[probes]]
+id = "wan2-http-right"
+from = "wan2"
+source = "10.0.3.2"
+to = "fw"
+addr = "10.0.3.1"
+proto = "tcp"
+port = 80
+expect = "allow"
+
+# The HTTP rule is scoped to WAN2; the same address family arriving on WAN
+# must not open port 80.
+[[probes]]
+id = "wan-http-wrong-iface"
+from = "wan"
+source = "10.0.2.2"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 80
+expect = "drop"
