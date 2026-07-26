@@ -7,6 +7,7 @@ verdict maps. Zone-pair chains keep upstream's naming so the ruleset
 stays readable to Shorewall users.
 """
 import re
+import sys
 
 from . import capabilities
 from .errors import ConfigError
@@ -2016,6 +2017,11 @@ class Emitter:
                 m.append(f"{d.proto} dport {_ports(d.dport)}")
             elif d.proto:
                 m.append(f"meta l4proto {d.proto}")
+            # RATE LIMIT column: only packets under the rate are DNAT'd, so
+            # over-limit connections fall through (upstream limits the DNAT the
+            # same way). Placed last so it counts only fully-matching packets.
+            if d.rate:
+                m.append(_rate_match(d.rate))
             return " ".join(m), action
 
         fw = self.cfg.fw_zone
@@ -2038,13 +2044,16 @@ class Emitter:
                     # Scope by every claim the source zone has: its interfaces
                     # and its hosts-file address ranges. A hosts-only zone has
                     # no interface of its own but must still be scoped by its
-                    # addresses. A zone with neither cannot match anything, so
-                    # say so rather than drop the rule.
+                    # addresses. A zone with neither (defined but empty) matches
+                    # no traffic, so the rule cannot fire. Upstream accepts this
+                    # and generates nothing; skip it with a warning rather than
+                    # rejecting the whole configuration.
                     sources = self._zone_sources(d.source)
                     if not sources:
-                        raise ConfigError(
-                            f"DNAT source zone {d.source} has no interface or "
-                            f"host to match ({d.origin})")
+                        print(f"shorewall-nft: warning: DNAT source zone "
+                              f"{d.source} has no interface or host, skipping "
+                              f"({d.origin})", file=sys.stderr)
+                        continue
                     for iface, nets in sources:
                         ifm = _if_match("iifname", iface)
                         parts = ([ifm] if ifm else [])

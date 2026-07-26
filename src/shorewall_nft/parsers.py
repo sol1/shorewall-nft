@@ -452,6 +452,9 @@ def parse_rules(path, variables, fw_zone, family=4, zones=None):
         sport = cols[5] if len(cols) > 5 and cols[5] != "-" else ""
         origin = f"{os.path.basename(line.path)}:{line.lineno}"
 
+        def col(n):
+            return cols[n] if len(cols) > n and cols[n] != "-" else ""
+
         if name in ("REDIRECT", "DNAT") and section != "NEW":
             raise line.error(f"{name} only allowed in the NEW section")
 
@@ -462,10 +465,10 @@ def parse_rules(path, variables, fw_zone, family=4, zones=None):
                 raise line.error("REDIRECT DEST must be a port number")
             if not proto or not dport:
                 raise line.error("REDIRECT needs PROTO and DPORT")
-            origdest = cols[6] if len(cols) > 6 and cols[6] != "-" else ""
+            origdest = col(6)
             dnat.append(DnatRule(source=source, proto=proto, dport=dport,
                                  to_addr="", to_port=to_port, saddr=s_addr,
-                                 origdest=origdest, flags=flags,
+                                 origdest=origdest, flags=flags, rate=col(7),
                                  origin=origin))
             if not no_accept:
                 rules.append(Rule(action="ACCEPT", source=source,
@@ -476,14 +479,14 @@ def parse_rules(path, variables, fw_zone, family=4, zones=None):
         if name == "DNAT":
             dest_zone, to_addr, to_port, flags = _split_dnat_dest(
                 cols[2], line, family)
-            origdest = cols[6] if len(cols) > 6 and cols[6] != "-" else ""
+            origdest = col(6)
             if not (proto and dport) and not origdest:
                 raise line.error("DNAT needs PROTO and DPORT, or ORIGDEST")
             for source, s_addr in zones_of(cols[1]):
                 dnat.append(DnatRule(source=source, proto=proto, dport=dport,
                                      to_addr=to_addr, to_port=to_port,
                                      saddr=s_addr, origdest=origdest,
-                                     flags=flags, origin=origin))
+                                     flags=flags, rate=col(7), origin=origin))
                 if not no_accept:
                     rules.append(Rule(action="ACCEPT", source=source,
                                       dest=dest_zone,
@@ -492,9 +495,6 @@ def parse_rules(path, variables, fw_zone, family=4, zones=None):
                                       loglevel=loglevel, logtag=logtag,
                                       origin=origin))
             continue
-
-        def col(n):
-            return cols[n] if len(cols) > n and cols[n] != "-" else ""
 
         origdest = col(6)
         rate = col(7)
@@ -575,7 +575,7 @@ def parse_rules(path, variables, fw_zone, family=4, zones=None):
                         dnat.append(DnatRule(
                             source=source, proto=mr.proto, dport=mr.dport,
                             to_addr="", to_port=to_port, saddr=s_addr,
-                            origin=origin))
+                            rate=rate, origin=origin))
                         accept_dest, accept_daddr = fw_zone, ""
                     else:
                         dz, to_addr, to_port, flags = _split_dnat_dest(
@@ -583,7 +583,7 @@ def parse_rules(path, variables, fw_zone, family=4, zones=None):
                         dnat.append(DnatRule(
                             source=source, proto=mr.proto, dport=mr.dport,
                             to_addr=to_addr, to_port=to_port, saddr=s_addr,
-                            origin=origin))
+                            rate=rate, origin=origin))
                         accept_dest, accept_daddr = dz, to_addr
                     if not no_accept:
                         rules.append(Rule(

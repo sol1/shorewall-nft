@@ -79,6 +79,7 @@ class DnatRule:
     saddr: str = ""           # source address restriction
     origdest: str = ""        # original destination address
     flags: str = ""           # nft nat flags: random, persistent
+    rate: str = ""            # RATE LIMIT column, raw
     origin: str = ""
 
 

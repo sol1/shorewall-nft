@@ -73,7 +73,9 @@ DESTDIR=%{buildroot} packaging/install-lite.sh packaging/shorewallrc.redhat
 %{_unitdir}/shorewall-geoip-update.timer
 %{_mandir}/man8/shorewall*.8*
 %{_mandir}/man5/shorewall*netmap.5*
-%dir %{_localstatedir}/lib/shorewall-nft
+# 0750 like shorewall's own state dir: it holds saved rulesets and resolved
+# addresses, which a less-privileged user should not read.
+%attr(0750,root,root) %dir %{_localstatedir}/lib/shorewall-nft
 # /etc/shorewall is the administrator's, never owned by this package.
 
 %files lite

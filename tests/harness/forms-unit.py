@@ -310,6 +310,29 @@ if 'IFACE_ADDR_SETS="_ifaddr_eth0:eth0"' in _scr and "fill_iface_addrs" in _scr:
 else:
     bad("&interface: wrapper missing the fill logic")
 
+# --- rules: a DNAT whose source-zone list names an empty zone (defined but
+# with no interface or host) must not reject the whole config. Upstream accepts
+# it and generates nothing for the empty zone; we skip it with a warning and
+# still emit the rule for the zones that do have interfaces (shorewall-users). ---
+form_ok("rules: DNAT from an empty source zone skips it, keeps the rest",
+        {"zones": "fw firewall\nnet ipv4\nloc ipv4\n",
+         "interfaces": "?FORMAT 2\nloc eth1\n",
+         "rules": "?SECTION NEW\nDNAT net,loc loc:192.168.122.11 tcp 80,443\n"},
+        expect="dnat ip to 192.168.122.11")
+
+# --- rules: the RATE LIMIT column applies to REDIRECT and DNAT, not just to
+# filter rules, so rate limiting an incoming connection works. The limit sits
+# before the nat verdict, so only under-rate packets are redirected/DNAT'd
+# (shorewall-users). ---
+form_ok("rules: REDIRECT honours the RATE LIMIT column",
+        {"rules": "?SECTION NEW\nREDIRECT net 3128 tcp 8080 - - 1/min:2\n"},
+        expect="limit rate 1/minute burst 2 packets redirect to :3128")
+form_ok("rules: DNAT honours the RATE LIMIT column",
+        {"zones": "fw firewall\nnet ipv4\nloc ipv4\n",
+         "interfaces": "?FORMAT 2\nnet eth0\nloc eth1\n",
+         "rules": "?SECTION NEW\nDNAT net loc:10.0.0.9 tcp 80 - - 10/min:5\n"},
+        expect="limit rate 10/minute burst 5 packets dnat ip to 10.0.0.9")
+
 # --- conntrack: the stock /etc/shorewall/conntrack file ships on every
 # install. It is ?FORMAT 3 and assigns conntrack helpers, gated on the
 # AUTOHELPERS setting and the helper capabilities. Migrating any real system

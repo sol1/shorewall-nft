@@ -655,6 +655,9 @@ SWNFT_STOP_EOF
 case "$1" in
     start|reload|restart)
         run_init
+        # The state dir holds saved rulesets and resolved addresses; keep it
+        # private (0750) like shorewall's, whichever path first created it.
+        mkdir -p "$VARDIR" && chmod 0750 "$VARDIR" 2>/dev/null || :
         # Capture externally-filled sets before the table is replaced,
         # then reload them after, so live entries survive a reload.
         save_dynamic_sets

@@ -4,6 +4,8 @@
 # a monitored provider with no probe target is skipped rather than reported
 # down, lsm --once state round-trips, and an externally filled set is an
 # interval set. Pure Python, no packets.
+import contextlib
+import io
 import os
 import shutil
 import sys
@@ -584,14 +586,22 @@ ho_text = render(dnat_hostonly)
 (ok if "ip saddr 10.0.0.0/24" in ho_text and "dnat ip to 1.2.3.4" in ho_text
  else bad)("emit: DNAT from a hosts-only zone is scoped by its addresses")
 
-# A DNAT from a zone with no interface and no host cannot match, so it is a
-# located error rather than a silently dropped rule.
-(ok if raises_config_error(lambda: render(load_with({
+# A DNAT from a zone with no interface and no host cannot match. Upstream
+# accepts this (the empty zone matches nothing), so we do too, rather than
+# rejecting the whole configuration. The safety concern is that the rule must
+# not silently vanish: it emits no dnat for the empty zone AND warns, so the
+# admin is told the rule does nothing.
+_empty = load_with({
     "zones": "fw firewall\nnet ipv4\nempty ipv4\n",
     "interfaces": "?FORMAT 2\nnet eth0\n",
     "rules": "?SECTION NEW\nDNAT empty net:1.2.3.4 tcp 80\n",
-    "policy": "all all ACCEPT\n"})))
- else bad)("emit: DNAT from an empty zone is a config error, not dropped")
+    "policy": "all all ACCEPT\n"})
+_err = io.StringIO()
+with contextlib.redirect_stderr(_err):
+    _empty_text = render(_empty)
+(ok if "dnat ip to 1.2.3.4" not in _empty_text
+    and "has no interface or host" in _err.getvalue()
+ else bad)("emit: DNAT from an empty zone is skipped with a warning, not emitted")
 
 # A blacklist rule on a wildcard-interface zone globs it; the literal ppp+
 # (which nft never matches) must appear nowhere in the ruleset.

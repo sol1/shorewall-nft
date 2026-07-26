@@ -33,6 +33,11 @@ restore() {   # $1 = restore cmd, $2 = save cmd, $3 = stash file, $4 = label
 }
 
 if [ "$1" = "configure" ]; then
+    # 0750 like shorewall's own state dir: it holds saved rulesets and
+    # resolved addresses, which a less-privileged user should not read.
+    for d in /var/lib/shorewall-nft /var/lib/shorewall6-nft; do
+        [ -d "$d" ] && chmod 0750 "$d" || :
+    done
     restore iptables-restore iptables-save v4 IPv4
     restore ip6tables-restore ip6tables-save v6 IPv6
     # If the box is genuinely unprotected and we had nothing to restore, say
