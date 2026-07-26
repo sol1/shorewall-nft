@@ -1,7 +1,9 @@
 # Docker coexistence design
 
-How shorewall-nft and Docker share an nftables firewall. This is a
-design proposal. Nothing here is built yet.
+How shorewall-nft and Docker share an nftables firewall. Coexistence
+(DOCKER=Yes) and the container zone are built and corpus-locked (0023, 0024).
+The published-port filter is partial, and a real-dockerd test dimension and
+the native-mode fwmark escape hatch are still open. See the phases at the end.
 
 ## The problem
 
@@ -281,13 +283,20 @@ backends.
 
 ## Implementation phases
 
-1. `DOCKER=Yes` parsing and the default coexistence accept for the
-   bridge globs. Delete nothing yet; there is nothing to delete since
-   we never built the upstream hack.
-2. The docker zone: allow a bridge interface in a zone and dispatch
-   container traffic into it. Reuse the existing interface and zone
-   machinery.
-3. The published-port filter: a rules syntax that emits the ct original
-   match.
-4. The harness Docker dimension and corpus cases.
-5. The native-mode fwmark escape hatch and its documentation.
+1. Done. `DOCKER=Yes` parsing (compile.py) and the default coexistence accept
+   for the bridge globs (emit.py `_docker_coexist`, `_docker_bridge_globs`).
+   Corpus 0023-docker-coexist. Nothing was deleted, since we never built the
+   upstream snapshot hack.
+2. Done. The docker zone: a bridge interface in a zone dispatches container
+   traffic into it, reusing the interface and zone machinery, and the blanket
+   coexistence accept is suppressed for any bridge a zone claims. Corpus
+   0024-docker-zone.
+3. Partial. The ORIGINAL DEST column emits a `ct original` daddr match, so a
+   rule can filter on the pre-DNAT destination address. The published-port
+   form proper, matching the original dport (to tell 8080 from 8443 when both
+   DNAT to one container), and a dedicated column or macro, are still open.
+4. Partial. Corpus 0023 and 0024 exercise coexistence and the zone with the
+   Docker bridges simulated in the test topology. A dimension that spins up a
+   real dockerd against both Docker backends is not built yet.
+5. Open. The native-mode `--bridge-accept-fwmark` escape hatch and its
+   documentation.
