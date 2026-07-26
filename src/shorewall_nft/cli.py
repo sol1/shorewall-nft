@@ -1766,15 +1766,26 @@ def _monitor_frame(family):
         print("  (no recent shorewall log hits; check LOG rules and logging)")
 
 
-def _fancy_install_hint():
-    for line in (
-        "shorewall monitor fancy needs the optional 'rich' library.",
-        "It is not installed by the package. Install it one of these ways:",
-        "    apt install python3-rich             # Debian/Ubuntu",
-        "    dnf install python3-rich             # Fedora/RHEL",
-        "    pipx install rich                    # any distro, isolated",
-        "Until then, 'shorewall monitor' gives the classic view.",
-    ):
+def _fancy_install_hint(need="textual"):
+    if need == "rich":
+        lines = (
+            "shorewall monitor fancy --once needs the optional 'rich' library.",
+            "It is not installed by the package. Install it one of these ways:",
+            "    apt install python3-rich             # Debian/Ubuntu",
+            "    dnf install python3-rich             # Fedora/RHEL",
+            "    pipx install rich                    # any distro, isolated",
+        )
+    else:
+        lines = (
+            "shorewall monitor fancy needs the optional 'textual' library.",
+            "It is not installed by the package. Install it one of these ways:",
+            "    pipx install textual                 # any distro, isolated",
+            "    pip install --user textual           # per-user",
+            "    apt install python3-textual          # Debian/Ubuntu, where packaged",
+            "(textual pulls in rich. For a scripted snapshot without textual,",
+            " 'shorewall monitor fancy --once' needs only rich.)",
+        )
+    for line in (*lines, "Until then, 'shorewall monitor' gives the classic view."):
         print(line, file=sys.stderr)
 
 
@@ -1851,9 +1862,12 @@ def cmd_monitor(args, family):
                 pass
     if "fancy" in args:
         try:
-            import rich  # noqa: F401
+            if once:
+                import rich  # noqa: F401
+            else:
+                import textual  # noqa: F401
         except ImportError:
-            _fancy_install_hint()
+            _fancy_install_hint("rich" if once else "textual")
             return 1
         from . import monitor_tui
         return monitor_tui.run(family, interval, once=once)

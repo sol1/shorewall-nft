@@ -10,8 +10,10 @@ BuildArch:      noarch
 
 Requires:       python3 >= 3.7
 Requires:       nftables
-# Optional: 'shorewall monitor fancy' uses rich if present. Not required.
-Suggests:       python3-rich
+# Optional: 'shorewall monitor fancy' is an interactive textual app (textual
+# pulls in rich). A scripted 'monitor fancy --once' needs only rich. Neither is
+# required; the classic 'shorewall monitor' uses only the standard library.
+Suggests:       python3-textual, python3-rich
 Provides:       shorewall = %{version}-%{release}
 Provides:       shorewall6 = %{version}-%{release}
 Provides:       shorewall-core = %{version}-%{release}

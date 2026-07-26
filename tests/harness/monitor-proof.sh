@@ -28,13 +28,15 @@ printf '%s\n' "$out" | grep -qi "Recent firewall log" \
 run monitor --once >/dev/null 2>&1
 [ "$?" != 2 ] && pass "monitor is a registered verb" || bad "monitor unknown"
 
-# 3. monitor fancy: with rich present it renders a frame (non-tty implies one
-#    shot); without rich it prints a located install hint. Never a traceback.
+# 3. monitor fancy in a non-tty is the one-shot snapshot, which needs only
+#    rich. With rich present it renders the zone-flow diagram; without it
+#    prints a located install hint. Never a traceback.
 out=$(run monitor fancy 2>&1); rc=$?
 if PYTHONPATH="$REPO/src" python3 -c "import rich" 2>/dev/null; then
-    printf '%s\n' "$out" | grep -qi "Interfaces" \
-        && pass "fancy renders a frame with rich" || bad "fancy did not render"
-    [ "$rc" = 0 ] && pass "fancy exits 0 with rich" || bad "fancy rc=$rc"
+    printf '%s\n' "$out" | grep -qi "zone traffic" \
+        && pass "fancy --once renders the flow diagram with rich" \
+        || bad "fancy did not render the diagram"
+    [ "$rc" = 0 ] && pass "fancy --once exits 0 with rich" || bad "fancy rc=$rc"
 else
     printf '%s\n' "$out" | grep -qi "rich" \
         && pass "fancy hints the rich install" || bad "fancy gave no hint"
@@ -43,6 +45,18 @@ else
 fi
 printf '%s\n' "$out" | grep -qi "Traceback" && bad "fancy raised a traceback" \
     || pass "fancy did not traceback"
+
+# 4. The interactive (tty) path needs textual. We cannot open a tty here, so
+#    check the hint the missing-textual branch prints: it names textual, gives
+#    a pipx command, and points back at the classic monitor.
+hint=$(PYTHONPATH="$REPO/src" python3 -c \
+    "from shorewall_nft.cli import _fancy_install_hint; _fancy_install_hint('textual')" 2>&1)
+printf '%s\n' "$hint" | grep -qi "textual" \
+    && pass "textual hint names textual" || bad "textual hint missing textual"
+printf '%s\n' "$hint" | grep -qi "pipx install textual" \
+    && pass "textual hint gives a pipx command" || bad "textual hint no pipx"
+printf '%s\n' "$hint" | grep -qi "classic view" \
+    && pass "textual hint points at the classic monitor" || bad "no classic pointer"
 
 [ "$FAIL" = 0 ] && echo "monitor-proof: all passed"
 exit "$FAIL"

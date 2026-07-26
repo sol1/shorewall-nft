@@ -7,9 +7,13 @@ Bring back `shorewall monitor`, and add a second gear.
 - `shorewall monitor` is the classic view, the equivalent of upstream's: a
   screen that refreshes on an interval, showing the firewall state and the
   recent log hits. Pure stdlib, always available.
-- `shorewall monitor fancy` is a modern TUI, panels of live per-interface
-  throughput, a zone-to-zone traffic matrix and a deny counter, in the spirit
-  of btop. It uses a real TUI library, but the package never depends on one.
+- `shorewall monitor fancy` is a modern interactive TUI. The centre is a
+  zone-flow diagram: the firewall as a hub with one spoke per zone, each spoke
+  weighted by that zone's traffic, in the spirit of a home energy-flow widget.
+  Below it, a strip of per-interface throughput and the top denied chains.
+  Press `o` to open a zone selector and the diagram re-lays-out around the
+  zones you pick. It uses a real TUI library, but the package never depends on
+  one.
 
 Both run on the firewall host, where the Python `shorewall` command already
 lives. The generated firewall wrapper, which stays Python-free, is untouched.
@@ -54,16 +58,38 @@ The package must not grow a dependency for a feature most installs will not
 use. So `monitor fancy` imports the TUI library lazily. If it is not installed,
 it does not fail obscurely: it prints what to install and how, and points at
 plain `shorewall monitor` in the meantime. Once the admin installs the library,
-fancy lights up. The library is textual (or rich); the import is behind a small
-shim so the choice can change without touching the command.
+fancy lights up. The hint is printed, never run for the admin.
 
-The library is rich. It renders a genuinely nice dashboard (panels, coloured
-rate bars, a zone matrix), it is packaged by the distros (python3-rich), so the
-install hint is a clean `apt`/`dnf install`, and it renders headlessly into a
-string, so the frame is testable. The import sits behind a shim, so the choice
-can change (textual for a full interactive app) without touching the command.
-The hint is printed, never run for the admin. A full interactive TUI (textual)
-is a possible later upgrade on the same optional-import path.
+The interactive app uses textual. A menu that selects zones and re-lays-out
+the diagram needs input handling, screens and widgets, which rich alone does
+not do; textual does, and it renders rich content inside its widgets, so the
+diagram is a rich renderable painted into a textual `Static`. textual is not
+always distro-packaged, so the hint leads with `pipx install textual`. textual
+pulls in rich as a dependency.
+
+There is one lighter path. `monitor fancy --once`, and any non-tty stdout,
+prints a single static snapshot of the diagram and the interface strip. That
+needs only rich, not textual, so a scripted snapshot works with the smaller,
+distro-packaged library, and the frame renders headlessly into a string, so it
+is testable. So the import gate is: interactive needs textual, `--once` needs
+rich.
+
+## The zone-flow diagram
+
+The diagram is a character grid drawn with box-drawing lines, a pure function
+of one data sample so it renders headlessly for tests and for `--once`.
+
+- The firewall is a box in the centre. Each selected zone is a box placed
+  north, south, west or east, with a spoke to the hub. Two zones sit east and
+  west, three add north, four fill all four sides. More than four falls back to
+  a labelled bar list, since a hub diagram gets crossed and unreadable, and few
+  firewalls have that many zones in view at once.
+- A spoke's weight shows the zone's traffic: heavy line above 20 Mb/s, medium
+  above 2 Mb/s, light below. Each zone box carries `↓in ↑out` compact rates.
+  The zone's in is the sum of the counters into it, its out the sum out of it.
+- The zone selector (`o`) is a checkbox list in a side panel. Toggling a zone
+  redraws the diagram live. `a` selects all. The diagram width adapts, so the
+  side panel does not clip it.
 
 ## Classic monitor
 
@@ -88,19 +114,27 @@ so the command is scriptable and testable.
   corpus output when off.
 - Classic: `monitor --once` against a scratch state and a fake log source
   prints the header and the log lines, and exits 0.
-- Fancy: with the TUI library absent, `monitor fancy` prints the install hint
-  and exits without a traceback. The render itself is exercised only where the
-  library is present.
+- Fancy: with textual absent, `monitor fancy` prints the install hint and exits
+  without a traceback; with rich absent, `monitor fancy --once` prints the rich
+  hint. The renderers (render_flow, render_status) are pure functions of the
+  sample, tested headlessly where rich is present. The interactive behaviour,
+  the zone selector toggling zones and the diagram redrawing, is tested with the
+  textual test pilot where textual is present (monitor-tui-unit).
 
 ## Phasing
 
 - Phase 1. The COUNTERS setting and emission. The classic `monitor` command,
   the verb registration, tests. A working `shorewall monitor` and the counter
   foundation.
-- Phase 2. Done. The fancy TUI (monitor_tui.py, rich) with a header, a
-  per-interface throughput table with rate bars, the zone-traffic table and a
-  deny table, reading /proc/net/dev and the COUNTERS counters. rich is imported
-  lazily; absent, `monitor fancy` prints the install hint. The data layer is
-  pure stdlib in cli (testable without rich); the render is a pure function of
-  the sample, tested headlessly where rich is present (monitor-tui-unit) and
-  skipped where it is not.
+- Phase 2. Done. The first fancy TUI (monitor_tui.py, rich) with a header, a
+  per-interface throughput table with rate bars, a zone-traffic table and a
+  deny table, reading /proc/net/dev and the COUNTERS counters, rendered
+  headlessly and tested where rich is present.
+- Phase 3. Done. The interactive fancy TUI (textual). The zone-flow diagram
+  (render_flow) as the centre, the interface and deny strip (render_status)
+  below, and the `o` zone selector that redraws the diagram live. textual is
+  imported lazily for the interactive path; `monitor fancy --once` keeps the
+  rich-only static snapshot. Data is aggregated per zone in zone_flows from the
+  same COUNTERS counters. Tested with the textual test pilot where textual is
+  present, headless renders where only rich is, and the install hints where
+  neither is.
