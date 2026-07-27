@@ -8,7 +8,8 @@ class Zone:
     parents: tuple = ()       # parent zone names for a nested zone
     options: tuple = ()       # OPTIONS/IN/OUT column options, raw
     ipsec: bool = False       # an IPSEC zone: traffic scoped to an SA
-    reqid: str = ""           # the SA request id for a site-to-site tunnel
+    ipsec_in: tuple = ()      # (key, value) SA selectors for the inbound match
+    ipsec_out: tuple = ()     # (key, value) SA selectors for the outbound match
 
 
 @dataclass

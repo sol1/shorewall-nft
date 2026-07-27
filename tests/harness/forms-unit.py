@@ -260,10 +260,34 @@ form_ok("zones: an ipsec zone scopes outbound to ipsec out reqid",
 form_ok("zones: a forward pair through an ipsec zone scopes both directions",
         {**_IPSEC, "rules": "?SECTION NEW\nACCEPT tun net\n"},
         expect='iifname "eth1" ipsec in reqid 100 oifname "eth0"')
-form_rejected("zones: an ipsec zone without a reqid is a located error",
+# spi= keys the SA by its SPI instead of a reqid.
+form_ok("zones: an ipsec zone can key on spi",
+        {**{**_IPSEC, "zones": "fw firewall\nnet ipv4\ntun ipsec spi=256\n"},
+         "rules": "?SECTION NEW\nACCEPT tun $FW tcp 22\n"},
+        expect='iifname "eth1" ipsec in spi 256 jump')
+# mode=tunnel with tunnel-src/dst matches the outer addresses at the tunnel SA
+# stack level (spnum 0).
+form_ok("zones: tunnel-src/dst match the outer addresses via spnum",
+        {**{**_IPSEC, "zones": "fw firewall\nnet ipv4\n"
+            "tun ipsec mode=tunnel,tunnel-src=203.0.113.1,tunnel-dst=203.0.113.2\n"},
+         "rules": "?SECTION NEW\nACCEPT tun $FW tcp 22\n"},
+        expect="ipsec in spnum 0 ip saddr 203.0.113.1 ip daddr 203.0.113.2")
+# proto= has no nftables ipsec selector, so it is refused rather than dropped.
+form_rejected("zones: proto= on an ipsec zone is a located error (no nft match)",
+              {**_IPSEC, "zones": "fw firewall\nnet ipv4\n"
+               "tun ipsec reqid=100,proto=esp\n",
+               "rules": "?SECTION NEW\nACCEPT tun $FW tcp 22\n"})
+# A bare (any-SA) ipsec zone cannot be a destination: nft has no outbound
+# any-SA match, so using it as a dest is a located error.
+form_rejected("zones: a bare ipsec zone as a destination is refused",
               {"zones": "fw firewall\nnet ipv4\ntun ipsec\n",
                "interfaces": "?FORMAT 2\nnet eth0\ntun eth1\n",
                "policy": "$FW net ACCEPT\nall all DROP\n"})
+# An ipsec SA selector on a plain (non-ipsec) zone is a located error, as
+# upstream requires.
+form_rejected("zones: an ipsec option on a plain zone is a located error",
+              {"zones": "fw firewall\nnet ipv4 reqid=5\n",
+               "interfaces": "?FORMAT 2\nnet eth0\n"})
 # On an nft without the ipsec match (0.9.0), an ipsec zone is refused with a
 # located error rather than emitted as a rule that cannot load, the same as
 # NETMAP and ECN on an nft too old to express them.

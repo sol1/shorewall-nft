@@ -233,6 +233,48 @@ def _ifaddr_setname(phys):
     return "_ifaddr_" + re.sub(r"[^0-9A-Za-z]", "_", phys)
 
 
+def _ipsec_expr(zone, direction, opts, ipkw):
+    """Translate an ipsec zone's SA selectors to an nft ipsec match for one
+    direction. opts is a list of (key, value). A bare zone (no selector)
+    matches any SA: inbound is `meta secpath exists`; outbound has no nft
+    any-SA match, so it is refused. proto and multi-element (next) are refused
+    (no nft proto selector; multi-element policies are not emitted yet), and
+    reqid and spi cannot be matched together in one nft clause."""
+    keys = [k for k, _ in opts]
+    if "proto" in keys:
+        raise ConfigError(f"ipsec zone {zone}: the proto= option has no "
+                          "nftables ipsec match")
+    if "next" in keys:
+        raise ConfigError(f"ipsec zone {zone}: a multi-element ipsec policy "
+                          "(next) is not supported yet")
+    reqid = next((v for k, v in opts if k == "reqid"), None)
+    spi = next((v for k, v in opts if k == "spi"), None)
+    tsrc = next((v for k, v in opts if k == "tunnel-src"), None)
+    tdst = next((v for k, v in opts if k == "tunnel-dst"), None)
+    if reqid and spi:
+        raise ConfigError(f"ipsec zone {zone}: reqid and spi cannot both be "
+                          "matched by nftables; use one")
+    if not (reqid or spi or tsrc or tdst):
+        # Any SA. mode and strict alone carry no matchable selector.
+        if direction == "in":
+            return "meta secpath exists"
+        raise ConfigError(f"ipsec zone {zone}: a destination ipsec zone needs "
+                          "a reqid, spi or tunnel address; nft has no outbound "
+                          "any-SA match")
+    parts = [f"ipsec {direction}"]
+    if tsrc or tdst:
+        parts.append("spnum 0")           # the tunnel-mode outer SA level
+    if reqid:
+        parts.append(f"reqid {reqid}")
+    if spi:
+        parts.append(f"spi {spi}")
+    if tsrc:
+        parts.append(f"{ipkw} saddr {tsrc}")
+    if tdst:
+        parts.append(f"{ipkw} daddr {tdst}")
+    return " ".join(parts)
+
+
 def _addr_or_ifaddr(spec, ifmap, sets):
     """The address body for a NAT match column (origdest, daddr) that may be
     the &interface form. &interface resolves to the runtime address set, the
@@ -953,8 +995,8 @@ class Emitter:
     def _ipsec_match(self, zone, direction):
         """The ipsec expression to scope an ipsec zone's dispatch. direction is
         'in' on the source side (iifname), 'out' on the dest side (oifname).
-        The packet must have arrived on (in) or be selected for (out) the SA
-        with the zone's reqid. Empty for a non-ipsec zone."""
+        Built from the zone's per-direction SA selectors (reqid, spi, tunnel
+        addresses). Empty for a non-ipsec zone."""
         z = self.zmap.get(zone)
         if not (z and z.ipsec):
             return ""
@@ -965,7 +1007,9 @@ class Emitter:
             raise ConfigError(
                 f"ipsec zone {zone} needs the nft ipsec match, added after "
                 "nft 0.9.0; this nft cannot express it")
-        return f"ipsec {direction} reqid {z.reqid}"
+        opts = z.ipsec_in if direction == "in" else z.ipsec_out
+        ipkw = "ip6" if self.cfg.family == 6 else "ip"
+        return _ipsec_expr(zone, direction, opts, ipkw)
 
     def _docker_bridge_globs(self):
         """The Docker bridge interface matches to keep clear of, unless

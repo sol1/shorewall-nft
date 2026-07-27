@@ -118,19 +118,19 @@ and ECN; nft 0.9.3 (Ubuntu 20.04) and later have it.
 ## Phases
 
 1. Done. Site-to-site core. The `ipsec`, `ipsec4` and `ipsec6` zone types are
-   accepted with a required `reqid=` option, and the zone dispatch is scoped
-   with `ipsec in reqid N` inbound and `ipsec out reqid N` outbound, so
-   cleartext on the tunnel interface is not in the zone. The redundant hosts
-   `ipsec` option is accepted. Corpus 0051 locks the cleartext-dropped property
-   against upstream.
-2. Match upstream's full option set. Accept a reqid-less (bare) ipsec zone,
-   which upstream allows: `meta secpath exists` inbound (road-warrior). Apply
-   the finer options that map cleanly: `spi=` (`ipsec spi S`), `mode=tunnel`
-   with `tunnel-src`/`tunnel-dst` (`ipsec spnum 0 ip saddr/daddr A`), and
-   `strict`/`next` as chained clauses. Honour the IN OPTIONS / OUT OPTIONS
-   column split (in-only, out-only, both). Refuse or warn the two forms nft
-   cannot express: `proto=` and an outbound cleartext exclusion. Relax the
-   phase-1 reqid requirement, since a bare ipsec zone is valid upstream.
+   accepted, and the zone dispatch is scoped with `ipsec in reqid N` inbound
+   and `ipsec out reqid N` outbound, so cleartext on the tunnel interface is
+   not in the zone. The redundant hosts `ipsec` option is accepted. Corpus
+   0051 locks the cleartext-dropped property against upstream.
+2. Done. The option set. `reqid=`, `spi=` (`ipsec spi S`) and `mode=tunnel`
+   with `tunnel-src`/`tunnel-dst` (`ipsec spnum 0 ip saddr/daddr A`) are
+   applied, the OPTIONS/IN OPTIONS/OUT OPTIONS column split is honoured
+   (options in the in and out buckets scope only that direction), and a
+   reqid-less zone matches any SA inbound with `meta secpath exists`. The
+   phase-1 reqid requirement is relaxed. Refused with a located error, since
+   nft cannot express them: `proto=` (no proto selector), `reqid` with `spi`
+   in one clause, and a bare (any-SA) ipsec zone used as a destination (nft
+   has no outbound any-SA match). A multi-element policy (`next`) is deferred.
 3. Coexistence with cleartext on a shared interface, the `--pol none`
    companion. When an interface carries both an ipsec zone and a cleartext
    zone, the cleartext dispatch must exclude decrypted traffic with

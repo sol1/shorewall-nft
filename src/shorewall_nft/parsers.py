@@ -91,14 +91,15 @@ def parse_actions(path, variables):
 
 
 # Zone options (shorewall-zones(5) OPTIONS/IN OPTIONS/OUT OPTIONS columns).
-# mss and blacklist apply to any zone; the rest apply only to ipsec zones,
-# which are not supported, so they are accepted as no-ops if they appear. mss
-# and blacklist are accepted but not applied yet, so each use is warned about,
-# the same as the accepted-but-unenforced interface options.
+# The ipsec options are SA selectors applied to an ipsec zone's policy match
+# and are only valid on an ipsec zone. mss and blacklist apply to any zone but
+# are accepted-not-applied, so each use is warned. nomark and dynamic_shared
+# apply to any zone and are accepted no-ops.
+ZONE_IPSEC_OPTIONS = {"reqid", "spi", "proto", "mode", "tunnel-src",
+                      "tunnel-dst", "strict", "next"}
 ZONE_OPTIONS_WARN = {"mss", "blacklist"}
-ZONE_OPTIONS_NOOP = {"dynamic_shared", "reqid", "spi", "proto", "mode",
-                     "tunnel-src", "tunnel-dst", "strict", "next"}
-ZONE_OPTIONS_KNOWN = ZONE_OPTIONS_WARN | ZONE_OPTIONS_NOOP
+ZONE_OPTIONS_NOOP = {"nomark", "dynamic_shared"}
+ZONE_OPTIONS_KNOWN = ZONE_IPSEC_OPTIONS | ZONE_OPTIONS_WARN | ZONE_OPTIONS_NOOP
 
 
 def parse_zones(path, variables):
@@ -113,40 +114,47 @@ def parse_zones(path, variables):
                 raise line.error(f"nested zone parent {p} must be declared "
                                  "before the child")
         ztype = cols[1].lower() if len(cols) > 1 and cols[1] != "-" else "ip"
-        # OPTIONS, IN OPTIONS and OUT OPTIONS (cols 2 onward). Accept the
-        # documented options so real configs compile; warn for the ones that
-        # change filtering we do not apply yet, and reject an unknown option
-        # rather than silently ignore it.
-        zopts = []
-        for col in cols[2:]:
-            if col and col != "-":
-                zopts.extend(o for o in col.split(",") if o)
-        for opt in zopts:
-            key = opt.split("=")[0]
-            if key not in ZONE_OPTIONS_KNOWN:
-                raise line.error(f"unsupported zone option {key}")
-            if key in ZONE_OPTIONS_WARN:
-                print(f"shorewall-nft: warning: "
-                      f"{os.path.basename(line.path)}:{line.lineno}: zone "
-                      f"option {key!r} is accepted but not applied yet.",
-                      file=sys.stderr)
         ipsec = ztype in ZONE_TYPES_IPSEC
-        reqid = ""
+        # OPTIONS (col 2, both directions), IN OPTIONS (col 3, inbound) and OUT
+        # OPTIONS (col 4, outbound), shorewall-zones(5). Accept the documented
+        # options so real configs compile; collect the ipsec SA selectors per
+        # direction; reject an unknown option or an ipsec option on a plain
+        # zone rather than silently ignore it.
+        zopts = []
+        ipsec_both, ipsec_in_col, ipsec_out_col = [], [], []
+        columns = [(cols[2] if len(cols) > 2 else "-", ipsec_both),
+                   (cols[3] if len(cols) > 3 else "-", ipsec_in_col),
+                   (cols[4] if len(cols) > 4 else "-", ipsec_out_col)]
+        for colval, bucket in columns:
+            if not colval or colval == "-":
+                continue
+            for opt in colval.split(","):
+                if not opt:
+                    continue
+                key, _, val = opt.partition("=")
+                if key not in ZONE_OPTIONS_KNOWN:
+                    raise line.error(f"unsupported zone option {key}")
+                zopts.append(opt)
+                if key in ZONE_IPSEC_OPTIONS:
+                    if not ipsec:
+                        raise line.error(f"zone option {key} is only valid on "
+                                         "an ipsec zone")
+                    if key in ("reqid", "spi"):
+                        valid.integer(val, line, f"ipsec zone {key}")
+                    bucket.append((key, val))
+                elif key in ZONE_OPTIONS_WARN:
+                    print(f"shorewall-nft: warning: "
+                          f"{os.path.basename(line.path)}:{line.lineno}: zone "
+                          f"option {key!r} is accepted but not applied yet.",
+                          file=sys.stderr)
         if ztype == "firewall":
             pass
         elif ztype in ZONE_TYPES_NET:
             ztype = "ip"
         elif ipsec:
-            # An IPSEC zone is a net zone whose traffic is scoped to an SA. The
-            # site-to-site tunnels this targets are keyed by reqid, so require
-            # one; a reqid-less (road-warrior) ipsec zone is not supported yet.
+            # A net zone whose traffic is scoped to an SA. A bare ipsec zone
+            # (no options) matches any SA, as upstream allows.
             ztype = "ip"
-            reqid = next((o.partition("=")[2] for o in zopts
-                          if o.split("=")[0] == "reqid"), "")
-            if not reqid:
-                raise line.error("ipsec zone needs a reqid= option "
-                                 "(reqid-less ipsec is not supported yet)")
-            valid.integer(reqid, line, "ipsec zone reqid")
         elif ztype in ZONE_TYPES_UNSUPPORTED:
             raise line.error(f"zone type {ztype} "
                              f"({ZONE_TYPES_UNSUPPORTED[ztype]}) not "
@@ -155,7 +163,9 @@ def parse_zones(path, variables):
             raise line.error(f"unknown zone type {ztype}")
         names.add(name)
         zones.append(Zone(name=name, type=ztype, parents=parents,
-                          options=tuple(zopts), ipsec=ipsec, reqid=reqid))
+                          options=tuple(zopts), ipsec=ipsec,
+                          ipsec_in=tuple(ipsec_both + ipsec_in_col),
+                          ipsec_out=tuple(ipsec_both + ipsec_out_col)))
     return zones
 
 
