@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.2.5
+Version:        0.2.6
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -162,6 +162,23 @@ exit 0
 %systemd_postun shorewall6-lite.service
 
 %changelog
+* Mon Jul 27 2026 Dave Kempe <dave@sol1.com.au> - 0.2.6-1
+- shorewall monitor is back: a classic refreshing view and an interactive
+  "monitor fancy" (optional textual) with a zone-flow diagram and a live zone
+  selector, driven by the nftables counters when COUNTERS=Yes.
+- Upstream address-column forms now compile and match upstream:
+  zone:[!]interface, zone:interface:address, the included!excluded exclusion,
+  the zone:(...) grouping, and &interface (primary address, resolved at load).
+- DNAT from an empty source zone is skipped with a warning, not rejected.
+- The RATE LIMIT column now applies to DNAT and REDIRECT.
+- &interface resolves in the DNAT and NAT address columns, not just SOURCE/DEST.
+- A params file that uses shell logic (loops, include globs, bash builtins) is
+  sourced through bash, so bash-form params and their .inc includes work.
+  Permissions are checked first, so REQUIRE_SECURE_CONFIG refuses a writable
+  params before it is sourced.
+- shorewall6 paths infer the IPv6 family; address-column errors are located.
+- The state dir /var/lib/shorewall-nft is 0750, like shorewall's.
+
 * Fri Jul 24 2026 Dave Kempe <dave@sol1.com.au> - 0.2.5-1
 - Support older nftables (Debian 10/11, Ubuntu 20.04). The compiler probes the
   local nft and kernel and emits the form they load: numeric priorities,

@@ -1,3 +1,30 @@
+shorewall-nft (0.2.6) unstable; urgency=medium
+
+  * shorewall monitor is back: a classic refreshing view (standard library,
+    always available) and an interactive "monitor fancy" (optional textual)
+    that draws a zone-flow diagram with a live zone selector, driven by the
+    nftables counters when COUNTERS=Yes. No packet capture.
+  * Upstream address-column compatibility: the documented SOURCE/DEST forms
+    zone:[!]interface, zone:interface:address, the included!excluded exclusion,
+    the zone:(...) grouping, and &interface (the interface's primary address,
+    resolved at load) now compile and match upstream behaviour.
+  * A DNAT whose source-zone list names an empty zone is skipped with a warning
+    rather than rejecting the whole configuration, matching upstream.
+  * The RATE LIMIT column now applies to DNAT and REDIRECT, so rate limiting an
+    incoming connection works; it was silently dropped before.
+  * shorewall6 configuration paths infer the IPv6 family, and address-column
+    errors report the offending file and line.
+  * &interface now resolves in the DNAT and NAT address columns, not only in a
+    rule SOURCE or DEST, so it is no longer emitted as a literal nft treats as
+    a hostname.
+  * A params file that uses shell logic (a loop, an include glob, a bash
+    builtin) is sourced through bash the way upstream sources it, so bash-form
+    params and their .inc includes work. The permissions are checked first, so
+    REQUIRE_SECURE_CONFIG=Yes refuses a writable params before it is sourced.
+  * The state directory /var/lib/shorewall-nft is now 0750, like shorewall's.
+
+ -- Dave Kempe <dave@sol1.com.au>  Mon, 27 Jul 2026 12:00:00 +1000
+
 shorewall-nft (0.2.5) unstable; urgency=medium
 
   * Support older nftables: Debian 10 and 11 and Ubuntu 20.04, whose nft (0.9.0
