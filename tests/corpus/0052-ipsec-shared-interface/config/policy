@@ -1,0 +1,5 @@
+$FW	net	ACCEPT
+$FW	vpn	ACCEPT
+net	all	DROP
+vpn	all	DROP
+all	all	REJECT

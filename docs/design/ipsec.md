@@ -2,8 +2,10 @@
 
 How shorewall-nft filters traffic to and from an IPSEC peer as a normal
 Shorewall zone. The target is site-to-site tunnels keyed by reqid, the common
-sol1 case. Phase 1 (the site-to-site core) is built; the reqid-less and finer
-selectors are Phase 2.
+sol1 case. The site-to-site core, the full option set, and cleartext
+coexistence on a shared interface are built (Phases 1 to 3). The nat, masq,
+accounting and provider paths and the harness xfrm dimension are Phases 4
+and 5.
 
 ## The goal
 
@@ -131,12 +133,21 @@ and ECN; nft 0.9.3 (Ubuntu 20.04) and later have it.
    nft cannot express them: `proto=` (no proto selector), `reqid` with `spi`
    in one clause, and a bare (any-SA) ipsec zone used as a destination (nft
    has no outbound any-SA match). A multi-element policy (`next`) is deferred.
-3. Coexistence with cleartext on a shared interface, the `--pol none`
+3. Done. Coexistence with cleartext on a shared interface, the `--pol none`
    companion. When an interface carries both an ipsec zone and a cleartext
-   zone, the cleartext dispatch must exclude decrypted traffic with
-   `meta secpath missing`, and the ipsec `in` rules must sort first, so a
-   decrypted packet is not matched by the cleartext rule. This is what makes
-   per-host encryption (the hosts `ipsec` option on a plain zone) correct.
+   zone, the cleartext inbound dispatch excludes decrypted traffic with
+   `meta secpath missing`, so a decrypted packet belongs to the ipsec zone,
+   not the cleartext one. Inbound the two matches (`meta secpath missing` and
+   `ipsec in ...`) are mutually exclusive, so order does not matter, the same
+   as upstream `--pol none`/`--pol ipsec --dir in`. Outbound nft has no
+   secpath match, so the cleartext rule carries no guard; instead the ipsec
+   `out` rule sorts first, and a to-be-encrypted packet is caught by the
+   positive `ipsec out` match while cleartext falls through. In the forward
+   chain the source-side match already discriminates, so the unguarded
+   cleartext dest is harmless. This is what makes per-host encryption (an
+   ipsec zone attached by a hosts entry on a shared interface) correct.
+   Corpus 0052 locks it against upstream, whose emitted `--pol none` on the
+   cleartext paths and `--pol ipsec --reqid` on the tunnel confirm the split.
 4. The rest of the upstream ipsec surface: the nat/masq, accounting and
    provider paths that also emit a policy match, and the `tunnels` file
    opening only key-exchange ports when ipsec is in play.

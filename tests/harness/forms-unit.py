@@ -298,6 +298,64 @@ try:
 finally:
     capabilities.CAPABILITIES["NFT_IPSEC"] = True
 
+# --- zones: a cleartext zone sharing an interface with an ipsec zone (the
+# --pol none companion). Decrypted traffic carries a secpath and belongs to
+# the ipsec zone, so the cleartext inbound dispatch excludes it with
+# `meta secpath missing`, and the ipsec rule sorts first. This is what makes
+# per-host encryption correct: net is cleartext on eth0, vpn is the ipsec
+# peer on the same eth0 by a hosts entry. ---
+_SHARED = {"zones": "fw firewall\nnet ipv4\nvpn ipsec reqid=100\n",
+           "interfaces": "?FORMAT 2\nnet eth0\n",
+           "hosts": "vpn eth0:0.0.0.0/0 ipsec\n",
+           "policy": ("$FW net ACCEPT\n$FW vpn ACCEPT\nnet all DROP\n"
+                      "vpn all DROP\nall all REJECT\n"),
+           "rules": "?SECTION NEW\nACCEPT vpn $FW tcp 22\n"}
+
+
+def shared_iface_coexistence():
+    name = "zones: a cleartext zone shares an ipsec interface safely"
+    d = build(_SHARED)
+    try:
+        text = render(load(d, 4))
+    except Exception as e:                           # noqa: BLE001
+        bad(name, f"compile failed: {type(e).__name__}: {str(e)[:120]}")
+        return
+    finally:
+        shutil.rmtree(d)
+    loads, msg = nft_loads(text)
+    if not loads:
+        bad(name, f"nft rejected the ruleset: {msg}")
+        return
+    lines = text.splitlines()
+    # Inbound: the cleartext dispatch excludes decrypted traffic.
+    net_in = next((i for i, l in enumerate(lines)
+                   if 'iifname "eth0" meta secpath missing jump net' in l),
+                  None)
+    vpn_in = next((i for i, l in enumerate(lines)
+                   if 'iifname "eth0"' in l and "ipsec in reqid 100 jump vpn"
+                   in l), None)
+    if net_in is None:
+        bad(name, "cleartext inbound rule lacks meta secpath missing")
+        return
+    if vpn_in is None or vpn_in > net_in:
+        bad(name, "the ipsec inbound rule must sort before the cleartext rule")
+        return
+    # Outbound: no nft secpath match exists, so the cleartext rule carries no
+    # guard, but the ipsec-out rule sorts first to catch to-be-encrypted
+    # packets by the positive match.
+    vpn_out = next((i for i, l in enumerate(lines)
+                    if 'oifname "eth0"' in l and "ipsec out reqid 100" in l),
+                   None)
+    net_out = next((i for i, l in enumerate(lines)
+                    if l.strip() == 'oifname "eth0" jump fw2net'), None)
+    if vpn_out is None or net_out is None or vpn_out > net_out:
+        bad(name, "the ipsec outbound rule must sort before the cleartext rule")
+        return
+    ok(name)
+
+
+shared_iface_coexistence()
+
 # --- rules: address exclusion (shorewall-exclusion(5)). A leading ! is the
 # pure-exclusion case; included!excluded matches the include and not the
 # exclude. Both lists may be comma-separated. ---

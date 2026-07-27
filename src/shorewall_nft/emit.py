@@ -992,6 +992,20 @@ class Emitter:
                    if i.zone and getattr(self.zmap.get(i.zone), "ipsec", False)}
         return scoped
 
+    def _ipsec_ifaces(self):
+        """Physical interfaces that carry an ipsec zone, whole-interface or by
+        a hosts entry. When a cleartext zone shares one of these interfaces,
+        decrypted traffic must not fall through to the cleartext rule: inbound
+        the cleartext dispatch gets `meta secpath missing`, and the ipsec rule
+        sorts first so a to-be-encrypted outbound packet is matched by the
+        ipsec rule, not the cleartext fallback. This is the nft equivalent of
+        upstream spraying `--pol none` on the non-encrypted paths."""
+        ifaces = {i.physical for i in self.cfg.interfaces
+                  if i.zone and getattr(self.zmap.get(i.zone), "ipsec", False)}
+        ifaces |= {h.interface for h in self.cfg.zone_hosts
+                   if getattr(self.zmap.get(h.zone), "ipsec", False)}
+        return ifaces
+
     def _ipsec_match(self, zone, direction):
         """The ipsec expression to scope an ipsec zone's dispatch. direction is
         'in' on the source side (iifname), 'out' on the dest side (oifname).
@@ -1310,6 +1324,7 @@ class Emitter:
         ipkw = "ip6" if self.cfg.family == 6 else "ip"
         addr_kw = "saddr" if key == "iifname" else "daddr"
         scoped = self._scoped_ifaces()
+        ipsec_ifaces = self._ipsec_ifaces()
         entries = []
         ordered = []
         wild = []
@@ -1325,23 +1340,33 @@ class Emitter:
             ips = self._ipsec_match(zone, "in" if key == "iifname" else "out")
             ips = f"{ips} " if ips else ""
             for iface, nets in self._zone_sources(zone):
+                # A cleartext zone on an interface shared with an ipsec zone.
+                # Inbound, exclude decrypted traffic with `meta secpath
+                # missing` so it cannot match the cleartext rule; it belongs
+                # to the ipsec zone. Sort after the ipsec rule too, which is
+                # what discriminates the outbound side (no nft outbound
+                # secpath match exists).
+                shared = not ips and iface in ipsec_ifaces
+                guard = ("meta secpath missing " if shared and key == "iifname"
+                         else "")
                 if iface == "+":
                     # A bare + means every interface. Match all with a
                     # plain jump.
-                    ordered.append((2, f"{ips}jump {chain_for(zone)}"))
+                    ordered.append((3, f"{ips}jump {chain_for(zone)}"))
                 elif iface.endswith("+"):
                     # A prefixed wildcard matches its name prefix. It
                     # must emit an actual glob, never a bare jump, or
                     # the zone would match every interface.
-                    ordered.append((2, f'{key} "{_iface_glob(iface)}" '
+                    ordered.append((3, f'{key} "{_iface_glob(iface)}" '
                                     f"{ips}jump {chain_for(zone)}"))
                 elif nets:
                     ordered.append((0, f'{key} "{iface}" {ipkw} {addr_kw} '
                                     f"{_addr_set(nets)} "
-                                    f"{ips}jump {chain_for(zone)}"))
+                                    f"{ips}{guard}jump {chain_for(zone)}"))
                 elif iface in scoped:
-                    ordered.append((1, f'{key} "{iface}" '
-                                    f"{ips}jump {chain_for(zone)}"))
+                    ordered.append((2 if shared else 1,
+                                    f'{key} "{iface}" '
+                                    f"{ips}{guard}jump {chain_for(zone)}"))
                 else:
                     entries.append(f'"{iface}" : jump {chain_for(zone)}')
         if entries:
@@ -1356,6 +1381,7 @@ class Emitter:
         ipkw = "ip6" if self.cfg.family == 6 else "ip"
         nets = self._net_zones()
         scoped = self._scoped_ifaces()
+        ipsec_ifaces = self._ipsec_ifaces()
         entries = []
         ordered = []
         for z1 in nets:
@@ -1373,6 +1399,14 @@ class Emitter:
                         # zone by the inbound SA, the dest zone by the outbound.
                         ips1 = self._ipsec_match(z1, "in")
                         ips2 = self._ipsec_match(z2, "out")
+                        # A cleartext source sharing its interface with an
+                        # ipsec zone excludes decrypted traffic inbound; a
+                        # cleartext dest sharing with an ipsec zone must sort
+                        # after that zone's ipsec-out rule (no nft outbound
+                        # secpath match).
+                        src_shared = not ips1 and i1 in ipsec_ifaces
+                        dst_shared = not ips2 and i2 in ipsec_ifaces
+                        sguard = "meta secpath missing" if src_shared else ""
                         iwild = i1.endswith("+") or i2.endswith("+")
                         if iwild:
                             # A wildcard interface pair emits an ordered
@@ -1386,6 +1420,8 @@ class Emitter:
                                 m.append(f"{ipkw} saddr {_addr_set(n1)}")
                             if ips1:
                                 m.append(ips1)
+                            if sguard:
+                                m.append(sguard)
                             if i2 != "+":
                                 g = _iface_glob(i2) if i2.endswith("+") else i2
                                 m.append(f'oifname "{g}"')
@@ -1394,7 +1430,7 @@ class Emitter:
                             if ips2:
                                 m.append(ips2)
                             body = (" ".join(m) + " " if m else "")
-                            ordered.append((3, body +
+                            ordered.append((10, body +
                                             f"jump {self._chain_for(z1, z2)}"))
                         elif n1 or n2 or ips1 or ips2 or i1 in scoped \
                                 or i2 in scoped:
@@ -1403,6 +1439,8 @@ class Emitter:
                                 m.append(f"{ipkw} saddr {_addr_set(n1)}")
                             if ips1:
                                 m.append(ips1)
+                            if sguard:
+                                m.append(sguard)
                             m.append(f'oifname "{i2}"')
                             if n2:
                                 m.append(f"{ipkw} daddr {_addr_set(n2)}")
@@ -1411,7 +1449,11 @@ class Emitter:
                             # More specific (address-scoped) pairs first,
                             # so a nested child is matched before its
                             # parent and CONTINUE falls through correctly.
+                            # A cleartext dest on a shared ipsec interface
+                            # sorts after the ipsec-out rule for that pair.
                             rank = (0 if n1 else 1) + (0 if n2 else 1)
+                            if dst_shared:
+                                rank += 1
                             ordered.append((rank, " ".join(m) +
                                             f" jump {self._chain_for(z1, z2)}"))
                         else:

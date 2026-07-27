@@ -1,0 +1,26 @@
+description = "A cleartext zone and an ipsec zone share one interface, the per-host encryption case. net is cleartext on eth0, vpn is the tunnel peer on the same eth0 by a hosts entry, keyed by reqid. Decrypted traffic carries a secpath and belongs to vpn, so the cleartext dispatch excludes it inbound with meta secpath missing and the ipsec rule sorts first. Upstream builds the same split with -m policy --pol none on the cleartext paths and --pol ipsec --reqid on the tunnel. Cleartext to the firewall over eth0 is in the net zone, which drops it, so both compilers drop a cleartext connection that never went through the tunnel. The decrypted-versus-cleartext behavioural proof needs an xfrm SA, which the harness IPSEC dimension will add."
+family = 4
+
+[[links]]
+node_a = "net"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+[routes]
+net = "10.0.2.1"
+
+# Cleartext to the firewall over the shared interface, no SA. It lands in the
+# cleartext net zone (meta secpath missing), whose policy drops it. The vpn
+# ACCEPT rule needs the SA, so it does not match. Both compilers drop it.
+[[probes]]
+id = "cleartext-on-shared-iface-is-net-and-dropped"
+from = "net"
+source = "10.0.2.2"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 22
+expect = "drop"
