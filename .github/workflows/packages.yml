@@ -106,8 +106,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ github.ref_name }}" \
-            --repo "${{ github.repository }}" \
-            --title "${{ github.ref_name }}" \
-            --generate-notes \
-            artifacts/deb/*.deb artifacts/rpm/*.rpm
+          tag="${{ github.ref_name }}"
+          repo="${{ github.repository }}"
+          if gh release view "$tag" --repo "$repo" >/dev/null 2>&1; then
+            # The release already exists (a tag re-push, or notes edited by
+            # hand). Refresh the package assets and leave the notes as they are,
+            # rather than failing as `gh release create` does on a duplicate.
+            gh release upload "$tag" --repo "$repo" --clobber \
+              artifacts/deb/*.deb artifacts/rpm/*.rpm
+          else
+            gh release create "$tag" --repo "$repo" --title "$tag" \
+              --generate-notes \
+              artifacts/deb/*.deb artifacts/rpm/*.rpm
+          fi
