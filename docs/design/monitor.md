@@ -29,7 +29,9 @@ Everything is read from what the kernel already counts:
 - The recent log hits from the kernel log, matching our
   `shorewall:<chain>:<disposition>:` prefixes.
 
-No packet capture, no libpcap, no conntrack dump.
+No packet capture, no libpcap, no conntrack dump. The conntrack table is a
+separate verb, `show connections`, which reads /proc/net/nf_conntrack or the
+conntrack command when it is installed.
 
 ## Counters, gated by a setting
 

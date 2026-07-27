@@ -57,6 +57,18 @@ sw show capabilities | grep -q NAT_ENABLED && ok "show capabilities" \
 sw show zones | grep -q "fw (firewall)" && ok "show zones" \
     || bad "show zones"
 
+# show connections reads the conntrack table or points at conntrack-tools.
+# It is not a hard dependency, so it must never crash when the table or the
+# command is absent.
+conn=$(sw show connections 2>&1 || true)
+if echo "$conn" | grep -qi traceback; then
+    bad "show connections raised a traceback"
+elif echo "$conn" | grep -qi "not implemented yet"; then
+    bad "show connections verb is not wired"
+else
+    ok "show connections"
+fi
+
 sw save >/dev/null && ok save || bad save
 
 sw stop >/dev/null && ok stop || bad stop

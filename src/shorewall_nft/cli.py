@@ -719,9 +719,47 @@ def cmd_show(args, family):
         return _show_accounting(family)
     if what == "routing":
         return _show_routing(family)
+    if what in ("connections", "connection"):
+        return _show_connections(family)
     print(f"shorewall-nft: 'show {what}' is not implemented yet",
           file=sys.stderr)
     return 1
+
+
+def _conntrack_bin():
+    for p in ("/usr/sbin/conntrack", "/sbin/conntrack", "/usr/bin/conntrack"):
+        if os.path.exists(p):
+            return p
+    return None
+
+
+def _show_connections(family):
+    """List the tracked connections. The conntrack command gives readable,
+    filterable output but ships in a separate package (conntrack-tools), which
+    the firewall does not depend on. Fall back to /proc/net/nf_conntrack, which
+    needs no package, and point at conntrack for nicer output."""
+    ct = _conntrack_bin()
+    if ct:
+        fam = "ipv6" if family == 6 else "ipv4"
+        return subprocess.run([ct, "-L", "-f", fam]).returncode
+    proc = "/proc/net/nf_conntrack"
+    if not os.path.exists(proc):
+        print(f"shorewall-nft: no connection tracking table at {proc}; "
+              "conntrack may not be loaded.", file=sys.stderr)
+        return 1
+    want = "ipv6" if family == 6 else "ipv4"
+    try:
+        with open(proc) as f:
+            for line in f:
+                parts = line.split()
+                if parts and parts[0] == want:
+                    sys.stdout.write(line)
+    except OSError as e:
+        print(f"shorewall-nft: cannot read {proc}: {e}", file=sys.stderr)
+        return 1
+    print("shorewall-nft: install conntrack-tools (the 'conntrack' command) "
+          "for filtered, readable connection output.", file=sys.stderr)
+    return 0
 
 
 def _ip():
