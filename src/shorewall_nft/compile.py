@@ -316,10 +316,13 @@ def load(confdir, family=4):
         if name in UNSUPPORTED and _has_content(path, variables):
             raise ConfigError(f"config file {name} is not supported yet")
         if (name in EXTENSIONS_LIFECYCLE or name in EXTENSIONS_WIRED_OTHER) \
-                and os.path.getsize(path):
+                and _has_content(path, variables):
             with open(path) as f:
                 cfg.extensions[name] = f.read()
-        elif name in EXTENSIONS_UNWIRED and os.path.getsize(path):
+        elif name in EXTENSIONS_UNWIRED and _has_content(path, variables):
+            # Only warn for a script with real content. A stock comment-only
+            # template (the distro ships several) is a no-op, not worth a
+            # warning.
             print(f"warning: extension script {name} is not supported yet; "
                   "its contents are ignored", file=sys.stderr)
     return cfg
