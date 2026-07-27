@@ -58,10 +58,8 @@ ZONE_TYPES_NET = {"ip", "ipv4", "ipv6", "-"}
 # Types we recognize but do not support yet. Rejected loud rather than
 # silently downgraded to a plain net zone, which for ipsec would mean
 # no encryption enforcement.
+ZONE_TYPES_IPSEC = {"ipsec", "ipsec4", "ipsec6"}
 ZONE_TYPES_UNSUPPORTED = {
-    "ipsec": "IPSEC policy matching",
-    "ipsec4": "IPSEC policy matching",
-    "ipsec6": "IPSEC policy matching",
     "bport": "bridge-port zones",
     "bport4": "bridge-port zones",
     "bport6": "bridge-port zones",
@@ -132,10 +130,23 @@ def parse_zones(path, variables):
                       f"{os.path.basename(line.path)}:{line.lineno}: zone "
                       f"option {key!r} is accepted but not applied yet.",
                       file=sys.stderr)
+        ipsec = ztype in ZONE_TYPES_IPSEC
+        reqid = ""
         if ztype == "firewall":
             pass
         elif ztype in ZONE_TYPES_NET:
             ztype = "ip"
+        elif ipsec:
+            # An IPSEC zone is a net zone whose traffic is scoped to an SA. The
+            # site-to-site tunnels this targets are keyed by reqid, so require
+            # one; a reqid-less (road-warrior) ipsec zone is not supported yet.
+            ztype = "ip"
+            reqid = next((o.partition("=")[2] for o in zopts
+                          if o.split("=")[0] == "reqid"), "")
+            if not reqid:
+                raise line.error("ipsec zone needs a reqid= option "
+                                 "(reqid-less ipsec is not supported yet)")
+            valid.integer(reqid, line, "ipsec zone reqid")
         elif ztype in ZONE_TYPES_UNSUPPORTED:
             raise line.error(f"zone type {ztype} "
                              f"({ZONE_TYPES_UNSUPPORTED[ztype]}) not "
@@ -144,7 +155,7 @@ def parse_zones(path, variables):
             raise line.error(f"unknown zone type {ztype}")
         names.add(name)
         zones.append(Zone(name=name, type=ztype, parents=parents,
-                          options=tuple(zopts)))
+                          options=tuple(zopts), ipsec=ipsec, reqid=reqid))
     return zones
 
 
@@ -1532,7 +1543,7 @@ def parse_accounting(path, variables, interfaces):
 
 
 HOSTS_IGNORED_OPTIONS = {"routeback", "tcpflags", "nosmurfs", "broadcast",
-                         "destonly", "sourceonly"}
+                         "destonly", "sourceonly", "ipsec"}
 
 
 def parse_hosts(path, variables, interfaces, zones):

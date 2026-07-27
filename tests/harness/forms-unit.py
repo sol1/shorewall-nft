@@ -244,6 +244,27 @@ form_rejected("zones: an unknown zone option is a located error",
               {"zones": "fw firewall\nnet ipv4 - bogusopt\n",
                "interfaces": "?FORMAT 2\nnet eth0\n"})
 
+# --- zones: an IPSEC zone (site-to-site, keyed by reqid). Its dispatch is
+# scoped to the SA, so cleartext on the tunnel interface is not in the zone.
+# Inbound matches ipsec in reqid N, outbound ipsec out reqid N (sol1). ---
+_IPSEC = {"zones": "fw firewall\nnet ipv4\ntun ipsec reqid=100\n",
+          "interfaces": "?FORMAT 2\nnet eth0\ntun eth1\n",
+          "policy": ("$FW net ACCEPT\n$FW tun ACCEPT\nnet all DROP\n"
+                     "tun all DROP\nall all REJECT\n")}
+form_ok("zones: an ipsec zone scopes inbound to ipsec in reqid",
+        {**_IPSEC, "rules": "?SECTION NEW\nACCEPT tun $FW tcp 22\n"},
+        expect='iifname "eth1" ipsec in reqid 100 jump')
+form_ok("zones: an ipsec zone scopes outbound to ipsec out reqid",
+        {**_IPSEC, "rules": "?SECTION NEW\n"},
+        expect='oifname "eth1" ipsec out reqid 100 jump')
+form_ok("zones: a forward pair through an ipsec zone scopes both directions",
+        {**_IPSEC, "rules": "?SECTION NEW\nACCEPT tun net\n"},
+        expect='iifname "eth1" ipsec in reqid 100 oifname "eth0"')
+form_rejected("zones: an ipsec zone without a reqid is a located error",
+              {"zones": "fw firewall\nnet ipv4\ntun ipsec\n",
+               "interfaces": "?FORMAT 2\nnet eth0\ntun eth1\n",
+               "policy": "$FW net ACCEPT\nall all DROP\n"})
+
 # --- rules: address exclusion (shorewall-exclusion(5)). A leading ! is the
 # pure-exclusion case; included!excluded matches the include and not the
 # exclude. Both lists may be comma-separated. ---

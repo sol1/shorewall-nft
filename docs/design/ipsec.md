@@ -2,8 +2,8 @@
 
 How shorewall-nft filters traffic to and from an IPSEC peer as a normal
 Shorewall zone. The target is site-to-site tunnels keyed by reqid, the common
-sol1 case. This is a design proposal; only the zone OPTIONS parsing is built
-so far.
+sol1 case. Phase 1 (the site-to-site core) is built; the reqid-less and finer
+selectors are Phase 2.
 
 ## The goal
 
@@ -89,12 +89,16 @@ does not replace it. An IPSEC zone still lives on an interface.
 
 ## Phases
 
-1. Site-to-site core. Accept the types; scope inbound and outbound with
-   `ipsec in reqid N` and `ipsec out reqid N` from the zone reqid option and the
-   hosts ipsec option. This covers the fixed tunnels sol1 runs.
+1. Done. Site-to-site core. The `ipsec`, `ipsec4` and `ipsec6` zone types are
+   accepted with a required `reqid=` option, and the zone dispatch is scoped
+   with `ipsec in reqid N` inbound and `ipsec out reqid N` outbound, so
+   cleartext on the tunnel interface is not in the zone. The redundant hosts
+   `ipsec` option is accepted. Corpus 0051 locks the cleartext-dropped property
+   against upstream.
 2. Reqid-less and finer selectors. `meta secpath exists` for road-warrior
    zones; the spi, proto, mode, tunnel-src and tunnel-dst options.
-3. The harness IPSEC dimension and corpus cases.
+3. The harness IPSEC dimension: build an xfrm SA in the netns and prove SA
+   traffic matches the zone while cleartext does not.
 
 ## Testing
 

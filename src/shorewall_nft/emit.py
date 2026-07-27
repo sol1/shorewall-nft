@@ -792,6 +792,8 @@ class Emitter:
             "yes", "1", "true", "on")
         # Interface names, for the zone:interface source/dest form.
         self.ifmap = _ifmap(cfg)
+        # Zones by name, for the ipsec-zone dispatch scoping.
+        self.zmap = {z.name: z for z in cfg.zones}
         # Distinct default-action strings in use, each gets a chain.
         self._default_chains = {}
         seen = set()
@@ -939,9 +941,24 @@ class Emitter:
         return out
 
     def _scoped_ifaces(self):
-        """Interfaces with address-scoped zones cannot use plain
-        verdict map dispatch."""
-        return {h.interface for h in self.cfg.zone_hosts}
+        """Interfaces that cannot use plain verdict map dispatch, because the
+        dispatch to their zone carries an extra match: an address-scoped zone
+        (a hosts entry) or an ipsec zone (an SA match). A vmap only maps an
+        interface name to a verdict, so these take ordered rules instead."""
+        scoped = {h.interface for h in self.cfg.zone_hosts}
+        scoped |= {i.physical for i in self.cfg.interfaces
+                   if i.zone and getattr(self.zmap.get(i.zone), "ipsec", False)}
+        return scoped
+
+    def _ipsec_match(self, zone, direction):
+        """The ipsec expression to scope an ipsec zone's dispatch. direction is
+        'in' on the source side (iifname), 'out' on the dest side (oifname).
+        The packet must have arrived on (in) or be selected for (out) the SA
+        with the zone's reqid. Empty for a non-ipsec zone."""
+        z = self.zmap.get(zone)
+        if not (z and z.ipsec):
+            return ""
+        return f"ipsec {direction} reqid {z.reqid}"
 
     def _docker_bridge_globs(self):
         """The Docker bridge interface matches to keep clear of, unless
@@ -1251,24 +1268,29 @@ class Emitter:
         # order breaks ties. A CONTINUE child chain returns and the
         # packet falls through to the parent chain.
         for zone in self._net_zones():
+            # An ipsec zone's dispatch also matches the SA: 'in' when this is
+            # the input side (iifname, the zone is the source), 'out' on the
+            # output side (oifname, the zone is the dest).
+            ips = self._ipsec_match(zone, "in" if key == "iifname" else "out")
+            ips = f"{ips} " if ips else ""
             for iface, nets in self._zone_sources(zone):
                 if iface == "+":
                     # A bare + means every interface. Match all with a
                     # plain jump.
-                    ordered.append((2, f"jump {chain_for(zone)}"))
+                    ordered.append((2, f"{ips}jump {chain_for(zone)}"))
                 elif iface.endswith("+"):
                     # A prefixed wildcard matches its name prefix. It
                     # must emit an actual glob, never a bare jump, or
                     # the zone would match every interface.
                     ordered.append((2, f'{key} "{_iface_glob(iface)}" '
-                                    f"jump {chain_for(zone)}"))
+                                    f"{ips}jump {chain_for(zone)}"))
                 elif nets:
                     ordered.append((0, f'{key} "{iface}" {ipkw} {addr_kw} '
                                     f"{_addr_set(nets)} "
-                                    f"jump {chain_for(zone)}"))
+                                    f"{ips}jump {chain_for(zone)}"))
                 elif iface in scoped:
                     ordered.append((1, f'{key} "{iface}" '
-                                    f"jump {chain_for(zone)}"))
+                                    f"{ips}jump {chain_for(zone)}"))
                 else:
                     entries.append(f'"{iface}" : jump {chain_for(zone)}')
         if entries:
@@ -1296,6 +1318,10 @@ class Emitter:
                                           if i.physical == i1), None)
                             if not (iface and iface.options.get("routeback")):
                                 continue
+                        # An ipsec zone scopes the pair by its SA: the source
+                        # zone by the inbound SA, the dest zone by the outbound.
+                        ips1 = self._ipsec_match(z1, "in")
+                        ips2 = self._ipsec_match(z2, "out")
                         iwild = i1.endswith("+") or i2.endswith("+")
                         if iwild:
                             # A wildcard interface pair emits an ordered
@@ -1307,21 +1333,30 @@ class Emitter:
                                 m.append(f'iifname "{g}"')
                             if n1:
                                 m.append(f"{ipkw} saddr {_addr_set(n1)}")
+                            if ips1:
+                                m.append(ips1)
                             if i2 != "+":
                                 g = _iface_glob(i2) if i2.endswith("+") else i2
                                 m.append(f'oifname "{g}"')
                             if n2:
                                 m.append(f"{ipkw} daddr {_addr_set(n2)}")
+                            if ips2:
+                                m.append(ips2)
                             body = (" ".join(m) + " " if m else "")
                             ordered.append((3, body +
                                             f"jump {self._chain_for(z1, z2)}"))
-                        elif n1 or n2 or i1 in scoped or i2 in scoped:
+                        elif n1 or n2 or ips1 or ips2 or i1 in scoped \
+                                or i2 in scoped:
                             m = [f'iifname "{i1}"']
                             if n1:
                                 m.append(f"{ipkw} saddr {_addr_set(n1)}")
+                            if ips1:
+                                m.append(ips1)
                             m.append(f'oifname "{i2}"')
                             if n2:
                                 m.append(f"{ipkw} daddr {_addr_set(n2)}")
+                            if ips2:
+                                m.append(ips2)
                             # More specific (address-scoped) pairs first,
                             # so a nested child is matched before its
                             # parent and CONTINUE falls through correctly.

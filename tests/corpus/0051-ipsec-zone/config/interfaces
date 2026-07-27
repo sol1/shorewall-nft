@@ -1,0 +1,4 @@
+?FORMAT 2
+# tun is an IPSEC zone on eth1, keyed by reqid 100.
+net	NET	tcpflags,physical=eth0
+tun	TUN	tcpflags,physical=eth1

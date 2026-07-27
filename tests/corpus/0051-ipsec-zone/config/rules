@@ -1,0 +1,4 @@
+?SECTION NEW
+# SSH from the tunnel peer is allowed, but only over the SA. Cleartext on
+# eth1 is not in the tun zone, so it is dropped.
+ACCEPT	tun	$FW	tcp	22

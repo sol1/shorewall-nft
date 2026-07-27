@@ -7,6 +7,8 @@ class Zone:
     type: str = "ip"          # ip, ipv4, ipv6, firewall
     parents: tuple = ()       # parent zone names for a nested zone
     options: tuple = ()       # OPTIONS/IN/OUT column options, raw
+    ipsec: bool = False       # an IPSEC zone: traffic scoped to an SA
+    reqid: str = ""           # the SA request id for a site-to-site tunnel
 
 
 @dataclass
