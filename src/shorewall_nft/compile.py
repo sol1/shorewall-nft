@@ -320,8 +320,8 @@ def load(confdir, family=4):
             with open(path) as f:
                 cfg.extensions[name] = f.read()
         elif name in EXTENSIONS_UNWIRED and os.path.getsize(path):
-            print(f"warning: extension script {name} is not run yet",
-                  file=sys.stderr)
+            print(f"warning: extension script {name} is not supported yet; "
+                  "its contents are ignored", file=sys.stderr)
     return cfg
 
 
