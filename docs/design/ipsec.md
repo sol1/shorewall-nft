@@ -38,38 +38,63 @@ scoped by the IPSEC policy the kernel applied:
 So a zone tied to reqid N matches inbound packets that came in on SA reqid N
 and outbound packets selected for SA reqid N.
 
-## The nft mechanism
+## How upstream builds the match
 
-nft matches IPSEC state directly, with no policy module:
+Confirmed by reading the upstream Perl (Zones.pm, Chains.pm, Rules.pm,
+Misc.pm, Nat.pm). An IPSEC zone's rules carry an iptables policy match,
+`-m policy --dir {in|out} --pol ipsec [flags]`, and the flags come from the
+zone OPTIONS/IN OPTIONS/OUT OPTIONS columns in the user's source order:
 
-| Need | nft |
+| option | flag | note |
+|---|---|---|
+| `reqid=N` | `--reqid N` | SPD reqid, the site-to-site key |
+| `spi=N` | `--spi N` | a specific SA |
+| `proto=ah\|esp\|ipcomp` | `--proto P` | encapsulation protocol |
+| `mode=tunnel\|transport` | `--mode M` | |
+| `tunnel-src=A`, `tunnel-dst=A` | `--tunnel-src/dst A` | tunnel mode only |
+| `strict` | `--strict` | all policy elements must match |
+| `next` | `--next` | separates policy elements |
+
+`--dir in` scopes packets arriving from the zone (source side), `--dir out`
+packets going to it (dest side). OPTIONS apply to both, IN OPTIONS only to the
+in match, OUT OPTIONS only to the out match. A bare ipsec zone with no options
+is valid and emits `--pol ipsec` with no qualifier (any SA). mss and blacklist
+also apply to non-ipsec zones; the rest are ipsec-only.
+
+The load-bearing detail for a faithful clone: whenever any ipsec zone or host
+is present, upstream also sprays `--pol none --dir {in|out}` on the
+non-encrypted paths, so a decrypted packet does not fall through to a
+cleartext rule on the same interface. The `--dir in` rules are ordered first
+in the forward chain for the same reason. The `tunnels` file also changes:
+with ipsec in play it opens only the key-exchange UDP ports, not raw ESP/AH.
+
+## The nft mechanism and how it maps
+
+nft matches IPSEC state directly, no policy module. The match is ANDed onto
+the zone's existing interface and address scoping.
+
+| upstream `-m policy` | nft |
 |---|---|
-| inbound came via IPSEC | `meta secpath exists` |
-| inbound via SA reqid N | `ipsec in reqid N` |
-| outbound selected for SA reqid N | `ipsec out reqid N` |
-| a specific SA | `ipsec in spi <spi>`, `ipsec in reqid N proto esp` |
-| tunnel endpoints | `ipsec in spnum 0 ip saddr <tunnel-src>` |
-
-`ipsec in reqid N` and `ipsec out reqid N` load on the baseline nft, so the
-site-to-site case needs nothing exotic. nft 0.9.0 (Debian 10) has no ipsec
-expression, so an ipsec zone is refused there with a located error, capability
-NFT_IPSEC, the same as NETMAP and ECN on an nft too old to express them; nft
-0.9.3 (Ubuntu 20.04) and later have it. `meta secpath exists` covers the
-reqid-less road-warrior case.
-
-## Mapping upstream to nft
-
-Upstream adds a policy match to every rule for the zone.
-
-| upstream | nft |
-|---|---|
-| `-m policy --dir in --pol ipsec` | `meta secpath exists` |
+| `--dir in --pol ipsec` (any SA) | `meta secpath exists` |
 | `--dir in --reqid N` | `ipsec in reqid N` |
 | `--dir out --reqid N` | `ipsec out reqid N` |
-| `--proto esp` | `... proto esp` |
+| `--spi S` | `ipsec {in\|out} spi S` |
+| `--mode tunnel --tunnel-src A` | `ipsec {in\|out} spnum 0 ip saddr A` |
+| `--mode tunnel --tunnel-dst A` | `ipsec {in\|out} spnum 0 ip daddr A` |
+| `--strict` (multi-element) | chained `ipsec ...` clauses (spnum 0, 1, ...) |
+| `--pol none --dir in` | `meta secpath missing` |
+| `--proto P` | no nft selector (gap) |
+| `--pol none --dir out` | no clean nft form (gap) |
 
-The match is ANDed onto the zone's existing interface and address scoping, it
-does not replace it. An IPSEC zone still lives on an interface.
+Two nft gaps, both edges. There is no `proto` selector on the ipsec
+expression, and no outbound "not ipsec" match, since `meta secpath` is set by
+decryption and so is inbound only. The site-to-site and per-host-encryption
+cases do not need either. A config that uses `proto=` or depends on an
+outbound cleartext exclusion is refused or warned rather than mis-scoped.
+
+nft 0.9.0 (Debian 10) has no ipsec expression at all, so any ipsec zone is
+refused there with a located error, capability NFT_IPSEC, the same as NETMAP
+and ECN; nft 0.9.3 (Ubuntu 20.04) and later have it.
 
 ## Design
 
@@ -98,9 +123,24 @@ does not replace it. An IPSEC zone still lives on an interface.
    cleartext on the tunnel interface is not in the zone. The redundant hosts
    `ipsec` option is accepted. Corpus 0051 locks the cleartext-dropped property
    against upstream.
-2. Reqid-less and finer selectors. `meta secpath exists` for road-warrior
-   zones; the spi, proto, mode, tunnel-src and tunnel-dst options.
-3. The harness IPSEC dimension: build an xfrm SA in the netns and prove SA
+2. Match upstream's full option set. Accept a reqid-less (bare) ipsec zone,
+   which upstream allows: `meta secpath exists` inbound (road-warrior). Apply
+   the finer options that map cleanly: `spi=` (`ipsec spi S`), `mode=tunnel`
+   with `tunnel-src`/`tunnel-dst` (`ipsec spnum 0 ip saddr/daddr A`), and
+   `strict`/`next` as chained clauses. Honour the IN OPTIONS / OUT OPTIONS
+   column split (in-only, out-only, both). Refuse or warn the two forms nft
+   cannot express: `proto=` and an outbound cleartext exclusion. Relax the
+   phase-1 reqid requirement, since a bare ipsec zone is valid upstream.
+3. Coexistence with cleartext on a shared interface, the `--pol none`
+   companion. When an interface carries both an ipsec zone and a cleartext
+   zone, the cleartext dispatch must exclude decrypted traffic with
+   `meta secpath missing`, and the ipsec `in` rules must sort first, so a
+   decrypted packet is not matched by the cleartext rule. This is what makes
+   per-host encryption (the hosts `ipsec` option on a plain zone) correct.
+4. The rest of the upstream ipsec surface: the nat/masq, accounting and
+   provider paths that also emit a policy match, and the `tunnels` file
+   opening only key-exchange ports when ipsec is in play.
+5. The harness IPSEC dimension: build an xfrm SA in the netns and prove SA
    traffic matches the zone while cleartext does not.
 
 ## Testing
