@@ -233,6 +233,21 @@ def _ifaddr_setname(phys):
     return "_ifaddr_" + re.sub(r"[^0-9A-Za-z]", "_", phys)
 
 
+def _addr_or_ifaddr(spec, ifmap, sets):
+    """The address body for a NAT match column (origdest, daddr) that may be
+    the &interface form. &interface resolves to the runtime address set, the
+    way _match_addr does for SOURCE/DEST; anything else is a literal via
+    _addr_set. These NAT columns do not pass through _match_addr."""
+    if spec.startswith("&"):
+        logical = spec[1:]
+        phys = ifmap.get(logical) if ifmap else None
+        if phys is None:
+            raise ConfigError(f"&{logical}: unknown interface")
+        sets.add(f"ifaddr:{phys}")
+        return f"@{_ifaddr_setname(phys)}"
+    return _addr_set(spec)
+
+
 # A set name: an nft identifier. The name reaches the DYNSETS shell
 # assignment in the root script, so a metacharacter here would inject.
 _SETNAME = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]*$")
@@ -434,7 +449,8 @@ def _rule_match(rule, family=4, sets=None, ifmap=None):
         raise ConfigError(f"{origin}: {e}" if origin else str(e))
     post = []
     if rule.origdest:
-        post.append(f"ct original {ipkw} daddr {_addr_set(rule.origdest)}")
+        post.append(f"ct original {ipkw} daddr "
+                    f"{_addr_or_ifaddr(rule.origdest, ifmap, sets)}")
     proto = rule.proto.lower()
     if proto in ("all", "any"):
         proto = ""
@@ -678,12 +694,16 @@ def _collect_sets(cfg, sink):
         _rule_match(rule, cfg.family, sink, ifmap)
     for d in cfg.dnat:
         if d.saddr:
-            _match_addr(d.saddr, "saddr", ipkw, sink)
+            _match_addr(d.saddr, "saddr", ipkw, sink, ifmap)
+        if d.origdest:
+            _addr_or_ifaddr(d.origdest, ifmap, sink)
     for s in cfg.snat:
         if s.source:
             _match_addr(s.source, "saddr", ipkw, sink)
         if s.daddr:
             _match_addr(s.daddr, "daddr", ipkw, sink)
+        if s.origdest:
+            _addr_or_ifaddr(s.origdest, ifmap, sink)
     for r in cfg.mangle:
         if r.saddr:
             _match_addr(r.saddr, "saddr", ipkw, sink)
@@ -2005,9 +2025,11 @@ class Emitter:
                 action = f"redirect to :{d.to_port}{flags}"
             m = []
             if d.saddr:
-                m.append(_match_addr(d.saddr, "saddr", ipkw, self.sets))
+                m.append(_match_addr(d.saddr, "saddr", ipkw, self.sets,
+                                     self.ifmap))
             if d.origdest:
-                m.append(f"{ipkw} daddr {_addr_set(d.origdest)}")
+                m.append(f"{ipkw} daddr "
+                         f"{_addr_or_ifaddr(d.origdest, self.ifmap, self.sets)}")
             if "," in d.proto:
                 protos = "{ " + ", ".join(d.proto.split(",")) + " }"
                 m.append(f"meta l4proto {protos}")
@@ -2094,7 +2116,8 @@ class Emitter:
             if s.source:
                 m.append(_match_addr(s.source, "saddr", ipkw, self.sets))
             if s.origdest:
-                m.append(f"ct original {ipkw} daddr {_addr_set(s.origdest)}")
+                m.append(f"ct original {ipkw} daddr "
+                         f"{_addr_or_ifaddr(s.origdest, self.ifmap, self.sets)}")
             if s.proto and s.dport:
                 m.append(f"{s.proto} dport {_ports(s.dport)}")
             elif s.proto:

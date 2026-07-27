@@ -603,6 +603,27 @@ with contextlib.redirect_stderr(_err):
     and "has no interface or host" in _err.getvalue()
  else bad)("emit: DNAT from an empty zone is skipped with a warning, not emitted")
 
+# A params file that uses shell logic is sourced through bash. The permission
+# check runs first, so REQUIRE_SECURE_CONFIG=Yes refuses a world-writable
+# config before params is sourced: attacker-writable params cannot run code as
+# root at compile time. The sentinel proves the body never executed.
+_sd = tempfile.mkdtemp(prefix="shorewall-nft-secparams-")
+shutil.copytree(os.path.join(REPO, "tests/corpus/0002-one-interface/config"),
+                _sd, dirs_exist_ok=True)
+_sentinel = os.path.join(_sd, "PWNED")
+with open(os.path.join(_sd, "shorewall.conf"), "a") as f:
+    f.write("\nREQUIRE_SECURE_CONFIG=Yes\n")
+with open(os.path.join(_sd, "params"), "w") as f:
+    f.write('for _x in 1; do :; done\n. "${g_confdir}/params.evil"\n')
+with open(os.path.join(_sd, "params.evil"), "w") as f:
+    f.write(f'touch "{_sentinel}"\nEVIL=yes\n')
+os.chmod(os.path.join(_sd, "params"), 0o666)     # world-writable
+_refused = raises_config_error(lambda: load(_sd, 4))
+_ran = os.path.exists(_sentinel)
+shutil.rmtree(_sd, ignore_errors=True)
+(ok if _refused and not _ran
+ else bad)("emit: a world-writable bash params is refused before it is sourced")
+
 # A blacklist rule on a wildcard-interface zone globs it; the literal ppp+
 # (which nft never matches) must appear nowhere in the ruleset.
 bl_wild = load_with({"interfaces": "?FORMAT 2\nnet ppp+\n",

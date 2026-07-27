@@ -7,6 +7,8 @@ so nothing is dropped silently.
 """
 import os
 import re
+import shutil
+import subprocess
 
 from . import capabilities
 from .errors import ConfigError
@@ -256,3 +258,91 @@ def read_simple_vars(path, depth=0, variables=None):
                 value = value[1:-1]
             variables[key] = VAR_RE.sub(sub, value)
     return variables
+
+
+# Bash constructs that the simple reader cannot evaluate: a for/while/if block,
+# a bash builtin, or command substitution. A params file using any of these is
+# sourced through bash instead, the way upstream sources it.
+_NEEDS_SHELL = re.compile(r"(^|\s)(for|while|if|case|declare|local|typeset)\s"
+                          r"|\$\(|\bBASH_SOURCE\b|\[\[")
+
+
+def needs_shell(path):
+    """True if a variable file uses shell logic beyond KEY=VALUE and simple
+    sourcing, so it must be sourced through bash rather than read line by line.
+    A file it also sources is followed, since the logic may live there."""
+    seen = set()
+
+    def scan(p):
+        if p in seen or not os.path.exists(p) or len(seen) > 20:
+            return False
+        seen.add(p)
+        try:
+            with open(p) as f:
+                text = f.read()
+        except OSError:
+            return False
+        for line in text.splitlines():
+            s = line.strip()
+            if not s or s.startswith("#"):
+                continue
+            if _NEEDS_SHELL.search(s):
+                return True
+            m = re.match(r"^(?:\.|source)\s+(\S+)", s)
+            if m:
+                nxt = os.path.join(os.path.dirname(p),
+                                   os.path.basename(m.group(1).strip("\"'")))
+                if scan(nxt):
+                    return True
+        return False
+
+    return scan(path)
+
+
+def read_shell_vars(path, confdir, seed=None):
+    """Source a variable file through bash, the way upstream sources params, so
+    a file that uses shell logic (loops, includes, bash builtins) works.
+    g_confdir is set as shorewall sets it, and seed variables (from
+    shorewall.conf, already read) are exported so the file may reference them.
+    Returns the variables the file introduces, found by diffing the shell's
+    variable list, or None if bash is missing or sourcing fails so the caller
+    can fall back to the line reader. The caller must have checked the file's
+    permissions first, since this executes it."""
+    if not os.path.exists(path):
+        return {}
+    bash = shutil.which("bash") or (
+        "/bin/bash" if os.path.exists("/bin/bash") else None)
+    if not bash:
+        return None
+    script = (
+        'g_confdir=$1\n'
+        '__b=" $(compgen -v | tr "\\n" " ") "\n'
+        '. "$2" || exit 3\n'
+        'for __v in $(compgen -v); do\n'
+        '  case "$__b" in *" $__v "*) continue;; esac\n'
+        '  printf "%s=%s\\0" "$__v" "${!__v}"\n'
+        'done\n')
+    env = {"PATH": os.environ.get("PATH", "/usr/sbin:/usr/bin:/sbin:/bin")}
+    for k, v in (seed or {}).items():
+        if re.fullmatch(r"[A-Za-z_]\w*", k):
+            env[k] = str(v)
+    try:
+        r = subprocess.run([bash, "--norc", "--noprofile", "-c", script,
+                            "bash", confdir, path],
+                           capture_output=True, text=True, timeout=30, env=env)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if r.returncode != 0:
+        return None
+    # Bash bookkeeping a params file can introduce as a side effect (set -o
+    # posix sets POSIXLY_CORRECT, and so on). These are not config variables.
+    internal = {"__b", "__v", "POSIXLY_CORRECT", "FUNCNAME", "OPTIND",
+                "OPTARG", "OPTERR", "PIPESTATUS"}
+    out = {}
+    for item in r.stdout.split("\0"):
+        if not item:
+            continue
+        key, _, value = item.partition("=")
+        if key not in internal:
+            out[key] = value
+    return out

@@ -5,7 +5,7 @@ import sys
 
 from . import emit, ipsets, macros, parsers, script
 from .errors import ConfigError
-from .reader import read_file, read_simple_vars
+from .reader import read_file, read_simple_vars, needs_shell, read_shell_vars
 
 # Files consumed as variables or deliberately not part of the start
 # ruleset. stoppedrules only matters for the stopped state.
@@ -174,8 +174,18 @@ def load(confdir, family=4):
     variables = {}
     conf = "shorewall6.conf" if family == 6 else "shorewall.conf"
     variables.update(read_simple_vars(_path(confdir, conf)))
-    variables.update(read_simple_vars(_path(confdir, "params")))
+    # Check permissions before reading params: a params file that uses shell
+    # logic is sourced through bash, so an insecure one must be warned about,
+    # or refused under REQUIRE_SECURE_CONFIG, before it is executed.
     _check_config_security(confdir, variables)
+    params = _path(confdir, "params")
+    if needs_shell(params):
+        pv = read_shell_vars(params, confdir, seed=variables)
+        if pv is None:                 # bash missing or sourcing failed
+            pv = read_simple_vars(params)
+        variables.update(pv)
+    else:
+        variables.update(read_simple_vars(params))
 
     cfg.zones = parsers.parse_zones(_path(confdir, "zones"), variables)
     fw = [z.name for z in cfg.zones if z.type == "firewall"]

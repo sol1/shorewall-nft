@@ -296,6 +296,29 @@ form_ok("rules: &interface declares the address set empty",
 form_rejected("rules: &unknown-interface is a located error",
               {"rules": "?SECTION NEW\nACCEPT net:&BADIF $FW tcp 22\n"})
 
+# &interface in a NAT address column (a DNAT ORIGINAL DEST) resolves to the
+# same runtime address set, not a literal &name that nft treats as a hostname
+# (github #13). The set is declared so the ruleset loads.
+form_ok("rules: &interface in a DNAT origdest resolves to the address set",
+        {"zones": "fw firewall\nnet ipv4\nloc ipv4\n",
+         "interfaces": "?FORMAT 2\nnet NET_IF physical=enp3s0\nloc eth1\n",
+         "rules": "?SECTION NEW\nDNAT net loc:127.0.0.1:1883 tcp 1883 - &NET_IF\n"},
+        expect="ip daddr @_ifaddr_enp3s0")
+
+# --- params: a params file that uses bash logic (a glob loop over .inc
+# includes, declare, BASH_SOURCE, [[ ]]) is sourced through bash the way
+# upstream sources it, so the variables it builds are available and expand in
+# the config (github #11). ---
+form_ok("params: a bash-form params file with .inc includes is sourced",
+        {"params": 'NET_IF="enp2s0.10"\n. "${g_confdir}/params.common"\n',
+         "params.common": ('set +o posix\ndeclare EXT\n'
+                           'for EXT in "${BASH_SOURCE[0]}."*".inc"; do\n'
+                           '  [[ -f "$EXT" ]] && . "$EXT"\ndone\n'
+                           'unset EXT\nset -o posix\n'),
+         "params.common.admin.inc": 'SOL1_ADMIN="10.15.0.0/16"\n',
+         "rules": "?SECTION NEW\nACCEPT net:$SOL1_ADMIN $FW tcp 22\n"},
+        expect="ip saddr 10.15.0.0/16")
+
 # The generated lifecycle script must fill the set from the live interface.
 _d = build({"rules": "?SECTION NEW\nACCEPT net:&NET_IF $FW tcp 22\n"})
 try:
