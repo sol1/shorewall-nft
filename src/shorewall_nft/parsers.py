@@ -92,6 +92,17 @@ def parse_actions(path, variables):
     return names
 
 
+# Zone options (shorewall-zones(5) OPTIONS/IN OPTIONS/OUT OPTIONS columns).
+# mss and blacklist apply to any zone; the rest apply only to ipsec zones,
+# which are not supported, so they are accepted as no-ops if they appear. mss
+# and blacklist are accepted but not applied yet, so each use is warned about,
+# the same as the accepted-but-unenforced interface options.
+ZONE_OPTIONS_WARN = {"mss", "blacklist"}
+ZONE_OPTIONS_NOOP = {"dynamic_shared", "reqid", "spi", "proto", "mode",
+                     "tunnel-src", "tunnel-dst", "strict", "next"}
+ZONE_OPTIONS_KNOWN = ZONE_OPTIONS_WARN | ZONE_OPTIONS_NOOP
+
+
 def parse_zones(path, variables):
     zones = []
     names = set()
@@ -104,8 +115,23 @@ def parse_zones(path, variables):
                 raise line.error(f"nested zone parent {p} must be declared "
                                  "before the child")
         ztype = cols[1].lower() if len(cols) > 1 and cols[1] != "-" else "ip"
-        if len(cols) > 2 and any(c != "-" for c in cols[2:]):
-            raise line.error("zone OPTIONS columns not supported yet")
+        # OPTIONS, IN OPTIONS and OUT OPTIONS (cols 2 onward). Accept the
+        # documented options so real configs compile; warn for the ones that
+        # change filtering we do not apply yet, and reject an unknown option
+        # rather than silently ignore it.
+        zopts = []
+        for col in cols[2:]:
+            if col and col != "-":
+                zopts.extend(o for o in col.split(",") if o)
+        for opt in zopts:
+            key = opt.split("=")[0]
+            if key not in ZONE_OPTIONS_KNOWN:
+                raise line.error(f"unsupported zone option {key}")
+            if key in ZONE_OPTIONS_WARN:
+                print(f"shorewall-nft: warning: "
+                      f"{os.path.basename(line.path)}:{line.lineno}: zone "
+                      f"option {key!r} is accepted but not applied yet.",
+                      file=sys.stderr)
         if ztype == "firewall":
             pass
         elif ztype in ZONE_TYPES_NET:
@@ -117,7 +143,8 @@ def parse_zones(path, variables):
         else:
             raise line.error(f"unknown zone type {ztype}")
         names.add(name)
-        zones.append(Zone(name=name, type=ztype, parents=parents))
+        zones.append(Zone(name=name, type=ztype, parents=parents,
+                          options=tuple(zopts)))
     return zones
 
 

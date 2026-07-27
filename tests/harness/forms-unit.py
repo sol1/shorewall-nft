@@ -233,6 +233,17 @@ form_ok("policy: a CONNLIMIT column caps concurrent connections",
 form_rejected("policy: a level:tag LOGLEVEL is rejected, as upstream does",
               {"policy": "$FW net ACCEPT\nnet all DROP info:blocked\nall all REJECT\n"})
 
+# --- zones: the OPTIONS / IN OPTIONS / OUT OPTIONS columns (shorewall-zones(5))
+# are accepted so real configs compile, instead of rejecting the whole file.
+# mss and blacklist warn (not applied yet); an unknown option is a located
+# error (shorewall-users). ---
+form_ok("zones: an OPTIONS column (blacklist) compiles and loads",
+        {"zones": "fw firewall\nnet ipv4 - blacklist\n",
+         "interfaces": "?FORMAT 2\nnet eth0\n"})
+form_rejected("zones: an unknown zone option is a located error",
+              {"zones": "fw firewall\nnet ipv4 - bogusopt\n",
+               "interfaces": "?FORMAT 2\nnet eth0\n"})
+
 # --- rules: address exclusion (shorewall-exclusion(5)). A leading ! is the
 # pure-exclusion case; included!excluded matches the include and not the
 # exclude. Both lists may be comma-separated. ---
