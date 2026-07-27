@@ -1,0 +1,25 @@
+description = "Policy RATE LIMIT and log tag. The net->all DROP policy carries a rate and a log tag; a single connection is under the rate, so it is dropped, matching upstream."
+family = 4
+
+[[links]]
+node_a = "wan"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+[routes]
+wan = "10.0.2.1"
+
+# No rule opens net->fw, so the rate-limited DROP policy handles it. A single
+# probe is under the rate, so it is dropped (and logged), the same on both.
+[[probes]]
+id = "net-to-fw-dropped-by-policy"
+from = "wan"
+source = "10.0.2.2"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 22
+expect = "drop"

@@ -639,24 +639,27 @@ def _extra_matches(rule):
     if rule.mark:
         out.append(_mark_match(rule.mark))
     if rule.connlimit:
-        # CONNLIMIT is [d:][!]limit[:mask]. nft ct count is a plain per-rule
-        # counter, so drop the d: (count-by-destination) prefix and the :mask
-        # grouping (the parser warns they are not applied) and enforce limit.
-        cl = rule.connlimit
-        if cl.startswith("d:"):
-            cl = cl[2:]
-        # Upstream: a plain limit matches at or below N (connlimit-at-or-below,
-        # Chains.pm do_connlimit), a !limit matches above N. nft's bare
-        # `ct count N` matches at or below (inv=false); `ct count over N`
-        # matches above (inv=true). There is no `until` keyword.
-        over = ""
-        if cl.startswith("!"):
-            over, cl = "over ", cl[1:]
-        count = cl.split(":")[0]
-        out.append(f"ct count {over}{int(count)}")
+        out.append(_connlimit_match(rule.connlimit))
     if rule.time:
         out.append(_time_match(rule.time))
     return out
+
+
+def _connlimit_match(connlimit):
+    """CONNLIMIT [d:][!]limit[:mask] as an nft ct count. nft ct count is a
+    plain per-rule counter, so the d: (count-by-destination) prefix and the
+    :mask grouping cannot be expressed and are dropped (the parser warns).
+    Upstream: a plain limit matches at or below N (Chains.pm do_connlimit), a
+    !limit matches above N. nft's bare `ct count N` matches at or below, and
+    `ct count over N` matches above. There is no `until` keyword."""
+    cl = connlimit
+    if cl.startswith("d:"):
+        cl = cl[2:]
+    over = ""
+    if cl.startswith("!"):
+        over, cl = "over ", cl[1:]
+    count = cl.split(":")[0]
+    return f"ct count {over}{int(count)}"
 
 
 def _verdict(action, param=""):
@@ -1038,14 +1041,25 @@ class Emitter:
             name = self._default_chains.get(default)
             if name:
                 self.out(f"jump {name}", 2)
+        # RATE LIMIT and CONNLIMIT gate the policy: only under-rate and
+        # under-limit packets are logged and take the verdict; the excess falls
+        # through to the base chain policy, as upstream's -m limit does. The
+        # gate goes on both the log and the verdict, as upstream puts -m limit
+        # on each.
+        gate = []
+        if policy.rate:
+            gate.append(_rate_match(policy.rate))
+        if policy.connlimit:
+            gate.append(_connlimit_match(policy.connlimit))
+        gate = (" ".join(gate) + " ") if gate else ""
         if policy.loglevel:
-            self.out(f'log prefix "shorewall:{chain}:{policy.policy}:" '
+            self.out(f'{gate}log prefix "shorewall:{chain}:{policy.policy}:" '
                      f"level {policy.loglevel.lower()}", 2)
         if policy.policy in ("ACCEPT", "DROP", "REJECT", "QUEUE", "NFQUEUE"):
             verdict = _verdict(policy.policy, policy.param)
             if self.counters and policy.policy in ("DROP", "REJECT"):
                 verdict = f"counter name d_{chain} {verdict}"
-            self.out(verdict, 2)
+            self.out(f"{gate}{verdict}", 2)
         elif policy.policy == "NONE":
             pass
         elif policy.policy == "CONTINUE":

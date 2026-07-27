@@ -1,0 +1,2 @@
+?SECTION NEW
+# No rule opens net->fw; the rate-limited policy handles it.

@@ -13,7 +13,7 @@ parsers, and by test.
 | params | Shell variable definitions, including sourced files and sequential expansion. |
 | zones | Types ip/ipv4/ipv6/firewall; parent:child nesting; unsupported types fail loud. |
 | interfaces | Options dhcp, routeback, tcpflags, nosmurfs, routefilter, rpfilter (strict reverse-path fib check, established traffic exempt), logmartians, sourceroute, forward, proxyarp, arp; wildcard globs; unknown options fail loud. sfilter and norfc1918 are accepted but warned, not yet enforced. |
-| policy | Default actions (Broadcast/Multicast drop), file-order precedence, implicit intra-zone accept, CONTINUE, QUEUE/NFQUEUE, log levels. |
+| policy | Default actions (Broadcast/Multicast drop), file-order precedence, implicit intra-zone accept, CONTINUE, QUEUE/NFQUEUE, log levels, and the RATE LIMIT and CONNLIMIT columns. |
 | rules | All 15 columns: action, source, dest, proto, ports, origdest, rate, user, mark, connlimit, time. Macros, DNAT, REDIRECT, sections. SOURCE/DEST forms: addresses and lists, ranges, +ipset, ~MAC, ^geoip country codes, zone:[!]interface, zone:interface:address, the included!excluded exclusion, the zone:(...) grouping wrapper, and &interface for an interface's primary address (an empty set the lifecycle script fills at load, as upstream resolves $SW_<IF>_ADDRESS). |
 | hosts | Zone membership scoped to addresses on an interface, with declaration-order precedence. |
 | masq | Legacy SNAT format, folded into the snat model. |

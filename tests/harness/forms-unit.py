@@ -218,6 +218,21 @@ form_ok("rules: a bare IPv6 address is not mistaken for an interface",
 form_rejected("rules: zone:interface:address with an unknown interface",
               {"rules": "?SECTION NEW\nACCEPT net:BADIF:10.0.0.5 $FW tcp 22\n"})
 
+# --- policy: the RATE LIMIT and CONNLIMIT columns (shorewall-policy(5)),
+# rejected before. They gate the policy the way a rule's columns do: only
+# under-rate and under-limit packets are logged and take the verdict, and the
+# excess falls through to the base chain policy (shorewall-users). A colon in
+# the LOGLEVEL is rejected, matching upstream, since policy log tags are not a
+# thing. ---
+form_ok("policy: a RATE LIMIT column rate-limits the policy",
+        {"policy": "$FW net ACCEPT\nnet all DROP info 10/sec:20\nall all REJECT\n"},
+        expect="limit rate 10/second burst 20 packets")
+form_ok("policy: a CONNLIMIT column caps concurrent connections",
+        {"policy": "$FW net ACCEPT\nnet all DROP info - 8\nall all REJECT\n"},
+        expect="ct count 8")
+form_rejected("policy: a level:tag LOGLEVEL is rejected, as upstream does",
+              {"policy": "$FW net ACCEPT\nnet all DROP info:blocked\nall all REJECT\n"})
+
 # --- rules: address exclusion (shorewall-exclusion(5)). A leading ! is the
 # pure-exclusion case; included!excluded matches the include and not the
 # exclude. Both lists may be comma-separated. ---

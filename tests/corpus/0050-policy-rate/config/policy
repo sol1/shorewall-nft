@@ -1,0 +1,5 @@
+# A rate-limited DROP policy for net->all. A single probe is under the rate,
+# so it is logged and dropped, the same as upstream.
+$FW	net	ACCEPT
+net	all	DROP	info	10/sec:20
+all	all	REJECT

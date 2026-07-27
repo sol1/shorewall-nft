@@ -38,6 +38,8 @@ class Policy:
     loglevel: str = ""
     param: str = ""           # queue number for NFQUEUE policy
     default_action: str = ""  # "none" overrides the global default action
+    rate: str = ""            # RATE LIMIT column, raw
+    connlimit: str = ""       # CONNLIMIT column, raw
 
 
 @dataclass

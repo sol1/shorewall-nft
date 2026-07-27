@@ -261,15 +261,35 @@ def parse_policy(path, variables, zones=None):
                       f"default action {suffix!r} is not applied yet; the "
                       "policy disposition still takes effect.", file=sys.stderr)
         loglevel = cols[3] if len(cols) > 3 and cols[3] != "-" else ""
+        # The policy LOGLEVEL is a bare log level. Upstream rejects a level:tag
+        # here (log tags are not a policy feature), so match that rather than
+        # accept a form upstream refuses.
         if ":" in loglevel:
-            raise line.error("policy log tags not supported yet")
-        if len(cols) > 4 and cols[4] != "-":
-            raise line.error("policy RATE LIMIT column not supported yet")
-        if len(cols) > 5 and cols[5] != "-":
-            raise line.error("policy CONNLIMIT column not supported yet")
+            raise line.error(f"invalid policy log level {loglevel!r}")
+        rate = cols[4] if len(cols) > 4 and cols[4] != "-" else ""
+        connlimit = cols[5] if len(cols) > 5 and cols[5] != "-" else ""
+        if connlimit:
+            # Same [d:][!]limit[:mask] grammar as a rule; validate the limit
+            # and warn that the destination or per-subnet grouping is not
+            # applied, rather than reject a documented column.
+            cl = connlimit
+            grouped = cl.startswith("d:")
+            if grouped:
+                cl = cl[2:]
+            if cl.startswith("!"):
+                cl = cl[1:]
+            climit, _, cmask = cl.partition(":")
+            valid.integer(climit, line, "policy connlimit")
+            if grouped or cmask:
+                print(f"shorewall-nft: warning: "
+                      f"{os.path.basename(line.path)}:{line.lineno}: policy "
+                      "CONNLIMIT counts by destination or per-subnet are not "
+                      "applied yet; the limit is enforced as a single count.",
+                      file=sys.stderr)
         policies.append(Policy(source=cols[0], dest=cols[1],
                                policy=policy, loglevel=loglevel,
-                               param=param, default_action=default_action))
+                               param=param, default_action=default_action,
+                               rate=rate, connlimit=connlimit))
     return policies
 
 
