@@ -42,6 +42,7 @@ CAPABILITIES = {
     "NFT_NAT_FAMILY": True,
     "NFT_TCP_ECN": True,
     "NFT_CONCAT_MAPS": True,
+    "NFT_IPSEC": True,
 }
 
 # A conntrack-helper capability maps to the nft ct helper type and a
@@ -96,6 +97,11 @@ SYNTAX_PROBES = {
     "NFT_CONCAT_MAPS": "table ip shorewall_capcheck {\n\tchain a { }\n"
                        "\tchain c {\n\t\tiifname . oifname vmap "
                        '{ "lo" . "lo" : jump a }\n\t}\n}\n',
+    # The ipsec match (ipsec in/out reqid N) for IPSEC zones. nft 0.9.0
+    # (Debian 10) has no ipsec expression; 0.9.3 (Ubuntu 20.04) does.
+    "NFT_IPSEC": "table ip shorewall_capcheck {\n\tchain c {\n"
+                 "\t\ttype filter hook forward priority 0;\n"
+                 "\t\tipsec in reqid 1 accept\n\t}\n}\n",
 }
 
 _probe_enabled = False

@@ -264,6 +264,15 @@ form_rejected("zones: an ipsec zone without a reqid is a located error",
               {"zones": "fw firewall\nnet ipv4\ntun ipsec\n",
                "interfaces": "?FORMAT 2\nnet eth0\ntun eth1\n",
                "policy": "$FW net ACCEPT\nall all DROP\n"})
+# On an nft without the ipsec match (0.9.0), an ipsec zone is refused with a
+# located error rather than emitted as a rule that cannot load, the same as
+# NETMAP and ECN on an nft too old to express them.
+capabilities.CAPABILITIES["NFT_IPSEC"] = False
+try:
+    form_rejected("zones: an ipsec zone is refused where nft lacks the match",
+                  {**_IPSEC, "rules": "?SECTION NEW\nACCEPT tun $FW tcp 22\n"})
+finally:
+    capabilities.CAPABILITIES["NFT_IPSEC"] = True
 
 # --- rules: address exclusion (shorewall-exclusion(5)). A leading ! is the
 # pure-exclusion case; included!excluded matches the include and not the

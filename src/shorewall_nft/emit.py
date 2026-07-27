@@ -958,6 +958,13 @@ class Emitter:
         z = self.zmap.get(zone)
         if not (z and z.ipsec):
             return ""
+        if not capabilities.lookup("NFT_IPSEC"):
+            # nft 0.9.0 has no ipsec expression. Refuse rather than downgrade
+            # to a plain zone that would match cleartext, the same as NETMAP
+            # and ECN on an nft too old to express them.
+            raise ConfigError(
+                f"ipsec zone {zone} needs the nft ipsec match, added after "
+                "nft 0.9.0; this nft cannot express it")
         return f"ipsec {direction} reqid {z.reqid}"
 
     def _docker_bridge_globs(self):

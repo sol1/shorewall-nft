@@ -50,9 +50,12 @@ nft matches IPSEC state directly, with no policy module:
 | a specific SA | `ipsec in spi <spi>`, `ipsec in reqid N proto esp` |
 | tunnel endpoints | `ipsec in spnum 0 ip saddr <tunnel-src>` |
 
-`ipsec in reqid N` and `ipsec out reqid N` load in a throwaway netns on the
-baseline nft, so the site-to-site case needs nothing exotic. `meta secpath
-exists` covers the reqid-less road-warrior case.
+`ipsec in reqid N` and `ipsec out reqid N` load on the baseline nft, so the
+site-to-site case needs nothing exotic. nft 0.9.0 (Debian 10) has no ipsec
+expression, so an ipsec zone is refused there with a located error, capability
+NFT_IPSEC, the same as NETMAP and ECN on an nft too old to express them; nft
+0.9.3 (Ubuntu 20.04) and later have it. `meta secpath exists` covers the
+reqid-less road-warrior case.
 
 ## Mapping upstream to nft
 
