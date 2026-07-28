@@ -31,7 +31,7 @@ parsers, and by test.
 | ipsets | `+name` becomes a native nft set. A set in /etc/shorewall/ipsets is baked with its elements; a set referenced but not defined there is declared empty and preserved across reloads, so an external tool (a port-knock or ban daemon) can fill it directly with `nft add element`. REQUIRE_IPSETS=No downgrades an unsupported ipset from a compile error to a warning. |
 | blrules | Blacklist and whitelist rules, checked before the regular rules on new connections. |
 | nat | Static one-to-one NAT: DNAT external to internal, SNAT internal to external. |
-| actions | User-defined actions declared in the actions file and defined in action.<name>, expanded like macros. |
+| actions | User-defined actions declared in the actions file and defined in action.<name>, expanded like macros. The standard action AllowICMPs is native: it accepts the needed ICMP types (RFC 4890 on IPv6, frag-needed and time-exceeded on IPv4). The rest of actions.std is being added natively; see docs/design/actions.md. |
 | ecn | Disable ECN to listed hosts by stripping the negotiation flags from the SYN. |
 | proxyarp | Proxy ARP: proxy neighbour, route to the internal host, and the proxy_arp sysctl. |
 | proxyndp | Proxy NDP, the IPv6 twin of proxyarp. |

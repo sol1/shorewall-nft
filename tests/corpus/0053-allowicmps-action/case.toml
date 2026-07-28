@@ -1,0 +1,34 @@
+description = "AllowICMPs as a rule action (bug #14). It accepts the ICMP types a network needs: on IPv4 destination-unreachable code frag-needed for path MTU discovery and time-exceeded for traceroute, matching upstream which emits --icmp-type 3/4 and 11. It is a jump to a chain the emitter builds, scoped to the rule's zones. SSH is allowed to prove the chain works. A ping is echo-request, which AllowICMPs does not accept, so it falls through to the DROP policy. Both compilers drop it, so AllowICMPs is specific, not an accept-all."
+family = 4
+
+[[links]]
+node_a = "net"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+[routes]
+net = "10.0.2.1"
+
+# SSH is accepted, so the net to fw path works and the AllowICMPs chain is not
+# in the way of other traffic.
+[[probes]]
+id = "ssh-to-firewall-accepted"
+from = "net"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 22
+expect = "allow"
+
+# A ping is echo-request, not a needed ICMP type, so AllowICMPs does not
+# accept it and the net to fw DROP policy takes it. Both compilers drop it.
+[[probes]]
+id = "ping-not-a-needed-icmp-type-dropped"
+from = "net"
+to = "fw"
+addr = "10.0.2.1"
+proto = "icmp"
+expect = "drop"

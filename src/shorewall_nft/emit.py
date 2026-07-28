@@ -35,6 +35,13 @@ ICMP_TYPES = {
     "ping": "echo-request",
 }
 
+# iptables ICMP type names Shorewall uses that nft spells as a type plus a
+# code, not a bare type. fragmentation-needed is destination-unreachable with
+# code frag-needed. nft rejects "icmp type fragmentation-needed".
+ICMP4_TYPE_CODE = {
+    "fragmentation-needed": ("destination-unreachable", "frag-needed"),
+}
+
 ICMP6_PROTOS = ("ipv6-icmp", "icmpv6", "58")
 
 # RFC 4890 required ICMPv6 types, from upstream action.AllowICMPs.
@@ -524,8 +531,12 @@ def _rule_match(rule, family=4, sets=None, ifmap=None):
             post.append(f"meta l4proto {proto}")
     elif proto == "icmp":
         if rule.dport:
-            icmp_type = ICMP_TYPES.get(rule.dport.lower(), rule.dport)
-            post.append(f"icmp type {icmp_type}")
+            key = rule.dport.lower()
+            if key in ICMP4_TYPE_CODE:
+                itype, icode = ICMP4_TYPE_CODE[key]
+                post.append(f"icmp type {itype} icmp code {icode}")
+            else:
+                post.append(f"icmp type {ICMP_TYPES.get(key, rule.dport)}")
         else:
             post.append("meta l4proto icmp")
     elif proto in ICMP6_PROTOS:
@@ -710,7 +721,10 @@ def _verdict(action, param=""):
     if action == "NFQUEUE":
         return f"queue to {param}" if param else "queue"
     verdicts = {"ACCEPT": "accept", "DROP": "drop",
-                "REJECT": "jump reject_action"}
+                "REJECT": "jump reject_action",
+                # A builtin action that accepts the needed ICMP types, from a
+                # chain we emit. The proto match rides on the rule.
+                "AllowICMPs": "jump AllowICMPs"}
     if action not in verdicts:
         raise ConfigError(f"unsupported action or verdict {action!r}")
     return verdicts[action]
@@ -951,7 +965,7 @@ class Emitter:
                 shared[name] = (z1, z2)
         for name, (z1, z2) in sorted(shared.items()):
             self._policy_chain(name, z1, z2)
-        if self.cfg.family == 6:
+        if self.cfg.family == 6 or self._uses_allowicmps():
             self._allowicmps_chain()
         self._reject_chain()
         self._maclist_chain()
@@ -1758,12 +1772,23 @@ class Emitter:
                 self.out(self._mangle_statement(r), 2)
             self.out("}", 1)
 
+    def _uses_allowicmps(self):
+        return any(r.action == "AllowICMPs" for r in self.cfg.rules)
+
     def _allowicmps_chain(self):
         self.out("chain AllowICMPs {", 1)
-        self.out('# Needed ICMP types, RFC 4890', 2)
-        for src, icmp_type in RFC4890:
-            prefix = f"ip6 saddr {src} " if src else ""
-            self.out(f"{prefix}icmpv6 type {icmp_type} accept", 2)
+        if self.cfg.family == 6:
+            self.out('# Needed ICMP types, RFC 4890', 2)
+            for src, icmp_type in RFC4890:
+                prefix = f"ip6 saddr {src} " if src else ""
+                self.out(f"{prefix}icmpv6 type {icmp_type} accept", 2)
+        else:
+            # IPv4 needs fragmentation-needed for path MTU discovery and
+            # time-exceeded for traceroute, matching upstream action.AllowICMPs.
+            self.out('# Needed ICMP types', 2)
+            self.out("icmp type destination-unreachable icmp code "
+                     "frag-needed accept", 2)
+            self.out("icmp type time-exceeded accept", 2)
         self.out("}", 1)
         self.out("")
 

@@ -1,0 +1,3 @@
+?SECTION NEW
+AllowICMPs	net	$FW
+ACCEPT		net	$FW	tcp	22

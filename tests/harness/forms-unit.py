@@ -370,6 +370,23 @@ form_ok("rules: included!excluded with a multi-address exclude list",
         {"rules": "?SECTION NEW\n"
          "ACCEPT net:10.0.0.0/8!10.1.0.0/16,10.2.0.0/16 $FW tcp 22\n"},
         expect="ip saddr 10.0.0.0/8 ip saddr != { 10.1.0.0/16, 10.2.0.0/16 }")
+# --- rules: AllowICMPs, a standard action that accepts the needed ICMP types
+# (bug #14). On IPv4 it jumps a chain that accepts destination-unreachable
+# code frag-needed and time-exceeded, matching upstream --icmp-type 3/4 and
+# 11. The old macro.A_AllowICMPs emitted `icmp type fragmentation-needed`,
+# which nft rejects; the type-and-code mapping now makes it load. ---
+form_ok("rules: AllowICMPs jumps the needed-ICMP chain",
+        {"rules": "?SECTION NEW\nAllowICMPs net $FW\n"},
+        expect="meta l4proto icmp jump AllowICMPs")
+form_ok("rules: the AllowICMPs chain accepts frag-needed and time-exceeded",
+        {"rules": "?SECTION NEW\nAllowICMPs net $FW\n"},
+        expect="icmp type destination-unreachable icmp code frag-needed accept")
+form_ok("rules: A_AllowICMPs (audit twin) loads, no unparsable icmp type",
+        {"rules": "?SECTION NEW\nA_AllowICMPs net $FW\n"},
+        expect="icmp type destination-unreachable icmp code frag-needed "
+               "log level audit accept")
+form_rejected("rules: AllowICMPs with a parameter is a located error",
+              {"rules": "?SECTION NEW\nAllowICMPs(DROP) net $FW\n"})
 form_ok("rules: interface then included!excluded together",
         {"rules": "?SECTION NEW\n"
          "ACCEPT net:NET_IF:10.0.0.0/24!10.0.0.5 $FW tcp 22\n"},

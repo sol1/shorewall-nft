@@ -370,6 +370,17 @@ def _expand_action(line, name, param, src, dst, proto, dport, sport,
                      saddr=src[1], daddr=dst[1],
                      proto=proto, dport=dport, sport=sport, invalid=True,
                      origin=origin)]
+    if name == "AllowICMPs":
+        # A standard Shorewall action that accepts the ICMP types a network
+        # needs: IPv6 neighbour discovery and router advertisement, IPv4 path
+        # MTU and traceroute. It becomes a jump to a chain the emitter builds,
+        # scoped to the rule's zones. The optional disposition parameter is
+        # not supported yet; the chain accepts.
+        if param:
+            raise line.error(f"AllowICMPs with a parameter ({param}) is not "
+                             "supported yet")
+        return [Rule(action="AllowICMPs", source=src[0], dest=dst[0],
+                     saddr=src[1], daddr=dst[1], proto="icmp", origin=origin)]
     if macros.exists(name, family):
         out = []
         for mr in macros.expand(name, param or "", variables, family,
