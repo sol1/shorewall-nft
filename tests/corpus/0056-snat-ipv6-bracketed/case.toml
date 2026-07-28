@@ -1,0 +1,40 @@
+description = "IPv6 SNAT with a bracketed target and source (regression: SNAT([addr]) was rejected as an invalid target between 0.0.6 and 0.1.6). Shorewall6 wraps an IPv6 address in brackets so its colons do not clash with the :port separator. The brackets are stripped at emit. Here a loc ULA source is SNATed to a public IPv6 address the firewall owns, so the net server sees the connection coming from that address, not the ULA. This case also has no rules file, which upstream compiles fine, so it locks that a policy-only firewall is accepted rather than crashing on a missing file. Matches upstream shorewall6."
+family = 6
+
+[[links]]
+node_a = "client"
+dev_a = "c0"
+addr_a = "fc42:5009:ba4b:5ab0::200/64"
+node_b = "fw"
+dev_b = "eth1"
+addr_b = "fc42:5009:ba4b:5ab0::1/64"
+
+[[links]]
+node_a = "server"
+dev_a = "s0"
+addr_a = "2001:db8:1::2/64"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "2001:db8:1::1/64"
+
+# The firewall owns the SNAT target address on its egress interface, so the
+# rewritten source is reachable and return traffic routes back.
+[extra_addrs]
+fw = ["2001:db8:1::200/64@eth0"]
+
+[routes]
+client = "fc42:5009:ba4b:5ab0::1"
+server = "2001:db8:1::1"
+
+# The loc client reaches the net server, and the server sees the connection
+# coming from the bracketed SNAT target, not the client's ULA. This proves
+# the bracketed IPv6 target compiles and takes effect.
+[[probes]]
+id = "loc-source-is-snatted-to-the-bracketed-target"
+from = "client"
+to = "server"
+addr = "2001:db8:1::2"
+proto = "tcp"
+port = 80
+expect = "allow"
+peer = "2001:db8:1::200"

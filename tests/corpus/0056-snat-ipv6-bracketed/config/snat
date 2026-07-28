@@ -1,0 +1,4 @@
+# SNAT an internal ULA source to the public IPv6 address, bracketed as
+# shorewall6 requires so the address colons do not clash with :port.
+SNAT([2001:db8:1::200])	[fc42:5009:ba4b:5ab0::200/128]	eth0	- - - - - - - -
+SNAT([2001:db8:1::201])	[fc42:5009:ba4b:5ab1::/64]	eth0	- - - - - - - -

@@ -511,6 +511,14 @@ form_ok("rules: &interface in a DNAT origdest resolves to the address set",
          "interfaces": "?FORMAT 2\nnet NET_IF physical=enp3s0\nloc eth1\n",
          "rules": "?SECTION NEW\nDNAT net loc:127.0.0.1:1883 tcp 1883 - &NET_IF\n"},
         expect="ip daddr @_ifaddr_enp3s0")
+# An excluded &interface in a REDIRECT origdest, !&iface, resolves to the same
+# set with a negated match, not a literal &name that nft rejects (github #15).
+form_ok("rules: !&interface in a REDIRECT origdest is a negated set match",
+        {"zones": "fw firewall\nloc ipv4\n",
+         "interfaces": "?FORMAT 2\nloc LOC_IF physical=enp0s31f6\n",
+         "policy": "loc $FW ACCEPT\nall all REJECT\n",
+         "rules": "?SECTION NEW\nREDIRECT loc 2370 tcp ftp - !&LOC_IF\n"},
+        expect="ip daddr != @_ifaddr_enp0s31f6")
 
 # --- params: a params file that uses bash logic (a glob loop over .inc
 # includes, declare, BASH_SOURCE, [[ ]]) is sourced through bash the way
@@ -695,6 +703,18 @@ except ConfigError as e:
         bad("address-column error not located", str(e))
 except Exception as e:                                   # noqa: BLE001
     bad("address-column error", f"traceback: {type(e).__name__}")
+finally:
+    shutil.rmtree(d)
+
+# --- a config with no rules file is a valid policy-only firewall; upstream
+#     compiles it, so a missing rules file must be empty, not a crash ---
+d = build({})
+os.remove(os.path.join(d, "rules"))
+try:
+    render(load(d, 4))
+    ok("compile: a missing rules file is accepted (policy-only firewall)")
+except Exception as e:                                   # noqa: BLE001
+    bad("missing rules file", f"{type(e).__name__}: {str(e)[:80]}")
 finally:
     shutil.rmtree(d)
 

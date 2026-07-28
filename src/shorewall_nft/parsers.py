@@ -1847,9 +1847,14 @@ def parse_snat(path, variables, interfaces):
         if action == "SNAT" and not to_addr and not detect:
             raise line.error("SNAT needs an address parameter")
         # to_addr (an address, range or address:port) reaches the ruleset;
-        # block a metacharacter here so it cannot smuggle nft tokens.
+        # block a metacharacter here so it cannot smuggle nft tokens. An IPv6
+        # target is bracketed in shorewall6 so its colons do not clash with
+        # the :port separator; the brackets are stripped at emit, so validate
+        # what they wrap, not the brackets, or a documented v6 target is
+        # wrongly rejected as an injection.
         if to_addr:
-            valid.safe_token(to_addr, line, "snat target")
+            valid.safe_token(to_addr.replace("[", "").replace("]", ""),
+                             line, "snat target")
         source = cols[1] if len(cols) > 1 and cols[1] != "-" else ""
         dest = cols[2] if len(cols) > 2 else ""
         dest, _, dest_addr = dest.partition(":")

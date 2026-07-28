@@ -229,9 +229,14 @@ def load(confdir, family=4):
     zone_names = {z.name for z in cfg.zones}
     cfg.policies = parsers.parse_policy(_path(confdir, "policy"), variables,
                                         zone_names)
-    cfg.rules, cfg.dnat = parsers.parse_rules(_path(confdir, "rules"),
-                                              variables, cfg.fw_zone,
-                                              family, zone_names)
+    # The rules file is optional, like every file but zones, interfaces and
+    # policy. A policy-only firewall has no rules file, and upstream compiles
+    # it fine, so a missing file is empty, not a crash.
+    cfg.rules, cfg.dnat = [], []
+    if os.path.exists(_path(confdir, "rules")):
+        cfg.rules, cfg.dnat = parsers.parse_rules(_path(confdir, "rules"),
+                                                  variables, cfg.fw_zone,
+                                                  family, zone_names)
     if os.path.exists(_path(confdir, "tunnels")):
         cfg.rules += parsers.parse_tunnels(_path(confdir, "tunnels"),
                                            variables, cfg.fw_zone)

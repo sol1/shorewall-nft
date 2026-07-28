@@ -282,16 +282,22 @@ def _ipsec_expr(zone, direction, opts, ipkw):
 
 def _addr_or_ifaddr(spec, ifmap, sets):
     """The address body for a NAT match column (origdest, daddr) that may be
-    the &interface form. &interface resolves to the runtime address set, the
-    way _match_addr does for SOURCE/DEST; anything else is a literal via
-    _addr_set. These NAT columns do not pass through _match_addr."""
-    if spec.startswith("&"):
-        logical = spec[1:]
+    the &interface form, optionally excluded with a leading !. &interface
+    resolves to the runtime address set, the way _match_addr does for
+    SOURCE/DEST; anything else is a literal via _addr_set. These NAT columns
+    do not pass through _match_addr."""
+    negate = ""
+    body = spec
+    if body.startswith("!"):
+        negate = "!= "
+        body = body[1:]
+    if body.startswith("&"):
+        logical = body[1:]
         phys = ifmap.get(logical) if ifmap else None
         if phys is None:
             raise ConfigError(f"&{logical}: unknown interface")
         sets.add(f"ifaddr:{phys}")
-        return f"@{_ifaddr_setname(phys)}"
+        return f"{negate}@{_ifaddr_setname(phys)}"
     return _addr_set(spec)
 
 
