@@ -484,6 +484,8 @@ def _rule_match(rule, family=4, sets=None, ifmap=None):
     pre = []
     if rule.state:
         pre.append(f"ct state {rule.state}")
+    if rule.fib:
+        pre.append(f"fib daddr type {rule.fib}")
     # Locate an address-column error (e.g. a bare interface name where an
     # address is expected) at the rule that carried it, not just the token.
     try:

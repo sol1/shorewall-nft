@@ -87,7 +87,14 @@ macro, also loads instead of producing an unloadable rule.
    wrappers `allowInvalid` and `dropInvalid` take an audit parameter. Each
    emits `ct state <state> <verdict>`, with the A_ disposition and the audit
    wrapper adding `log level audit`. Corpus 0054 locks it against upstream.
-3. `Broadcast` and `Multicast` and their allow/drop wrappers.
+3. Done. `Broadcast` and `Multicast` and the wrappers `allowBcast`,
+   `dropBcast`, `dropBcasts`, `allowMcast`, `dropMcast`. They match the
+   destination address type with `fib daddr type`: Broadcast covers broadcast
+   and anycast, Multicast covers multicast, both defaulting to drop. The base
+   actions take a disposition (with an optional audit), the wrappers take an
+   audit parameter. This matches upstream `-m addrtype --dst-type`. Corpus
+   0055 locks the compile against upstream; the destination-type match is not
+   reachable by the unicast harness probe, so forms-unit covers the rules.
 4. The TCP-flag actions: `TCPFlags`, `dropNotSyn`, `NotSyn`, `rejNotSyn`,
    `RST`, `FIN`.
 5. The fail-loud audit for the not-expressible set, each named in a located

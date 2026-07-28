@@ -1,0 +1,25 @@
+description = "The Broadcast and Multicast actions and their wrappers. dropBcast drops the broadcast and anycast destination types, dropMcast the multicast type, matching upstream -m addrtype --dst-type BROADCAST/ANYCAST/MULTICAST. nft spells these fib daddr type. The destination-type match is not reachable by the unicast harness probe, so this locks the compile against upstream and checks that a normal unicast connection is unaffected; the emitted fib rules are covered by forms-unit. The net to fw policy accepts, so SSH is allowed and both compilers agree."
+family = 4
+
+[[links]]
+node_a = "net"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+[routes]
+net = "10.0.2.1"
+
+# A unicast connection is not a broadcast or multicast, so the drop rules do
+# not touch it and the ACCEPT policy takes it. This proves the fib rules do
+# not over-match. Both compilers allow it.
+[[probes]]
+id = "unicast-unaffected-by-broadcast-drop"
+from = "net"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 22
+expect = "allow"

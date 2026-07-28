@@ -55,6 +55,22 @@ STATE_WRAPPERS = {
 }
 AUDIT_DISPOSITIONS = {"A_ACCEPT": "ACCEPT", "A_DROP": "DROP",
                       "A_REJECT": "REJECT"}
+# Standard broadcast/multicast actions. They match the destination address
+# type and apply the disposition, defaulting to drop. Broadcast covers
+# broadcast and anycast, Multicast covers multicast. name -> fib types.
+ADDRTYPE_ACTIONS = {
+    "Broadcast": ("broadcast", "anycast"),
+    "Multicast": ("multicast",),
+}
+# The fixed-disposition wrappers. name -> (base action, disposition). Their
+# parameter is 'audit' or '-', not a disposition.
+ADDRTYPE_WRAPPERS = {
+    "allowBcast": ("Broadcast", "ACCEPT"),
+    "dropBcast": ("Broadcast", "DROP"),
+    "dropBcasts": ("Broadcast", "DROP"),
+    "allowMcast": ("Multicast", "ACCEPT"),
+    "dropMcast": ("Multicast", "DROP"),
+}
 
 TERMINAL = {"ACCEPT", "DROP", "REJECT"}
 QUEUE_ACTIONS = {"QUEUE", "NFQUEUE"}
@@ -358,6 +374,21 @@ def parse_policy(path, variables, zones=None):
     return policies
 
 
+def _disp_and_audit(param, default, line, name):
+    """A disposition parameter, optionally with a trailing ,audit, as the
+    standard actions take it. An A_ disposition also means audit. Returns
+    (terminal disposition, audit flag)."""
+    parts = [p.strip() for p in param.split(",")] if param else []
+    disp = parts[0] if parts and parts[0] not in ("", "-") else default
+    audit = len(parts) > 1 and parts[1] == "audit"
+    if disp in AUDIT_DISPOSITIONS:
+        audit = True
+        disp = AUDIT_DISPOSITIONS[disp]
+    if disp not in TERMINAL:
+        raise line.error(f"unsupported {name} disposition {disp}")
+    return disp, audit
+
+
 def _expand_action(line, name, param, src, dst, proto, dport, sport,
                    origin, variables, family):
     """src and dst are (zone, address) pairs from the invocation."""
@@ -404,6 +435,24 @@ def _expand_action(line, name, param, src, dst, proto, dport, sport,
                      saddr=src[1], daddr=dst[1],
                      proto=proto, dport=dport, sport=sport, state=ctstate,
                      audit=audit, origin=origin)]
+    if name in ADDRTYPE_ACTIONS:
+        disposition, audit = _disp_and_audit(param, "DROP", line, name)
+        return [Rule(action=disposition, source=src[0], dest=dst[0],
+                     saddr=src[1], daddr=dst[1], proto=proto, dport=dport,
+                     sport=sport, fib=fibtype, audit=audit, origin=origin)
+                for fibtype in ADDRTYPE_ACTIONS[name]]
+    if name in ADDRTYPE_WRAPPERS:
+        base, disposition = ADDRTYPE_WRAPPERS[name]
+        audit = False
+        if param == "audit":
+            audit = True
+        elif param and param != "-":
+            raise line.error(f"the parameter to {name} must be 'audit' "
+                             f"or '-', not {param}")
+        return [Rule(action=disposition, source=src[0], dest=dst[0],
+                     saddr=src[1], daddr=dst[1], proto=proto, dport=dport,
+                     sport=sport, fib=fibtype, audit=audit, origin=origin)
+                for fibtype in ADDRTYPE_ACTIONS[base]]
     if name == "AllowICMPs":
         # A standard Shorewall action that accepts the ICMP types a network
         # needs: IPv6 neighbour discovery and router advertisement, IPv4 path

@@ -415,6 +415,30 @@ form_ok("rules: an A_ disposition on a state action audits then accepts",
         expect="ct state new log level audit accept")
 form_rejected("rules: a bad state-wrapper parameter is a located error",
               {"rules": "?SECTION NEW\ndropInvalid(bogus) net $FW\n"})
+# --- rules: the Broadcast and Multicast actions. They match the destination
+# address type (fib daddr type) and apply the disposition, defaulting to
+# drop. Broadcast covers broadcast and anycast, Multicast covers multicast,
+# matching upstream -m addrtype --dst-type. ---
+form_ok("rules: Broadcast drops the broadcast and anycast dest types",
+        {"rules": "?SECTION NEW\ndropBcast net $FW\n"},
+        expect="fib daddr type broadcast drop")
+form_ok("rules: Broadcast covers the anycast type too",
+        {"rules": "?SECTION NEW\ndropBcast net $FW\n"},
+        expect="fib daddr type anycast drop")
+form_ok("rules: Multicast drops the multicast dest type",
+        {"rules": "?SECTION NEW\ndropMcast net $FW\n"},
+        expect="fib daddr type multicast drop")
+form_ok("rules: allowMcast accepts the multicast dest type",
+        {"rules": "?SECTION NEW\nallowMcast net $FW\n"},
+        expect="fib daddr type multicast accept")
+form_ok("rules: Broadcast takes an explicit disposition",
+        {"rules": "?SECTION NEW\nBroadcast(REJECT) net $FW\n"},
+        expect="fib daddr type broadcast jump reject_action")
+form_ok("rules: a Bcast wrapper audit parameter logs before dropping",
+        {"rules": "?SECTION NEW\ndropBcast(audit) net $FW\n"},
+        expect="fib daddr type broadcast log level audit drop")
+form_rejected("rules: a bad Broadcast disposition is a located error",
+              {"rules": "?SECTION NEW\nBroadcast(bogus) net $FW\n"})
 form_ok("rules: interface then included!excluded together",
         {"rules": "?SECTION NEW\n"
          "ACCEPT net:NET_IF:10.0.0.0/24!10.0.0.5 $FW tcp 22\n"},

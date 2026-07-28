@@ -68,6 +68,7 @@ class Rule:
     logtag: str = ""          # tag appended to the log prefix
     audit: bool = False       # log level audit before the verdict
     state: str = ""           # ct state match, e.g. new, established, invalid
+    fib: str = ""             # fib daddr type match, e.g. broadcast, multicast
     section: str = "NEW"      # rules file section
     inline: str = ""          # raw nft appended after the matches
     inline_full: bool = False # inline is the whole body incl the verdict
