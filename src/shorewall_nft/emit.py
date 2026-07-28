@@ -33,13 +33,11 @@ ICMP_TYPES = {
     "8": "echo-request",
     "11": "time-exceeded",
     "ping": "echo-request",
-}
-
-# iptables ICMP type names Shorewall uses that nft spells as a type plus a
-# code, not a bare type. fragmentation-needed is destination-unreachable with
-# code frag-needed. nft rejects "icmp type fragmentation-needed".
-ICMP4_TYPE_CODE = {
-    "fragmentation-needed": ("destination-unreachable", "frag-needed"),
+    # fragmentation-needed is type 3 code 4. nft cannot parse the name, and
+    # the "icmp code" qualifier is rejected by nft before 1.0, so match the
+    # whole destination-unreachable type, as the RFC 4890 IPv6 chain does for
+    # its types. It includes frag-needed, the path MTU discovery message.
+    "fragmentation-needed": "destination-unreachable",
 }
 
 ICMP6_PROTOS = ("ipv6-icmp", "icmpv6", "58")
@@ -484,8 +482,8 @@ def _rule_match(rule, family=4, sets=None, ifmap=None):
     ipkw = "ip6" if family == 6 else "ip"
     sets = sets if sets is not None else set()
     pre = []
-    if rule.invalid:
-        pre.append("ct state invalid")
+    if rule.state:
+        pre.append(f"ct state {rule.state}")
     # Locate an address-column error (e.g. a bare interface name where an
     # address is expected) at the rule that carried it, not just the token.
     try:
@@ -531,12 +529,8 @@ def _rule_match(rule, family=4, sets=None, ifmap=None):
             post.append(f"meta l4proto {proto}")
     elif proto == "icmp":
         if rule.dport:
-            key = rule.dport.lower()
-            if key in ICMP4_TYPE_CODE:
-                itype, icode = ICMP4_TYPE_CODE[key]
-                post.append(f"icmp type {itype} icmp code {icode}")
-            else:
-                post.append(f"icmp type {ICMP_TYPES.get(key, rule.dport)}")
+            icmp_type = ICMP_TYPES.get(rule.dport.lower(), rule.dport)
+            post.append(f"icmp type {icmp_type}")
         else:
             post.append("meta l4proto icmp")
     elif proto in ICMP6_PROTOS:
@@ -1783,11 +1777,13 @@ class Emitter:
                 prefix = f"ip6 saddr {src} " if src else ""
                 self.out(f"{prefix}icmpv6 type {icmp_type} accept", 2)
         else:
-            # IPv4 needs fragmentation-needed for path MTU discovery and
-            # time-exceeded for traceroute, matching upstream action.AllowICMPs.
+            # IPv4 needs destination-unreachable (it carries the path MTU
+            # discovery fragmentation-needed message) and time-exceeded for
+            # traceroute, matching upstream action.AllowICMPs. The "icmp code"
+            # qualifier that would narrow this to frag-needed is rejected by
+            # nft before 1.0, so match the whole type, as the v6 chain does.
             self.out('# Needed ICMP types', 2)
-            self.out("icmp type destination-unreachable icmp code "
-                     "frag-needed accept", 2)
+            self.out("icmp type destination-unreachable accept", 2)
             self.out("icmp type time-exceeded accept", 2)
         self.out("}", 1)
         self.out("")

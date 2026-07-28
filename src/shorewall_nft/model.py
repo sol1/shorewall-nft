@@ -67,7 +67,7 @@ class Rule:
     loglevel: str = ""        # per-rule log level
     logtag: str = ""          # tag appended to the log prefix
     audit: bool = False       # log level audit before the verdict
-    invalid: bool = False     # match ct state invalid
+    state: str = ""           # ct state match, e.g. new, established, invalid
     section: str = "NEW"      # rules file section
     inline: str = ""          # raw nft appended after the matches
     inline_full: bool = False # inline is the whole body incl the verdict

@@ -60,27 +60,33 @@ types a network needs to work.
   RFC 4890 set. The emitter already carried this as the `AllowICMPs` chain,
   auto-jumped from every v6 zone chain so neighbour discovery is never
   filtered. The action exposes the same chain to an explicit rule.
-- IPv4: `destination-unreachable` code `frag-needed` for path MTU discovery,
-  and `time-exceeded` for traceroute, matching upstream action.AllowICMPs.
+- IPv4: `destination-unreachable`, which carries the fragmentation-needed
+  path MTU discovery message, and `time-exceeded` for traceroute, matching
+  upstream action.AllowICMPs. Upstream narrows the first to code 4, but the
+  nft `icmp code` qualifier is rejected before nft 1.0, so we match the whole
+  type, as the v6 chain does for its types.
 
 A rule `AllowICMPs <src> <dst>` becomes `meta l4proto icmp jump AllowICMPs`
 (or `ipv6-icmp`), scoped to the rule's zones by the chain it lands in. The
 chain is emitted whenever a rule references it, and always on IPv6.
 
 The fragmentation-needed fix is shared. nft rejects `icmp type
-fragmentation-needed`; it is a type plus a code, `destination-unreachable`
-code `frag-needed`. The emitter now maps the iptables ICMP type names
-Shorewall uses to the nft type and code, so the audit twin `A_AllowICMPs`,
-which we already bundled as a macro, also loads instead of producing an
-unloadable rule.
+fragmentation-needed`; the name maps to the `destination-unreachable` type.
+The emitter now aliases the iptables ICMP type names Shorewall uses to the
+nft type, so the audit twin `A_AllowICMPs`, which we already bundled as a
+macro, also loads instead of producing an unloadable rule.
 
 ## Phases
 
 1. Done. The framework and `AllowICMPs` (and `A_AllowICMPs`), both families,
-   loadable, with the ICMP type-and-code mapping. Corpus 0053 locks it
+   loadable, with the ICMP type-name alias. Corpus 0053 locks it
    against upstream.
-2. The conntrack-state actions: `New`, `Established`, `Related`, `Invalid`,
-   `Untracked`, `allowInvalid`, `dropInvalid`.
+2. Done. The conntrack-state actions: `New`, `Established`, `Related`,
+   `Invalid`, `Untracked` take a disposition parameter (defaults per upstream:
+   New and Established accept, the rest drop), and the fixed-disposition
+   wrappers `allowInvalid` and `dropInvalid` take an audit parameter. Each
+   emits `ct state <state> <verdict>`, with the A_ disposition and the audit
+   wrapper adding `log level audit`. Corpus 0054 locks it against upstream.
 3. `Broadcast` and `Multicast` and their allow/drop wrappers.
 4. The TCP-flag actions: `TCPFlags`, `dropNotSyn`, `NotSyn`, `rejNotSyn`,
    `RST`, `FIN`.

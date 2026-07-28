@@ -37,7 +37,24 @@ def _unbracket(a):
 
 
 # Builtin actions. Invalid(P) matches ct state invalid, disposition P.
-STATE_ACTIONS = {"Invalid": "invalid"}
+# Standard conntrack-state actions. Each matches ct state and applies its
+# parameter as the disposition, defaulting per upstream: New and Established
+# accept, Related, Invalid and Untracked drop. name -> (ct state, default).
+STATE_ACTIONS = {
+    "New": ("new", "ACCEPT"),
+    "Established": ("established", "ACCEPT"),
+    "Related": ("related", "DROP"),
+    "Invalid": ("invalid", "DROP"),
+    "Untracked": ("untracked", "DROP"),
+}
+# The fixed-disposition wrappers. Their parameter is 'audit' or '-', not a
+# disposition. name -> (ct state, disposition).
+STATE_WRAPPERS = {
+    "allowInvalid": ("invalid", "ACCEPT"),
+    "dropInvalid": ("invalid", "DROP"),
+}
+AUDIT_DISPOSITIONS = {"A_ACCEPT": "ACCEPT", "A_DROP": "DROP",
+                      "A_REJECT": "REJECT"}
 
 TERMINAL = {"ACCEPT", "DROP", "REJECT"}
 QUEUE_ACTIONS = {"QUEUE", "NFQUEUE"}
@@ -363,13 +380,30 @@ def _expand_action(line, name, param, src, dst, proto, dport, sport,
                      qparam=param or "", saddr=src[1], daddr=dst[1],
                      proto=proto, dport=dport, sport=sport, origin=origin)]
     if name in STATE_ACTIONS:
-        disposition = param or "DROP"
+        ctstate, default = STATE_ACTIONS[name]
+        disposition = param or default
+        audit = False
+        if disposition in AUDIT_DISPOSITIONS:
+            audit = True
+            disposition = AUDIT_DISPOSITIONS[disposition]
         if disposition not in TERMINAL:
             raise line.error(f"unsupported {name} disposition {disposition}")
         return [Rule(action=disposition, source=src[0], dest=dst[0],
                      saddr=src[1], daddr=dst[1],
-                     proto=proto, dport=dport, sport=sport, invalid=True,
-                     origin=origin)]
+                     proto=proto, dport=dport, sport=sport, state=ctstate,
+                     audit=audit, origin=origin)]
+    if name in STATE_WRAPPERS:
+        ctstate, disposition = STATE_WRAPPERS[name]
+        audit = False
+        if param == "audit":
+            audit = True
+        elif param and param != "-":
+            raise line.error(f"the parameter to {name} must be 'audit' "
+                             f"or '-', not {param}")
+        return [Rule(action=disposition, source=src[0], dest=dst[0],
+                     saddr=src[1], daddr=dst[1],
+                     proto=proto, dport=dport, sport=sport, state=ctstate,
+                     audit=audit, origin=origin)]
     if name == "AllowICMPs":
         # A standard Shorewall action that accepts the ICMP types a network
         # needs: IPv6 neighbour discovery and router advertisement, IPv4 path

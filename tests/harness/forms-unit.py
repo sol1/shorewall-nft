@@ -378,15 +378,43 @@ form_ok("rules: included!excluded with a multi-address exclude list",
 form_ok("rules: AllowICMPs jumps the needed-ICMP chain",
         {"rules": "?SECTION NEW\nAllowICMPs net $FW\n"},
         expect="meta l4proto icmp jump AllowICMPs")
-form_ok("rules: the AllowICMPs chain accepts frag-needed and time-exceeded",
+form_ok("rules: the AllowICMPs chain accepts destination-unreachable",
         {"rules": "?SECTION NEW\nAllowICMPs net $FW\n"},
-        expect="icmp type destination-unreachable icmp code frag-needed accept")
+        expect="icmp type destination-unreachable accept")
 form_ok("rules: A_AllowICMPs (audit twin) loads, no unparsable icmp type",
         {"rules": "?SECTION NEW\nA_AllowICMPs net $FW\n"},
-        expect="icmp type destination-unreachable icmp code frag-needed "
-               "log level audit accept")
+        expect="icmp type destination-unreachable log level audit accept")
 form_rejected("rules: AllowICMPs with a parameter is a located error",
               {"rules": "?SECTION NEW\nAllowICMPs(DROP) net $FW\n"})
+# --- rules: the conntrack-state actions. Each matches ct state and applies
+# its parameter as the disposition. New and Established default to accept,
+# Related, Invalid and Untracked to drop, matching upstream. ---
+form_ok("rules: New defaults to accepting the NEW state",
+        {"rules": "?SECTION NEW\nNew net $FW\n"},
+        expect="ct state new accept")
+form_ok("rules: Established defaults to accept",
+        {"rules": "?SECTION NEW\nEstablished net $FW\n"},
+        expect="ct state established accept")
+form_ok("rules: Related defaults to drop",
+        {"rules": "?SECTION NEW\nRelated net $FW\n"},
+        expect="ct state related drop")
+form_ok("rules: Untracked defaults to drop",
+        {"rules": "?SECTION NEW\nUntracked net $FW\n"},
+        expect="ct state untracked drop")
+form_ok("rules: a state action takes a disposition parameter",
+        {"rules": "?SECTION NEW\nNew(DROP) net $FW\n"},
+        expect="ct state new drop")
+form_ok("rules: allowInvalid accepts the INVALID state",
+        {"rules": "?SECTION NEW\nallowInvalid net $FW\n"},
+        expect="ct state invalid accept")
+form_ok("rules: dropInvalid audit twin logs before dropping",
+        {"rules": "?SECTION NEW\ndropInvalid(audit) net $FW\n"},
+        expect="ct state invalid log level audit drop")
+form_ok("rules: an A_ disposition on a state action audits then accepts",
+        {"rules": "?SECTION NEW\nNew(A_ACCEPT) net $FW\n"},
+        expect="ct state new log level audit accept")
+form_rejected("rules: a bad state-wrapper parameter is a located error",
+              {"rules": "?SECTION NEW\ndropInvalid(bogus) net $FW\n"})
 form_ok("rules: interface then included!excluded together",
         {"rules": "?SECTION NEW\n"
          "ACCEPT net:NET_IF:10.0.0.0/24!10.0.0.5 $FW tcp 22\n"},

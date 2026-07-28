@@ -1,0 +1,33 @@
+description = "The conntrack-state actions (New, Established, Related, Invalid, Untracked and the allow/drop wrappers). Each matches ct state and applies its parameter as the disposition. Here New(DROP) drops new SSH connections while the net to fw policy accepts everything else, so a new connection to port 22 is dropped and one to port 80 is accepted. Upstream builds the same with -m conntrack --ctstate NEW and a DROP. Both compilers agree on both probes."
+family = 4
+
+[[links]]
+node_a = "net"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+[routes]
+net = "10.0.2.1"
+
+# New(DROP) drops a new connection to port 22.
+[[probes]]
+id = "new-ssh-is-dropped"
+from = "net"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 22
+expect = "drop"
+
+# Port 80 is not matched by the rule, so the ACCEPT policy takes it.
+[[probes]]
+id = "other-new-connection-accepted"
+from = "net"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 80
+expect = "allow"
