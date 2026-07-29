@@ -98,11 +98,12 @@ used, so an enabled service stays enabled across the switch.
 
 `start` compiles /etc/shorewall to the artifact in
 /var/lib/shorewall-nft and loads it, exactly as the CLI does today.
-Ordering: before the network is brought up where the init system
-supports it, so the firewall is present before interfaces come up, the
-job upstream's shorewall-init did. A fail-safe: if the compile fails,
-the service fails and does not load a half-built ruleset, and the
-previous ruleset stays.
+Ordering: after the network is online (network-online.target under
+systemd, after net under OpenRC), matching upstream shorewall, so
+provider routing and routes-file entries can reach nexthops on
+interfaces the network manager has brought up. A fail-safe: if the
+compile fails, the service fails and does not load a half-built
+ruleset, and the previous ruleset stays.
 
 Coexistence with other firewall managers. We own `table inet
 shorewall` and never flush the ruleset, so we sit beside Docker and

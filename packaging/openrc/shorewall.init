@@ -6,15 +6,15 @@
 #   rc-update add shorewall default
 #   rc-service shorewall start
 #
-# The firewall comes up before networking, like the systemd unit.
+# The firewall comes up after networking, like the systemd unit, so provider
+# and routes-file routing can reach its nexthops.
 
 description="Shorewall-nft firewall (nftables)"
 command="/usr/sbin/${RC_SVCNAME}"
 
 depend() {
 	need localmount
-	before net
-	after sysctl
+	after net sysctl
 }
 
 start() {

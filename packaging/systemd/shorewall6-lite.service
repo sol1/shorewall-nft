@@ -1,12 +1,12 @@
 [Unit]
 Description=Shorewall6 Lite firewall (nftables, IPv6)
 Documentation=man:shorewall-lite(8)
-# Bring the firewall up before the network, so interfaces never come up
-# unprotected. Do not run beside another firewall manager.
-Wants=network-pre.target
-Before=network-pre.target
+# Start after the network is online, so provider routing and routes-file
+# entries can reach nexthops on interfaces the network manager just brought
+# up. Do not run beside another firewall manager.
+Wants=network-online.target
+After=network-online.target
 Conflicts=firewalld.service ufw.service
-After=
 
 [Service]
 Type=oneshot

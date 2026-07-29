@@ -294,7 +294,7 @@ def main():
                   "hardening-unit.py", "forms-unit.py", "caps-unit.py",
                   "automate-unit.py",
                   "netmap-unit.py", "lsm-unit.py", "lsm-proof.sh",
-                  "lsm-once-proof.sh"):
+                  "lsm-once-proof.sh", "units-unit.py"):
         name = proof.replace(".sh", "")
         r = sh([os.path.join(HARNESS, proof)])
         results.append({"case": name,
