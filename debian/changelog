@@ -1,3 +1,31 @@
+shorewall-nft (0.2.7) unstable; urgency=medium
+
+  * IPSEC zones. The ipsec, ipsec4 and ipsec6 zone types compile, scoped to
+    the SA so cleartext on the tunnel interface is not in the zone. A site-to-
+    site tunnel keys on reqid or spi, tunnel mode matches the outer addresses
+    through spnum, and a reqid-less zone matches any SA inbound. A cleartext
+    zone sharing the interface excludes decrypted traffic, so per-host
+    encryption is correct. An nft too old for the ipsec match (0.9.0) refuses
+    the zone with a located error rather than emitting an unloadable rule.
+  * The policy RATE LIMIT and CONNLIMIT columns are honoured.
+  * The zones file OPTIONS, IN OPTIONS and OUT OPTIONS columns are accepted.
+  * Standard actions are native. AllowICMPs accepts the ICMP types a network
+    needs. The conntrack-state actions New, Established, Related, Invalid and
+    Untracked and their allow/drop wrappers match ct state. Broadcast and
+    Multicast and their wrappers match the destination address type.
+  * shorewall show connections lists the tracked connections, using the
+    conntrack command when present and /proc/net/nf_conntrack otherwise, with
+    no hard dependency on conntrack-tools.
+  * A bracketed IPv6 SNAT target, SNAT([2001:db8::1]), compiles again. It was
+    rejected as an invalid target since the 0.1 series.
+  * A firewall with only a policy and no rules file compiles, matching
+    upstream, rather than failing on the missing file.
+  * An excluded interface primary address, !&interface, in a REDIRECT or DNAT
+    original-destination resolves to the interface's address set, not a
+    literal nft rejects.
+
+ -- Dave Kempe <dave@sol1.com.au>  Wed, 29 Jul 2026 10:24:23 +1000
+
 shorewall-nft (0.2.6) unstable; urgency=medium
 
   * shorewall monitor is back: a classic refreshing view (standard library,

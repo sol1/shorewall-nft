@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.2.6
+Version:        0.2.7
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -162,6 +162,22 @@ exit 0
 %systemd_postun shorewall6-lite.service
 
 %changelog
+* Wed Jul 29 2026 Dave Kempe <dave@sol1.com.au> - 0.2.7-1
+- IPSEC zones: ipsec/ipsec4/ipsec6 scoped to the SA, site-to-site by reqid or
+  spi, tunnel mode by outer address, any-SA inbound, and cleartext coexistence
+  on a shared interface for per-host encryption. Refused with a located error
+  on nft too old for the ipsec match.
+- The policy RATE LIMIT and CONNLIMIT columns are honoured.
+- The zones file OPTIONS, IN OPTIONS and OUT OPTIONS columns are accepted.
+- Standard actions are native: AllowICMPs; the conntrack-state actions New,
+  Established, Related, Invalid, Untracked and their wrappers; Broadcast and
+  Multicast and their wrappers.
+- shorewall show connections lists tracked connections, no hard dependency on
+  conntrack-tools.
+- A bracketed IPv6 SNAT target SNAT([2001:db8::1]) compiles again.
+- A policy-only firewall with no rules file compiles, matching upstream.
+- !&interface in a REDIRECT or DNAT original-destination resolves to the
+  interface address set, not a literal nft rejects.
 * Mon Jul 27 2026 Dave Kempe <dave@sol1.com.au> - 0.2.6-1
 - shorewall monitor is back: a classic refreshing view and an interactive
   "monitor fancy" (optional textual) with a zone-flow diagram and a live zone
