@@ -1,3 +1,24 @@
+shorewall-nft (0.2.8) unstable; urgency=medium
+
+  * The firewall now starts after the network is online, matching upstream,
+    so provider routing and routes-file entries can reach nexthops on
+    interfaces the network manager has just brought up. It ordered before the
+    network before, which failed a config with provider or routes-file
+    routing at boot with "Device for nexthop is not up" (github #16).
+  * More standard actions are native. The TCP-flag actions TCPFlags, RST,
+    FIN, NotSyn, dropNotSyn and rejNotSyn match tcp flags, and A_REJECT
+    audits then rejects. DropSmurfs drops a broadcast or multicast source,
+    DropDNSrep drops late DNS replies, and GlusterFS opens the GlusterFS
+    ports. Limit and BLACKLIST, which need features not built yet, now fail
+    with a located error naming the action instead of a generic one.
+  * ?INCLUDE is accepted as the directive spelling of INCLUDE.
+  * A params file that uses old-style backtick command substitution is
+    sourced through the shell, as one using $(...) already was.
+  * A maclist entry with no MAC address (a - in the MAC column) verifies by
+    IP alone, the way upstream allows.
+
+ -- Dave Kempe <dave@sol1.com.au>  Fri, 31 Jul 2026 08:42:55 +1000
+
 shorewall-nft (0.2.7) unstable; urgency=medium
 
   * IPSEC zones. The ipsec, ipsec4 and ipsec6 zone types compile, scoped to

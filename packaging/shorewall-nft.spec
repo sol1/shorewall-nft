@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.2.7
+Version:        0.2.8
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -162,6 +162,18 @@ exit 0
 %systemd_postun shorewall6-lite.service
 
 %changelog
+* Fri Jul 31 2026 Dave Kempe <dave@sol1.com.au> - 0.2.8-1
+- The firewall starts after the network is online, matching upstream, so
+  provider and routes-file routing can reach nexthops on interfaces the
+  network manager has brought up. It ordered before the network before,
+  failing such configs at boot with "Device for nexthop is not up" (#16).
+- More native standard actions: the TCP-flag actions (TCPFlags, RST, FIN,
+  NotSyn, dropNotSyn, rejNotSyn), A_REJECT, DropSmurfs, DropDNSrep and
+  GlusterFS. Limit and BLACKLIST fail with a located error.
+- ?INCLUDE is accepted as the directive spelling of INCLUDE.
+- A params file using backtick command substitution is sourced through the
+  shell, as $(...) already was.
+- A maclist entry with no MAC (a - in the MAC column) verifies by IP alone.
 * Wed Jul 29 2026 Dave Kempe <dave@sol1.com.au> - 0.2.7-1
 - IPSEC zones: ipsec/ipsec4/ipsec6 scoped to the SA, site-to-site by reqid or
   spi, tunnel mode by outer address, any-SA inbound, and cleartext coexistence
