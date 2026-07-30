@@ -1977,7 +1977,9 @@ class Emitter:
         self.out("chain maclist {", 1)
         for m in self.cfg.maclist:
             ifm = _if_match("iifname", m["interface"])
-            parts = ([ifm] if ifm else []) + [f'ether saddr {m["mac"]}']
+            parts = [ifm] if ifm else []
+            if m["mac"]:
+                parts.append(f'ether saddr {m["mac"]}')
             if m["addresses"]:
                 parts.append(f"{ipkw} saddr {_addr_set(m['addresses'])}")
             comment = f' comment "{m["origin"]}"' if m["origin"] else ""

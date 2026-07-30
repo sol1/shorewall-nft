@@ -10,7 +10,7 @@ parsers, and by test.
 | File | What we do |
 |---|---|
 | shorewall.conf | Global settings read as variables. The subset we act on (logging, IP_FORWARDING, ROUTE_FILTER, DOCKER, defaults) is honored; unknown keys are ignored as upstream does. |
-| params | Shell variable definitions, including sourced files and sequential expansion. |
+| params | Shell variable definitions, including sourced files and sequential expansion. A params file that uses shell logic (loops, includes, command substitution with $(...) or backticks) is sourced through the shell, as upstream does. |
 | zones | Types ip/ipv4/ipv6/firewall and ipsec/ipsec4/ipsec6 (site-to-site, keyed by reqid or spi, tunnel-src/dst via spnum, any-SA via `meta secpath exists`, scoped with `ipsec in/out`; a cleartext zone sharing the interface excludes decrypted traffic with `meta secpath missing`); parent:child nesting; the OPTIONS/IN/OUT columns accepted (mss and blacklist warned, not applied yet); unsupported types (bport, vserver) fail loud. |
 | interfaces | Options dhcp, routeback, tcpflags, nosmurfs, routefilter, rpfilter (strict reverse-path fib check, established traffic exempt), logmartians, sourceroute, forward, proxyarp, arp; wildcard globs; unknown options fail loud. sfilter and norfc1918 are accepted but warned, not yet enforced. |
 | policy | Default actions (Broadcast/Multicast drop), file-order precedence, implicit intra-zone accept, CONTINUE, QUEUE/NFQUEUE, log levels, and the RATE LIMIT and CONNLIMIT columns. |
@@ -35,7 +35,7 @@ parsers, and by test.
 | ecn | Disable ECN to listed hosts by stripping the negotiation flags from the SYN. |
 | proxyarp | Proxy ARP: proxy neighbour, route to the internal host, and the proxy_arp sysctl. |
 | proxyndp | Proxy NDP, the IPv6 twin of proxyarp. |
-| maclist | MAC verification on maclist interfaces, with optional IP, default MACLIST_DISPOSITION. |
+| maclist | MAC verification on maclist interfaces, with optional IP, or a '-' MAC to verify by IP alone, default MACLIST_DISPOSITION. |
 | mangle TOS | The TOS action sets the DSCP field. The obsolete tos file warns and is ignored, as upstream does. |
 | MSS clamping | The mss interface option and CLAMPMSS clamp SYN MSS, to a fixed value or the path MTU. nft modifies an existing MSS option; it does not synthesize one for a SYN that omits it, which real stacks never do. |
 | geoip | ^CC country matches compile to native nft sets filled by `shorewall geoip-update` on a schedule. See docs/geoip.md. |

@@ -1584,11 +1584,16 @@ def parse_maclist(path, variables, interfaces):
         disp, _, level = cols[0].partition(":")
         if disp not in ("ACCEPT", "DROP", "REJECT", "A_DROP", "A_REJECT"):
             raise line.error(f"unsupported maclist disposition {disp}")
+        # A MAC of '-' means no MAC: the entry matches on IP alone, the way
+        # upstream allows (shorewall-maclist(5)). Otherwise normalise the MAC.
+        mac = "" if cols[2] == "-" \
+            else cols[2].lower().lstrip("~").replace("-", ":")
+        addresses = cols[3] if len(cols) > 3 and cols[3] != "-" else ""
+        if not mac and not addresses:
+            raise line.error("maclist entry needs a MAC or an address")
         out.append({"disposition": disp, "loglevel": level.lower(),
                     "interface": logical.get(cols[1], cols[1]),
-                    "mac": cols[2].lower().lstrip("~").replace("-", ":"),
-                    "addresses": cols[3] if len(cols) > 3 and cols[3] != "-"
-                    else "",
+                    "mac": mac, "addresses": addresses,
                     "origin": f"{os.path.basename(line.path)}:{line.lineno}"})
     return out
 

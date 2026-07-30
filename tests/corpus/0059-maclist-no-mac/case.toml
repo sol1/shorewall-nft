@@ -1,0 +1,39 @@
+description = "A maclist entry with no MAC address (a '-' in the MAC column) matches on IP alone, the way upstream allows (shorewall-maclist(5)). eth0 carries the maclist option and MACLIST_DISPOSITION is REJECT, so a source the maclist does not name is rejected. The entry ACCEPT eth0 - 10.0.2.2 names one IP with no MAC. Upstream emits -s 10.0.2.2 -j RETURN; we emit ip saddr 10.0.2.2 return, no ether saddr. A connection from 10.0.2.2 is let through, one from another address is rejected. Both compilers agree."
+family = 4
+
+[[links]]
+node_a = "net"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+# A second source on the same segment that the maclist does not name.
+[extra_addrs]
+net = ["10.0.2.9/24@s0"]
+
+[routes]
+net = "10.0.2.1"
+
+# The named IP passes MAC verification (RETURN) and reaches the ACCEPT rule.
+[[probes]]
+id = "named-ip-passes-maclist"
+from = "net"
+source = "10.0.2.2"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 22
+expect = "allow"
+
+# An unnamed source fails MAC verification and hits MACLIST_DISPOSITION.
+[[probes]]
+id = "unnamed-source-rejected"
+from = "net"
+source = "10.0.2.9"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 22
+expect = "reject"

@@ -588,6 +588,22 @@ form_ok("params: a bash-form params file with .inc includes is sourced",
          "params.common.admin.inc": 'SOL1_ADMIN="10.15.0.0/16"\n',
          "rules": "?SECTION NEW\nACCEPT net:$SOL1_ADMIN $FW tcp 22\n"},
         expect="ip saddr 10.15.0.0/16")
+# A params file processed through the shell can use command substitution,
+# both $(...) and old-style backticks, the way upstream's /bin/sh does
+# (shorewall-users). Backticks must trigger the shell path too.
+form_ok("params: command substitution with $(...) is evaluated",
+        {"params": "PORTVAR=$(echo 2244)\n",
+         "rules": "?SECTION NEW\nACCEPT net $FW tcp $PORTVAR\n"},
+        expect="tcp dport 2244")
+form_ok("params: command substitution with backticks is evaluated",
+        {"params": "PORTVAR=`echo 2255`\n",
+         "rules": "?SECTION NEW\nACCEPT net $FW tcp $PORTVAR\n"},
+        expect="tcp dport 2255")
+# ?INCLUDE is the directive spelling of INCLUDE; upstream accepts either.
+form_ok("rules: ?INCLUDE pulls in another file",
+        {"rules": "?SECTION NEW\n?INCLUDE rules.extra\n",
+         "rules.extra": "ACCEPT net $FW tcp 2222\n"},
+        expect="tcp dport 2222")
 
 # The generated lifecycle script must fill the set from the live interface.
 _d = build({"rules": "?SECTION NEW\nACCEPT net:&NET_IF $FW tcp 22\n"})
@@ -758,6 +774,27 @@ except ConfigError as e:
         bad("address-column error not located", str(e))
 except Exception as e:                                   # noqa: BLE001
     bad("address-column error", f"traceback: {type(e).__name__}")
+finally:
+    shutil.rmtree(d)
+
+# --- maclist: an entry with a '-' MAC matches by IP only, the way upstream
+#     allows (shorewall-maclist(5)). It must not emit an ether saddr match. ---
+d = build({"interfaces": "?FORMAT 2\nnet eth0 maclist\n",
+           "maclist": "ACCEPT eth0 - 10.20.30.40,10.20.30.50-10.20.30.60\n"})
+try:
+    text = render(load(d, 4))
+    loads, msg = nft_loads(text)
+    entry = [ln for ln in text.splitlines() if "10.20.30.40" in ln]
+    if not loads:
+        bad("maclist no-MAC entry", f"nft rejected: {msg}")
+    elif not entry:
+        bad("maclist no-MAC entry", "the IP entry did not reach the chain")
+    elif "ether saddr" in entry[0]:
+        bad("maclist no-MAC entry", "a MAC-less entry still matched a MAC")
+    else:
+        ok("maclist: a no-MAC entry matches by IP only")
+except Exception as e:                                   # noqa: BLE001
+    bad("maclist no-MAC entry", f"traceback: {type(e).__name__}: {e}")
 finally:
     shutil.rmtree(d)
 

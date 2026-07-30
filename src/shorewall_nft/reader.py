@@ -2,8 +2,9 @@
 
 Reproduces the parts of Shorewall's line model the corpus needs:
 comments, continuation lines, $variable expansion, ?FORMAT and
-?SECTION directives, INCLUDE. Unsupported directives raise ConfigError
-so nothing is dropped silently.
+?SECTION directives, and INCLUDE (also spelled ?INCLUDE, as upstream
+accepts either). Unsupported directives raise ConfigError so nothing is
+dropped silently.
 """
 import os
 import re
@@ -139,6 +140,18 @@ def read_file(path, variables, max_format=2):
                 ifstack.pop()
             elif not live:
                 pass
+            elif directive == "?INCLUDE":
+                # ?INCLUDE is the directive spelling of INCLUDE; upstream
+                # accepts either. Same file resolution as the bare form.
+                if not rest:
+                    raise ConfigError("?INCLUDE needs a file name",
+                                      path, buf_start)
+                inc = expand(rest, variables, path, buf_start)
+                inc_path = os.path.join(os.path.dirname(path), inc)
+                if not os.path.exists(inc_path):
+                    raise ConfigError(f"?INCLUDE file not found: {inc}",
+                                      path, buf_start)
+                yield from read_file(inc_path, variables, max_format)
             elif directive == "?FORMAT":
                 try:
                     fmt = int(rest)
@@ -264,7 +277,7 @@ def read_simple_vars(path, depth=0, variables=None):
 # a bash builtin, or command substitution. A params file using any of these is
 # sourced through bash instead, the way upstream sources it.
 _NEEDS_SHELL = re.compile(r"(^|\s)(for|while|if|case|declare|local|typeset)\s"
-                          r"|\$\(|\bBASH_SOURCE\b|\[\[")
+                          r"|\$\(|`|\bBASH_SOURCE\b|\[\[")
 
 
 def needs_shell(path):
