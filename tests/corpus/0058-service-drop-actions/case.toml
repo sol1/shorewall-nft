@@ -1,0 +1,35 @@
+description = "Tier-2 service and drop actions: DropSmurfs drops a broadcast or multicast source (fib saddr type broadcast, ip saddr 224.0.0.0/4), DropDNSrep drops late DNS replies (udp sport 53), and GlusterFS opens the GlusterFS ports. All three compile against upstream, whose --src-type BROADCAST, -s 224.0.0.0/4 and multiport lists map across. The net to fw policy drops, so a GlusterFS port (24007) is accepted by the action while an unopened port (22) is dropped. The smurf and DNS-reply drops need crafted source addresses or ports out of the unicast harness's reach; forms-unit covers their emitted matches."
+family = 4
+
+[[links]]
+node_a = "net"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+[routes]
+net = "10.0.2.1"
+
+# GlusterFS opened tcp 24007, so a connection to it is accepted even though
+# the net to fw policy is DROP. Proves the action takes effect.
+[[probes]]
+id = "glusterfs-port-accepted"
+from = "net"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 24007
+expect = "allow"
+
+# Port 22 is not a GlusterFS port and nothing else opens it, so the DROP
+# policy takes it. Both compilers drop it.
+[[probes]]
+id = "unopened-port-dropped"
+from = "net"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 22
+expect = "drop"

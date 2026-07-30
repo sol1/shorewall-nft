@@ -491,7 +491,13 @@ def _rule_match(rule, family=4, sets=None, ifmap=None):
     if rule.state:
         pre.append(f"ct state {rule.state}")
     if rule.fib:
-        pre.append(f"fib daddr type {rule.fib}")
+        # "broadcast" matches the destination type (Broadcast/Multicast);
+        # "saddr:broadcast" matches the source type (DropSmurfs).
+        side, _, ftype = rule.fib.partition(":")
+        if ftype:
+            pre.append(f"fib {side} type {ftype}")
+        else:
+            pre.append(f"fib daddr type {rule.fib}")
     # Locate an address-column error (e.g. a bare interface name where an
     # address is expected) at the rule that carried it, not just the token.
     try:

@@ -1,0 +1,3 @@
+net	$FW	DROP
+$FW	net	ACCEPT
+all	all	REJECT

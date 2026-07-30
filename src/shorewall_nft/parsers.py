@@ -507,6 +507,56 @@ def _expand_action(line, name, param, src, dst, proto, dport, sport,
         return [Rule(action="REJECT", source=src[0], dest=dst[0],
                      saddr=src[1], daddr=dst[1], proto=proto, dport=dport,
                      sport=sport, audit=True, origin=origin)]
+    if name == "DropDNSrep":
+        # Drop late DNS replies: UDP from source port 53. Takes a disposition.
+        disposition, audit = _disp_and_audit(param, "DROP", line, name)
+        return [Rule(action=disposition, source=src[0], dest=dst[0],
+                     saddr=src[1], daddr=dst[1], proto="udp", sport="53",
+                     audit=audit, origin=origin)]
+    if name == "DropSmurfs":
+        # Drop packets with a broadcast or multicast source, a smurf
+        # reflection. The unspecified source (0.0.0.0 / ::) matches neither
+        # the broadcast type nor the multicast range, so upstream's explicit
+        # RETURN for it is unnecessary here.
+        audit = _audit_param(param, line, name)
+        mcast = "ff00::/8" if family == 6 else "224.0.0.0/4"
+        return [
+            Rule(action="DROP", source=src[0], dest=dst[0], saddr=src[1],
+                 daddr=dst[1], fib="saddr:broadcast", audit=audit,
+                 origin=origin),
+            Rule(action="DROP", source=src[0], dest=dst[0], saddr=mcast,
+                 daddr=dst[1], audit=audit, origin=origin),
+        ]
+    if name == "GlusterFS":
+        # A port-list ACCEPT parameterised by the brick count (@1, 1 to 1024,
+        # default 2) and an Infiniband flag (@2, 0 or 1, default 0). The brick
+        # ports run from 49152 for @1 ports.
+        parts = [p.strip() for p in param.split(",")] if param else []
+        bricks = parts[0] if parts and parts[0] not in ("", "-") else "2"
+        ib = parts[1] if len(parts) > 1 and parts[1] not in ("", "-") else "0"
+        if not bricks.isdigit() or not 1 <= int(bricks) <= 1024:
+            raise line.error(f"GlusterFS bricks argument must be 1 to 1024, "
+                             f"not {bricks!r}")
+        if ib not in ("0", "1"):
+            raise line.error(f"GlusterFS IB argument must be 0 or 1, "
+                             f"not {ib!r}")
+        ports = [("udp", "111,2049"), ("tcp", "38465:38467"),
+                 ("tcp", "24007:24008" if ib == "1" else "24007"),
+                 ("tcp", f"49151:{49150 + int(bricks)}")]
+        return [Rule(action="ACCEPT", source=src[0], dest=dst[0],
+                     saddr=src[1], daddr=dst[1], proto=pr, dport=dp,
+                     origin=origin) for pr, dp in ports]
+    if name == "Limit":
+        # Per-source connection rate limiting. shorewall-nft does not do
+        # per-IP rate limiting yet, and upstream itself deprecates Limit for
+        # the RATE LIMIT column, so point there.
+        raise line.error("the Limit action needs per-IP rate limiting, not "
+                         "supported yet; use the RATE LIMIT column, which "
+                         "upstream now recommends over Limit")
+    if name == "BLACKLIST":
+        raise line.error("the BLACKLIST action needs ipset-based dynamic "
+                         "blacklisting, which shorewall-nft does not support "
+                         "yet")
     if name == "AllowICMPs":
         # A standard Shorewall action that accepts the ICMP types a network
         # needs: IPv6 neighbour discovery and router advertisement, IPv4 path

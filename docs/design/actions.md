@@ -104,8 +104,19 @@ macro, also loads instead of producing an unloadable rule.
    matching upstream's `--tcp-flags`. Corpus 0057 locks the compile against
    upstream; a crafted bad-flag packet is out of the unicast harness's reach,
    so forms-unit covers the emitted matches.
-5. The fail-loud audit for the not-expressible set, each named in a located
-   error, and this doc's list kept in step with the code.
+5. Partly done. The remaining service and drop actions. `DropDNSrep` drops
+   UDP from source port 53, `DropSmurfs` drops a broadcast or multicast source
+   (`fib saddr type broadcast`, the multicast range), and `GlusterFS` opens
+   the GlusterFS ports, sized by its brick-count and Infiniband parameters.
+   Corpus 0058 locks these against upstream. `Limit` and `BLACKLIST` fail with
+   a located error: Limit needs per-IP rate limiting (use the RATE LIMIT
+   column, which upstream now recommends over it), and BLACKLIST needs
+   ipset-based dynamic blacklisting, neither built yet.
+6. The fail-loud audit for the rest of the not-expressible set (`allowinUPnP`,
+   `forwardUPnP`, `AutoBL`, `AutoBLL`, `IfEvent`, `SetEvent`, `ResetEvent`,
+   `DNSAmp`), each named in a located error instead of the generic
+   "unsupported action or macro", and this doc's list kept in step with the
+   code.
 
 ## Comparison with upstream
 

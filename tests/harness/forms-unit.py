@@ -470,6 +470,30 @@ form_ok("rules: A_REJECT audits then rejects",
         expect="log level audit jump reject_action")
 form_rejected("rules: a bad TCPFlags parameter is a located error",
               {"rules": "?SECTION NEW\nTCPFlags(bogus) net $FW\n"})
+# --- rules: Tier-2 service and drop actions. ---
+form_ok("rules: DropDNSrep drops UDP from source port 53",
+        {"rules": "?SECTION NEW\nDropDNSrep net $FW\n"},
+        expect="udp sport 53 drop")
+form_ok("rules: DropSmurfs drops a broadcast source",
+        {"rules": "?SECTION NEW\nDropSmurfs net $FW\n"},
+        expect="fib saddr type broadcast drop")
+form_ok("rules: DropSmurfs drops a multicast source range",
+        {"rules": "?SECTION NEW\nDropSmurfs net $FW\n"},
+        expect="ip saddr 224.0.0.0/4 drop")
+form_ok("rules: GlusterFS opens the base gluster ports",
+        {"rules": "?SECTION NEW\nGlusterFS net $FW\n"},
+        expect="tcp dport 38465-38467 accept")
+form_ok("rules: GlusterFS brick count sizes the high port range",
+        {"rules": "?SECTION NEW\nGlusterFS(4) net $FW\n"},
+        expect="tcp dport 49151-49154 accept")
+form_rejected("rules: a bad GlusterFS brick count is a located error",
+              {"rules": "?SECTION NEW\nGlusterFS(9999) net $FW\n"})
+# Limit and BLACKLIST are not expressible yet; they must fail with a located
+# error naming the action, not the generic 'unsupported action or macro'.
+form_rejected("rules: Limit fails loud pointing at the RATE LIMIT column",
+              {"rules": "?SECTION NEW\nLimit net $FW\n"})
+form_rejected("rules: BLACKLIST fails loud (needs dynamic blacklisting)",
+              {"rules": "?SECTION NEW\nBLACKLIST net $FW\n"})
 form_ok("rules: interface then included!excluded together",
         {"rules": "?SECTION NEW\n"
          "ACCEPT net:NET_IF:10.0.0.0/24!10.0.0.5 $FW tcp 22\n"},
