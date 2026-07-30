@@ -1,0 +1,25 @@
+description = "The TCP-flag actions: TCPFlags (nmap-style bad flag scans), dropNotSyn (non-SYN packets in the NEW state) and RST. They match TCP flag combinations and drop, matching upstream --tcp-flags ALL FIN,URG,PSH / ALL NONE / SYN,RST / SYN,FIN / --syn --sport 0 and ! --syn. nft spells these tcp flags & (mask) == comp. A crafted bad-flag packet is out of the unicast harness's reach, so this locks the compile against upstream and checks that a normal SYN connection (a valid SYN, matched by none of the drops) still connects; forms-unit covers the emitted matches."
+family = 4
+
+[[links]]
+node_a = "net"
+dev_a = "s0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+[routes]
+net = "10.0.2.1"
+
+# A normal connection is a valid SYN, matched by none of the bad-flag or
+# non-SYN drops, so the ACCEPT policy takes it. This proves the flag actions
+# do not break ordinary traffic. Both compilers allow it.
+[[probes]]
+id = "normal-syn-connection-unaffected"
+from = "net"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 22
+expect = "allow"

@@ -71,6 +71,27 @@ ADDRTYPE_WRAPPERS = {
     "allowMcast": ("Multicast", "ACCEPT"),
     "dropMcast": ("Multicast", "DROP"),
 }
+# TCP-flag actions. Each matches a TCP flag combination and applies a
+# disposition given as the parameter. name -> (nft flag match, default). The
+# match rides after meta l4proto tcp.
+_NOTSYN = "tcp flags & (fin|syn|rst|ack) != syn"
+TCP_FLAG_ACTIONS = {
+    "RST": ("tcp flags & rst == rst", "DROP"),
+    "FIN": ("tcp flags & (ack|fin) == ack|fin", "ACCEPT"),
+    "NotSyn": (_NOTSYN, "DROP"),
+}
+# Fixed-disposition non-SYN wrappers. name -> disposition; parameter is audit.
+NOTSYN_WRAPPERS = {"dropNotSyn": "DROP", "rejNotSyn": "REJECT"}
+# TCPFlags drops several bad flag combinations at once (audited with the audit
+# parameter). Each combination becomes its own rule. These are the nmap-style
+# scans upstream's --tcp-flags checks reject.
+TCPFLAGS_BAD = [
+    "tcp flags & (fin|syn|rst|psh|ack|urg) == fin|psh|urg",  # xmas
+    "tcp flags & (fin|syn|rst|psh|ack|urg) == 0x0",          # null
+    "tcp flags & (syn|rst) == syn|rst",
+    "tcp flags & (syn|fin) == syn|fin",
+    "tcp flags & (fin|syn|rst|ack) == syn tcp sport 0",      # syn from port 0
+]
 
 TERMINAL = {"ACCEPT", "DROP", "REJECT"}
 QUEUE_ACTIONS = {"QUEUE", "NFQUEUE"}
@@ -389,6 +410,17 @@ def _disp_and_audit(param, default, line, name):
     return disp, audit
 
 
+def _audit_param(param, line, name):
+    """A parameter that must be 'audit' or '-' (the fixed-disposition
+    wrappers). Returns the audit flag."""
+    if param == "audit":
+        return True
+    if param and param != "-":
+        raise line.error(f"the parameter to {name} must be 'audit' or '-', "
+                         f"not {param}")
+    return False
+
+
 def _expand_action(line, name, param, src, dst, proto, dport, sport,
                    origin, variables, family):
     """src and dst are (zone, address) pairs from the invocation."""
@@ -453,6 +485,28 @@ def _expand_action(line, name, param, src, dst, proto, dport, sport,
                      saddr=src[1], daddr=dst[1], proto=proto, dport=dport,
                      sport=sport, fib=fibtype, audit=audit, origin=origin)
                 for fibtype in ADDRTYPE_ACTIONS[base]]
+    if name in TCP_FLAG_ACTIONS:
+        match, default = TCP_FLAG_ACTIONS[name]
+        disposition, audit = _disp_and_audit(param, default, line, name)
+        return [Rule(action=disposition, source=src[0], dest=dst[0],
+                     saddr=src[1], daddr=dst[1], proto="tcp", tcpflags=match,
+                     audit=audit, origin=origin)]
+    if name in NOTSYN_WRAPPERS:
+        audit = _audit_param(param, line, name)
+        return [Rule(action=NOTSYN_WRAPPERS[name], source=src[0], dest=dst[0],
+                     saddr=src[1], daddr=dst[1], proto="tcp", tcpflags=_NOTSYN,
+                     audit=audit, origin=origin)]
+    if name == "TCPFlags":
+        audit = _audit_param(param, line, name)
+        return [Rule(action="DROP", source=src[0], dest=dst[0],
+                     saddr=src[1], daddr=dst[1], proto="tcp", tcpflags=m,
+                     audit=audit, origin=origin) for m in TCPFLAGS_BAD]
+    if name == "A_REJECT":
+        # The audit variant of REJECT: audit-log, then reject. The optional
+        # parameter selects the reject kind, a nuance reject_action abstracts.
+        return [Rule(action="REJECT", source=src[0], dest=dst[0],
+                     saddr=src[1], daddr=dst[1], proto=proto, dport=dport,
+                     sport=sport, audit=True, origin=origin)]
     if name == "AllowICMPs":
         # A standard Shorewall action that accepts the ICMP types a network
         # needs: IPv6 neighbour discovery and router advertisement, IPv4 path

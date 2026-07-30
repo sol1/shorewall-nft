@@ -439,6 +439,37 @@ form_ok("rules: a Bcast wrapper audit parameter logs before dropping",
         expect="fib daddr type broadcast log level audit drop")
 form_rejected("rules: a bad Broadcast disposition is a located error",
               {"rules": "?SECTION NEW\nBroadcast(bogus) net $FW\n"})
+# --- rules: the TCP-flag actions. They match a TCP flag combination and apply
+# a disposition, matching upstream's --tcp-flags checks. ---
+form_ok("rules: RST matches the RST flag and drops by default",
+        {"rules": "?SECTION NEW\nRST net $FW\n"},
+        expect="meta l4proto tcp tcp flags & rst == rst drop")
+form_ok("rules: FIN matches ACK,FIN and accepts by default",
+        {"rules": "?SECTION NEW\nFIN net $FW\n"},
+        expect="tcp flags & (ack|fin) == ack|fin accept")
+form_ok("rules: dropNotSyn drops a non-SYN packet",
+        {"rules": "?SECTION NEW\ndropNotSyn net $FW\n"},
+        expect="tcp flags & (fin|syn|rst|ack) != syn drop")
+form_ok("rules: NotSyn takes a disposition parameter",
+        {"rules": "?SECTION NEW\nNotSyn(ACCEPT) net $FW\n"},
+        expect="tcp flags & (fin|syn|rst|ack) != syn accept")
+form_ok("rules: rejNotSyn rejects a non-SYN packet",
+        {"rules": "?SECTION NEW\nrejNotSyn net $FW\n"},
+        expect="tcp flags & (fin|syn|rst|ack) != syn jump reject_action")
+form_ok("rules: TCPFlags drops the xmas scan combination",
+        {"rules": "?SECTION NEW\nTCPFlags net $FW\n"},
+        expect="tcp flags & (fin|syn|rst|psh|ack|urg) == fin|psh|urg drop")
+form_ok("rules: TCPFlags drops the null scan combination",
+        {"rules": "?SECTION NEW\nTCPFlags net $FW\n"},
+        expect="tcp flags & (fin|syn|rst|psh|ack|urg) == 0x0 drop")
+form_ok("rules: TCPFlags audit twin logs before dropping",
+        {"rules": "?SECTION NEW\nTCPFlags(audit) net $FW\n"},
+        expect="tcp flags & (syn|rst) == syn|rst log level audit drop")
+form_ok("rules: A_REJECT audits then rejects",
+        {"rules": "?SECTION NEW\nA_REJECT net $FW\n"},
+        expect="log level audit jump reject_action")
+form_rejected("rules: a bad TCPFlags parameter is a located error",
+              {"rules": "?SECTION NEW\nTCPFlags(bogus) net $FW\n"})
 form_ok("rules: interface then included!excluded together",
         {"rules": "?SECTION NEW\n"
          "ACCEPT net:NET_IF:10.0.0.0/24!10.0.0.5 $FW tcp 22\n"},

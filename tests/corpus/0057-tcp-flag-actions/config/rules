@@ -1,0 +1,4 @@
+?SECTION NEW
+TCPFlags	net	$FW
+dropNotSyn	net	$FW
+RST(DROP)	net	$FW

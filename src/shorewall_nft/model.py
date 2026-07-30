@@ -69,6 +69,7 @@ class Rule:
     audit: bool = False       # log level audit before the verdict
     state: str = ""           # ct state match, e.g. new, established, invalid
     fib: str = ""             # fib daddr type match, e.g. broadcast, multicast
+    tcpflags: str = ""        # a raw tcp flags match, e.g. tcp flags & rst == rst
     section: str = "NEW"      # rules file section
     inline: str = ""          # raw nft appended after the matches
     inline_full: bool = False # inline is the whole body incl the verdict

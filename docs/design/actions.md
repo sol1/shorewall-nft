@@ -95,8 +95,15 @@ macro, also loads instead of producing an unloadable rule.
    audit parameter. This matches upstream `-m addrtype --dst-type`. Corpus
    0055 locks the compile against upstream; the destination-type match is not
    reachable by the unicast harness probe, so forms-unit covers the rules.
-4. The TCP-flag actions: `TCPFlags`, `dropNotSyn`, `NotSyn`, `rejNotSyn`,
-   `RST`, `FIN`.
+4. Done. The TCP-flag actions. `TCPFlags` drops the nmap-style bad flag
+   combinations (xmas, null, SYN+RST, SYN+FIN, SYN from port 0). `RST`, `FIN`
+   and `NotSyn` match a flag combination and take a disposition (RST and
+   NotSyn default to drop, FIN to accept). `dropNotSyn` and `rejNotSyn` are
+   the fixed-disposition non-SYN wrappers. `A_REJECT` audits then rejects.
+   Each match rides after `meta l4proto tcp` as `tcp flags & (mask) == comp`,
+   matching upstream's `--tcp-flags`. Corpus 0057 locks the compile against
+   upstream; a crafted bad-flag packet is out of the unicast harness's reach,
+   so forms-unit covers the emitted matches.
 5. The fail-loud audit for the not-expressible set, each named in a located
    error, and this doc's list kept in step with the code.
 

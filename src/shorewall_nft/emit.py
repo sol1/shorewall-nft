@@ -548,6 +548,10 @@ def _rule_match(rule, family=4, sets=None, ifmap=None):
             post.append("meta l4proto ipv6-icmp")
     elif proto:
         post.append(f"meta l4proto {proto}")
+    if rule.tcpflags:
+        # A TCP-flag match rides after the l4proto tcp dependency, the way the
+        # TCP-flag actions (TCPFlags, RST, dropNotSyn, ...) build it.
+        post.append(rule.tcpflags)
     post += _extra_matches(rule)
     lines = []
     for sa in src_alts:
