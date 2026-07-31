@@ -777,6 +777,63 @@ except Exception as e:                                   # noqa: BLE001
 finally:
     shutil.rmtree(d)
 
+# --- github #17-#20: config-compatibility fixes a user hit checking iptables
+# configs against shorewall-nft. ---
+# #18 a REDIRECT DEST may be a service name; nft resolves it at load.
+form_ok("rules: REDIRECT DEST accepts a service name",
+        {"rules": "?SECTION NEW\nREDIRECT net ssh tcp 28534\n"},
+        expect="redirect to :ssh")
+# #20 snat interface::address (double colon) gives a clean dest match with no
+# stray leading colon on the address.
+form_ok("snat: interface::address parses without a stray colon",
+        {"zones": "fw firewall\nnet ipv4\nloc ipv4\n",
+         "interfaces": "?FORMAT 2\nnet eth0\nloc eth1\n",
+         "policy": "loc net ACCEPT\nall all DROP\n",
+         "snat": "SNAT(198.51.100.33)\t192.168.1.10\teth0::203.0.113.160\n"},
+        expect="ip daddr 203.0.113.160 ip saddr 192.168.1.10 "
+               "snat ip to 198.51.100.33")
+# #19 a mangle rule with the firewall zone as source goes in the output chain.
+d = build({"zones": "fw firewall\nnet ipv4\n",
+           "interfaces": "?FORMAT 2\nnet eth0\n",
+           "policy": "$FW net ACCEPT\nnet all DROP\nall all REJECT\n",
+           "mangle": "MARK(1)\tfw\t0.0.0.0/0\tudp\t-\topenvpn\n"})
+try:
+    text = render(load(d, 4))
+    loads, msg = nft_loads(text)
+    lines = text.splitlines()
+    out_i = next((i for i, ln in enumerate(lines)
+                  if "chain mangle_output" in ln), None)
+    mark_i = next((i for i, ln in enumerate(lines)
+                   if "meta mark set 1" in ln), None)
+    if not loads:
+        bad("mangle fw source", f"nft rejected: {msg}")
+    elif out_i is None or mark_i is None or mark_i < out_i:
+        bad("mangle fw source", "the MARK did not land in mangle_output")
+    else:
+        ok("mangle: a firewall-source rule goes in the output chain")
+except Exception as e:                                   # noqa: BLE001
+    bad("mangle fw source", f"{type(e).__name__}: {e}")
+finally:
+    shutil.rmtree(d)
+# #17 a per-interface sysctl for a VLAN interface uses / separators, so the
+# dotted VLAN name enp2s0.10 is not split into a .../conf/enp2s0/10/... path.
+from shorewall_nft.script import render_script as _rs   # noqa: E402
+from shorewall_nft.emit import render_stop as _rstop    # noqa: E402
+d = build({"interfaces": "?FORMAT 2\nnet NET_IF physical=enp2s0.10,routefilter\n"})
+try:
+    cfg = load(d, 4)
+    scr = _rs(cfg, render(cfg), _rstop(cfg))
+    rp = [ln for ln in scr.splitlines()
+          if "rp_filter" in ln and "enp2s0" in ln]
+    if rp and "net/ipv4/conf/enp2s0.10/rp_filter" in rp[0]:
+        ok("sysctl: a VLAN interface uses the / separator form")
+    else:
+        bad("sysctl VLAN", f"expected the / form, got {rp}")
+except Exception as e:                                   # noqa: BLE001
+    bad("sysctl VLAN", f"{type(e).__name__}: {e}")
+finally:
+    shutil.rmtree(d)
+
 # --- maclist: an entry with a '-' MAC matches by IP only, the way upstream
 #     allows (shorewall-maclist(5)). It must not emit an ether saddr match. ---
 d = build({"interfaces": "?FORMAT 2\nnet eth0 maclist\n",

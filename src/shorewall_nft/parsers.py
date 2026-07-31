@@ -582,6 +582,19 @@ def _expand_action(line, name, param, src, dst, proto, dport, sport,
     raise line.error(f"unsupported action or macro {name}")
 
 
+_SERVICE = re.compile(r"^[A-Za-z][A-Za-z0-9/+._-]*$")
+
+
+def _redirect_port(to_port, line):
+    """A REDIRECT DEST: a numeric port or a service name. nft resolves a
+    service name against /etc/services at load, the way upstream allows
+    (github #18), so pass a name through after a metacharacter check."""
+    if to_port.isdigit() or _SERVICE.match(to_port):
+        return to_port
+    raise line.error(f"REDIRECT DEST must be a port number or service name, "
+                     f"not {to_port!r}")
+
+
 def _split_nat_flags(spec):
     """Strip a trailing :random or :persistent from a NAT target,
     returning (target, nft-flags)."""
@@ -727,8 +740,7 @@ def parse_rules(path, variables, fw_zone, family=4, zones=None):
         if name == "REDIRECT":
             source, s_addr = zone_of(cols[1])
             to_port, flags = _split_nat_flags(cols[2])
-            if not to_port.isdigit():
-                raise line.error("REDIRECT DEST must be a port number")
+            to_port = _redirect_port(to_port, line)
             if not proto or not dport:
                 raise line.error("REDIRECT needs PROTO and DPORT")
             origdest = col(6)
@@ -835,9 +847,7 @@ def parse_rules(path, variables, fw_zone, family=4, zones=None):
                         to_port, flags = _split_nat_flags(cols[2])
                         if to_port in ("-", ""):
                             to_port = mr.dport
-                        if not to_port.isdigit():
-                            raise line.error(
-                                "REDIRECT destination must be a port number")
+                        to_port = _redirect_port(to_port, line)
                         dnat.append(DnatRule(
                             source=source, proto=mr.proto, dport=mr.dport,
                             to_addr="", to_port=to_port, saddr=s_addr,
@@ -1382,7 +1392,7 @@ MANGLE_RE = re.compile(r"^(?P<name>[A-Za-z]+)\((?P<param>[^)]*)\)"
                        r"(:(?P<chain>[PFTIO]+))?$")
 
 
-def parse_mangle(path, variables, interfaces, family=4):
+def parse_mangle(path, variables, interfaces, family=4, fw_zone="fw"):
     logical = {i.logical: i.physical for i in interfaces}
     known = {i.physical for i in interfaces} | set(logical)
     out = []
@@ -1395,19 +1405,29 @@ def parse_mangle(path, variables, interfaces, family=4):
         if name not in MANGLE_ACTIONS:
             raise line.error(f"mangle action {name} not supported yet")
         designators = m.group("chain") or ""
-        chains = ([MANGLE_CHAINS[d] for d in designators]
-                  if designators else [MANGLE_ACTIONS[name]])
         source = cols[1] if len(cols) > 1 and cols[1] != "-" else ""
         dest = cols[2] if len(cols) > 2 and cols[2] != "-" else ""
-        # SOURCE may be an interface name.
+        # SOURCE may be an interface name or the firewall zone. The firewall
+        # zone means the packet originates from the firewall, so with no
+        # explicit chain designator the rule belongs in the output chain,
+        # matching upstream (github #19).
         iif = ""
+        fw_source = False
         if source in known:
             iif, source = logical.get(source, source), ""
+        elif source == fw_zone:
+            fw_source, source = True, ""
         elif source.startswith(("0.0.0.0/0", "::/0")) and "/0" == \
                 source[source.index("/"):]:
             source = ""
         if dest in ("0.0.0.0/0", "::/0"):
             dest = ""
+        if designators:
+            chains = [MANGLE_CHAINS[d] for d in designators]
+        elif fw_source:
+            chains = ["output"]
+        else:
+            chains = [MANGLE_ACTIONS[name]]
         proto = cols[3] if len(cols) > 3 and cols[3] != "-" else ""
         dport = cols[4] if len(cols) > 4 and cols[4] != "-" else ""
         sport = cols[5] if len(cols) > 5 and cols[5] != "-" else ""
@@ -1965,8 +1985,17 @@ def parse_snat(path, variables, interfaces):
             valid.safe_token(to_addr.replace("[", "").replace("]", ""),
                              line, "snat target")
         source = cols[1] if len(cols) > 1 and cols[1] != "-" else ""
+        # The DEST column is interface[:dest-address]. A dest address with no
+        # interface alias is written interface::address (a double colon), the
+        # way upstream parses it (Nat.pm), so a single partition on ':' would
+        # leave a stray leading colon on the address (github #20). Split the
+        # double-colon form first.
         dest = cols[2] if len(cols) > 2 else ""
-        dest, _, dest_addr = dest.partition(":")
+        dc = re.match(r"^([^:]+)::(.*)$", dest)
+        if dc:
+            dest, dest_addr = dc.group(1), dc.group(2)
+        else:
+            dest, _, dest_addr = dest.partition(":")
         dest_phys = logical.get(dest, dest)
         if not dest_phys or dest_phys == "-":
             raise line.error("snat needs a destination interface")

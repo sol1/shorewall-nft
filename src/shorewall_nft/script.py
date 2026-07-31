@@ -44,6 +44,13 @@ def _sysctls(cfg):
         out.append("net.ipv4.conf.all.log_martians=1")
         out.append("net.ipv4.conf.default.log_martians=1")
 
+    def ifk(v, iface, leaf, val):
+        # A per-interface sysctl written with / separators, so a VLAN
+        # interface name like enp2s0.10 keeps its dot: sysctl splits a dotted
+        # key into a path and would look for .../conf/enp2s0/10/... (github
+        # #17). The / form is accepted for every interface name.
+        return f"net/ipv{v}/conf/{iface}/{leaf}={val}"
+
     for iface in cfg.interfaces:
         if iface.wildcard:
             continue
@@ -52,39 +59,35 @@ def _sysctls(cfg):
         if fam == 4:
             if "routefilter" in opts:
                 rf = _flag(opts["routefilter"], 1)
-                out.append(f"net.ipv4.conf.{p}.rp_filter={rf}")
+                out.append(ifk(4, p, "rp_filter", rf))
                 # Upstream turns log_martians on when routefilter is on
                 # unless logmartians is explicitly set.
                 if rf and "logmartians" not in opts:
-                    out.append(f"net.ipv4.conf.{p}.log_martians=1")
+                    out.append(ifk(4, p, "log_martians", 1))
             if "logmartians" in opts:
-                out.append(f"net.ipv4.conf.{p}.log_martians="
-                           f"{_flag(opts['logmartians'], 1)}")
+                out.append(ifk(4, p, "log_martians",
+                               _flag(opts['logmartians'], 1)))
             if "sourceroute" in opts:
-                out.append(f"net.ipv4.conf.{p}.accept_source_route="
-                           f"{_flag(opts['sourceroute'], 1)}")
+                out.append(ifk(4, p, "accept_source_route",
+                               _flag(opts['sourceroute'], 1)))
             if "proxyarp" in opts:
-                out.append(f"net.ipv4.conf.{p}.proxy_arp="
-                           f"{_flag(opts['proxyarp'], 1)}")
+                out.append(ifk(4, p, "proxy_arp", _flag(opts['proxyarp'], 1)))
             if "arp_filter" in opts:
-                out.append(f"net.ipv4.conf.{p}.arp_filter="
-                           f"{_flag(opts['arp_filter'], 1)}")
+                out.append(ifk(4, p, "arp_filter",
+                               _flag(opts['arp_filter'], 1)))
             if "arp_ignore" in opts:
-                out.append(f"net.ipv4.conf.{p}.arp_ignore="
-                           f"{_flag(opts['arp_ignore'], 1)}")
+                out.append(ifk(4, p, "arp_ignore",
+                               _flag(opts['arp_ignore'], 1)))
         else:
             if "sourceroute" in opts:
-                out.append(f"net.ipv6.conf.{p}.accept_source_route="
-                           f"{_flag(opts['sourceroute'], 1)}")
+                out.append(ifk(6, p, "accept_source_route",
+                               _flag(opts['sourceroute'], 1)))
             if "forward" in opts:
-                out.append(f"net.ipv6.conf.{p}.forwarding="
-                           f"{_flag(opts['forward'], 1)}")
+                out.append(ifk(6, p, "forwarding", _flag(opts['forward'], 1)))
             if "proxyndp" in opts:
-                out.append(f"net.ipv6.conf.{p}.proxy_ndp="
-                           f"{_flag(opts['proxyndp'], 1)}")
+                out.append(ifk(6, p, "proxy_ndp", _flag(opts['proxyndp'], 1)))
             if "accept_ra" in opts:
-                out.append(f"net.ipv6.conf.{p}.accept_ra="
-                           f"{_flag(opts['accept_ra'], 1)}")
+                out.append(ifk(6, p, "accept_ra", _flag(opts['accept_ra'], 1)))
     return out
 
 

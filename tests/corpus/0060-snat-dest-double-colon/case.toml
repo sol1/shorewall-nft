@@ -1,0 +1,40 @@
+description = "A snat DEST written interface::address (a double colon), the way upstream lets you give a destination address with no interface alias (github #20). Here the loc client is SNATed to a public address the firewall owns, but only for traffic leaving eth0 to the server at 203.0.113.160. A single colon partition left a stray leading colon on the address and produced an unloadable rule. Upstream emits -o eth0 -s 192.168.1.10 -d 203.0.113.160 -j SNAT --to-source 198.51.100.33; we emit oifname eth0 ip daddr 203.0.113.160 ip saddr 192.168.1.10 snat to 198.51.100.33. The server sees the connection coming from the SNAT address."
+family = 4
+
+[[links]]
+node_a = "loc"
+dev_a = "c0"
+addr_a = "192.168.1.10/24"
+node_b = "fw"
+dev_b = "eth1"
+addr_b = "192.168.1.1/24"
+
+[[links]]
+node_a = "net"
+dev_a = "s0"
+addr_a = "203.0.113.160/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "203.0.113.1/24"
+
+# The firewall owns the SNAT source address, so the rewritten source is
+# reachable and the server's return traffic routes back.
+[extra_addrs]
+fw = ["198.51.100.33/24@eth0"]
+
+[routes]
+loc = "192.168.1.1"
+net = "203.0.113.1"
+
+# The loc client reaches the server, and because the snat DEST names that
+# server's address, the source is rewritten to the SNAT address. The server
+# sees the connection from 198.51.100.33, not the client's 192.168.1.10.
+[[probes]]
+id = "loc-snatted-to-the-dest-scoped-address"
+from = "loc"
+to = "net"
+addr = "203.0.113.160"
+proto = "tcp"
+port = 80
+expect = "allow"
+peer = "198.51.100.33"

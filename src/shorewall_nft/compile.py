@@ -283,7 +283,8 @@ def load(confdir, family=4):
                 _path(confdir, "tcpri"), variables, cfg.interfaces)
     if os.path.exists(_path(confdir, "mangle")):
         cfg.mangle = parsers.parse_mangle(
-            _path(confdir, "mangle"), variables, cfg.interfaces, family)
+            _path(confdir, "mangle"), variables, cfg.interfaces, family,
+            cfg.fw_zone)
     if os.path.exists(_path(confdir, "netmap")):
         cfg.netmap = parsers.parse_netmap(
             _path(confdir, "netmap"), variables, cfg.interfaces, family)
