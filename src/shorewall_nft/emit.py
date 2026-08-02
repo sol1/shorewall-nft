@@ -27,6 +27,17 @@ def table_for(family):
 # AUTOHELPERS.
 IPV4_ONLY_HELPERS = {"amanda", "irc", "netbios-ns", "pptp", "snmp"}
 
+# The transport each conntrack helper runs over, for the ct helper object a
+# per-rule {HELPER=name} emits. An unlisted helper falls back to the rule's
+# own protocol.
+HELPER_PROTO = {"tftp": "udp", "ftp": "tcp", "sip": "udp", "irc": "tcp",
+                "pptp": "tcp", "h323": "tcp", "sane": "tcp", "snmp": "udp",
+                "amanda": "udp", "netbios-ns": "udp", "Q.931": "tcp"}
+
+
+def _helper_obj_name(name, proto):
+    return f"helper_{name.replace('.', '_')}_{proto}"
+
 ICMP_TYPES = {
     "0": "echo-reply",
     "3": "destination-unreachable",
@@ -989,6 +1000,7 @@ class Emitter:
         self._filter_chains()
         self._nat()
         self._helpers()
+        self._rule_helper_objects()
         self._accounting()
         self._mangle_chains()
         self.out("}")
@@ -1528,9 +1540,17 @@ class Emitter:
         # Inline passthrough matches sit after the parsed matches and
         # before the verdict.
         extra = f"{rule.inline} " if rule.inline else ""
+        # A {HELPER=name} assigns the conntrack helper to this connection
+        # before the verdict, so the helper opens the RELATED data channel. An
+        # IPv4-only helper has no object in an ip6 table, so skip it there.
+        helper = ""
+        if rule.helper and not (self.cfg.family == 6
+                                and rule.helper in IPV4_ONLY_HELPERS):
+            proto = HELPER_PROTO.get(rule.helper, rule.proto or "udp")
+            helper = f'ct helper set "{_helper_obj_name(rule.helper, proto)}" '
         for match in matches:
-            self.out(f"{with_state(match)} {extra}{log}{verdict}{comment}"
-                     .strip(), 2)
+            self.out(f"{with_state(match)} {extra}{log}{helper}{verdict}"
+                     f"{comment}".strip(), 2)
 
     def _pair_chain(self, z1, z2):
         chain = f"{z1}2{z2}"
@@ -1566,6 +1586,26 @@ class Emitter:
         self._emit_disposition(chain, policy)
         self.out("}", 1)
         self.out("")
+
+    def _rule_helper_objects(self):
+        """ct helper objects for helpers a rule assigns with {HELPER=name}
+        (github #23), that the conntrack file did not already declare."""
+        v6 = self.cfg.family == 6
+        existing = {(h.helper, h.proto) for h in self.cfg.helpers}
+        needed = {}
+        for r in self.cfg.rules:
+            if not r.helper or (v6 and r.helper in IPV4_ONLY_HELPERS):
+                continue
+            proto = HELPER_PROTO.get(r.helper, r.proto or "udp")
+            if (r.helper, proto) not in existing:
+                needed[(r.helper, proto)] = True
+        if not needed:
+            return
+        self.out("")
+        for name, proto in sorted(needed):
+            self.out(f"ct helper {_helper_obj_name(name, proto)} {{", 1)
+            self.out(f'type "{name}" protocol {proto};', 2)
+            self.out("}", 1)
 
     def _helpers(self):
         # These conntrack helpers have no IPv6 helper registered in the

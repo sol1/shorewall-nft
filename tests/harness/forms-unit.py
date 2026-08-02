@@ -834,6 +834,42 @@ except Exception as e:                                   # noqa: BLE001
 finally:
     shutil.rmtree(d)
 
+# --- github #23: a per-rule {HELPER=name} assigns a conntrack helper. ---
+form_ok("rules: {HELPER=tftp} assigns the tftp conntrack helper",
+        {"rules": "?SECTION NEW\nACCEPT net $FW udp 69,4011 {HELPER=tftp}\n"},
+        expect='ct helper set "helper_tftp_udp"')
+form_ok("rules: {HELPER=tftp} declares the helper object",
+        {"rules": "?SECTION NEW\nACCEPT net $FW udp 69,4011 {HELPER=tftp}\n"},
+        expect='ct helper helper_tftp_udp {')
+form_rejected("rules: an unknown {option} in a rule is a located error",
+              {"rules": "?SECTION NEW\nACCEPT net $FW udp 69 {BOGUS=x}\n"})
+
+# --- github #22: blrules SOURCE/DEST accept a comma-separated zone list, the
+# same as the rules file, including a trailing zone:address list. ---
+MZ = {"zones": "fw firewall\nz1 ipv4\nz2 ipv4\nz3 ipv4\nnet ipv4\n",
+      "interfaces": "?FORMAT 2\nz1 eth0\nz2 eth1\nz3 eth2\nnet eth3\n",
+      "policy": "all all ACCEPT\n"}
+_ln = "REJECT z1,z2 z3,net:192.168.100.1,192.168.0.1 all\n"
+d = build({**MZ, "blrules": _ln, "rules": "?SECTION NEW\n"})
+try:
+    text = render(load(d, 4))
+    loads, msg = nft_loads(text)
+    # z1 (eth0) and z2 (eth1) sources both appear, going to the net addresses.
+    z1 = any('iifname "eth0"' in ln and "192.168.100.1" in ln
+             for ln in text.splitlines())
+    z2 = any('iifname "eth1"' in ln and "192.168.100.1" in ln
+             for ln in text.splitlines())
+    if not loads:
+        bad("blrules multi-zone", f"nft rejected: {msg}")
+    elif not (z1 and z2):
+        bad("blrules multi-zone", "the zone list did not fan out")
+    else:
+        ok("blrules: a comma-separated zone list fans out")
+except Exception as e:                                   # noqa: BLE001
+    bad("blrules multi-zone", f"{type(e).__name__}: {e}")
+finally:
+    shutil.rmtree(d)
+
 # --- maclist: an entry with a '-' MAC matches by IP only, the way upstream
 #     allows (shorewall-maclist(5)). It must not emit an ether saddr match. ---
 d = build({"interfaces": "?FORMAT 2\nnet eth0 maclist\n",

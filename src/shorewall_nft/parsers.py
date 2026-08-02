@@ -639,6 +639,20 @@ BLRULE_ACTIONS = {"ACCEPT", "DROP", "REJECT", "WHITELIST", "BLACKLIST",
                   "CONTINUE", "A_DROP", "A_REJECT"}
 
 
+def _expand_zone_list(spec, zone_of):
+    """A SOURCE or DEST that may be a comma-separated list of zones, the last
+    of which may carry a :address list (shorewall lets commas after the colon
+    be addresses, not more zones). Returns a list of (zone, address) pairs.
+    z1,z2 -> [z1, z2]; net:a,b -> [net:a,b]; z3,net:a,b -> [z3, net:a,b]."""
+    if ":" not in spec:
+        return [zone_of(z) for z in spec.split(",")]
+    before, _, after = spec.partition(":")
+    zs = before.split(",")
+    out = [zone_of(z) for z in zs[:-1]]
+    out.append(zone_of(zs[-1] + ":" + after))
+    return out
+
+
 def parse_blrules(path, variables, fw_zone, family=4, zones=None):
     """The blrules file: blacklist and whitelist rules checked before
     the regular rules. Same columns as rules. WHITELIST returns to
@@ -666,15 +680,17 @@ def parse_blrules(path, variables, fw_zone, family=4, zones=None):
                 raise line.error(f"unknown zone {zone}")
             return zone, addr
 
-        source, saddr = zone_of(cols[1])
-        dest, daddr = zone_of(cols[2])
         proto = cols[3] if len(cols) > 3 and cols[3] != "-" else ""
         dport = cols[4] if len(cols) > 4 and cols[4] != "-" else ""
         sport = cols[5] if len(cols) > 5 and cols[5] != "-" else ""
         origin = f"{os.path.basename(line.path)}:{line.lineno}"
-        out.append(Rule(action=name, source=source, dest=dest,
-                        saddr=saddr, daddr=daddr, proto=proto,
-                        dport=dport, sport=sport, origin=origin))
+        # SOURCE and DEST may each be a comma-separated zone list, the same as
+        # the rules file (github #22); fan the rule out over every pairing.
+        for source, saddr in _expand_zone_list(cols[1], zone_of):
+            for dest, daddr in _expand_zone_list(cols[2], zone_of):
+                out.append(Rule(action=name, source=source, dest=dest,
+                                saddr=saddr, daddr=daddr, proto=proto,
+                                dport=dport, sport=sport, origin=origin))
     return out
 
 
@@ -686,6 +702,21 @@ def parse_rules(path, variables, fw_zone, family=4, zones=None):
         if section not in SECTIONS:
             raise line.error(f"unknown ?SECTION {section}")
         main, inline = split_inline(line.text)
+        # A trailing {option=value,...} block carries per-rule options. We use
+        # HELPER (assign a conntrack helper, github #23); comment is cosmetic
+        # and accepted. It is stripped before the columns are split.
+        helper = ""
+        mopts = re.search(r"\s*\{([^}]*)\}\s*$", main)
+        if mopts:
+            main = main[:mopts.start()]
+            for kv in mopts.group(1).split(","):
+                k, _, v = kv.partition("=")
+                k = k.strip().upper()
+                v = v.strip().strip('"')
+                if k == "HELPER":
+                    helper = v.partition("(")[0]
+                elif k not in ("COMMENT", ""):
+                    raise line.error(f"unsupported rule option {k} in {{...}}")
         cols = split_columns(main, line.path, line.lineno)
         if len(cols) < 3:
             raise line.error("rule needs ACTION SOURCE DEST")
@@ -720,11 +751,7 @@ def parse_rules(path, variables, fw_zone, family=4, zones=None):
             return zone, addr
 
         def zones_of(spec):
-            """A zone list has commas before any colon. Commas after a
-            colon belong to the address list."""
-            if ":" in spec or "," not in spec:
-                return [zone_of(spec)]
-            return [zone_of(z) for z in spec.split(",")]
+            return _expand_zone_list(spec, zone_of)
 
         proto = cols[3] if len(cols) > 3 and cols[3] != "-" else ""
         dport = cols[4] if len(cols) > 4 and cols[4] != "-" else ""
@@ -885,6 +912,7 @@ def parse_rules(path, variables, fw_zone, family=4, zones=None):
                     rule.mark = mark
                     rule.connlimit = connlimit
                     rule.time = time
+                    rule.helper = helper
                     if inline:
                         rule.inline = inline
                 rules.extend(expanded)
