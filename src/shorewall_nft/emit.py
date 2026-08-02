@@ -855,6 +855,8 @@ class Emitter:
         self.cfg = cfg
         self.lines = []
         self.sets = set()
+        # A per-render counter so each AutoBL rule gets a unique meter name.
+        self._autobl_n = 0
         # Keep readable priority names where the local nft accepts them; fall
         # back to numbers on an old nft that lacks the names.
         self.named_priority = capabilities.lookup("NFT_NAMED_PRIORITY")
@@ -967,6 +969,7 @@ class Emitter:
             self.out("}", 1)
         if self.sets:
             self.out("")
+        self._autobl_sets()
         # Named counters for the monitor, declared before the chains that
         # reference them: t_<chain> for traffic through a zone-pair chain,
         # d_<chain> for what its policy denies.
@@ -1548,7 +1551,27 @@ class Emitter:
                                 and rule.helper in IPV4_ONLY_HELPERS):
             proto = HELPER_PROTO.get(rule.helper, rule.proto or "udp")
             helper = f'ct helper set "{_helper_obj_name(rule.helper, proto)}" '
+        ipkw = "ip6" if self.cfg.family == 6 else "ip"
         for match in matches:
+            if rule.autobl:
+                # Three rules: enforce (the disposition on an already-
+                # blacklisted source), detect (a new connection over the rate
+                # is added to the set with the blacklist timeout and gets the
+                # disposition), and accept (normal traffic passes, the way
+                # upstream ends AutoBL with SetEvent ... ACCEPT).
+                event, rate, bltime = rule.autobl
+                self._autobl_n += 1
+                meter = f"autoblm_{event}_{self._autobl_n}"
+                m = with_state(match)
+                self.out(f"{m} {ipkw} saddr @autobl_{event} {verdict}"
+                         f"{comment}".strip(), 2)
+                detect = (f"ct state new meter {meter} "
+                          f"{{ {ipkw} saddr limit rate over {rate} }} "
+                          f"add @autobl_{event} "
+                          f"{{ {ipkw} saddr timeout {bltime}s }}")
+                self.out(f"{m} {detect} {verdict}{comment}".strip(), 2)
+                self.out(f"{m} accept{comment}".strip(), 2)
+                continue
             self.out(f"{with_state(match)} {extra}{log}{helper}{verdict}"
                      f"{comment}".strip(), 2)
 
@@ -1586,6 +1609,21 @@ class Emitter:
         self._emit_disposition(chain, policy)
         self.out("}", 1)
         self.out("")
+
+    def _autobl_sets(self):
+        """A dynamic, timed set per AutoBL event; the meter fills it when a
+        source exceeds the rate, and the enforce rule drops from it."""
+        addr_type = "ipv6_addr" if self.cfg.family == 6 else "ipv4_addr"
+        seen = []
+        for r in self.cfg.rules:
+            if r.autobl and r.autobl[0] not in seen:
+                seen.append(r.autobl[0])
+        for ev in seen:
+            self.out(f"set autobl_{ev} {{", 1)
+            self.out(f"type {addr_type}; flags dynamic, timeout;", 2)
+            self.out("}", 1)
+        if seen:
+            self.out("")
 
     def _rule_helper_objects(self):
         """ct helper objects for helpers a rule assigns with {HELPER=name}

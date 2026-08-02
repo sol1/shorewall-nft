@@ -45,11 +45,16 @@ Every standard action falls into one of three groups.
    add `log level audit` before the verdict. Handled where the plain variant
    is.
 
-3. Not expressible. Needs the recent module, connection events, the dynamic
-   blacklist, addrtype, or an embedded Perl body: `AutoBL`, `AutoBLL`,
-   `IfEvent`, `SetEvent`, `ResetEvent`, `BLACKLIST`, `DNSAmp`, `DropSmurfs`,
-   `forwardUPnP`, `allowinUPnP`, `Limit`, `GlusterFS`. These fail loud with a
-   located error naming the action, never a silently wrong ruleset.
+3. Not expressible. Needs connection events, the ipset dynamic blacklist, or
+   an embedded Perl body: `IfEvent`, `SetEvent`, `ResetEvent`, `BLACKLIST`,
+   `DNSAmp`, `forwardUPnP`, `allowinUPnP`. These fail loud with a located
+   error naming the action, never a silently wrong ruleset.
+
+   `AutoBL` looked inexpressible because upstream builds it from the recent
+   module and events, but nft expresses auto-blacklisting directly with a
+   dynamic timed set and a rate meter, so it is native (see below). `Limit`
+   is the same per-source rate mechanism and could join it; today it points
+   at the RATE LIMIT column.
 
 ## AllowICMPs
 
@@ -112,11 +117,20 @@ macro, also loads instead of producing an unloadable rule.
    a located error: Limit needs per-IP rate limiting (use the RATE LIMIT
    column, which upstream now recommends over it), and BLACKLIST needs
    ipset-based dynamic blacklisting, neither built yet.
-6. The fail-loud audit for the rest of the not-expressible set (`allowinUPnP`,
-   `forwardUPnP`, `AutoBL`, `AutoBLL`, `IfEvent`, `SetEvent`, `ResetEvent`,
-   `DNSAmp`), each named in a located error instead of the generic
-   "unsupported action or macro", and this doc's list kept in step with the
-   code.
+6. Done. `AutoBL`, auto-blacklisting. A source that opens more than the
+   configured count of connections in the interval is added to a dynamic,
+   timed set and dropped for the blacklist duration. It emits a
+   `set autobl_<event>` (flags dynamic, timeout), an enforce rule
+   (`ip saddr @autobl_<event> <disp>`) and a detect rule (a rate meter that,
+   when a new connection exceeds `count/interval`, does `add @autobl_<event>
+   { ip saddr timeout <bltime>s }` and the disposition). The parameters are
+   the event name, interval, count, blacklist seconds, disposition and log
+   level; the successive-interval parameter has no nft equivalent and is
+   ignored. This replaces upstream's recent-module-and-events build.
+7. The fail-loud audit for the rest of the not-expressible set (`allowinUPnP`,
+   `forwardUPnP`, `IfEvent`, `SetEvent`, `ResetEvent`, `DNSAmp`), each named
+   in a located error instead of the generic "unsupported action or macro",
+   and this doc's list kept in step with the code.
 
 ## Comparison with upstream
 

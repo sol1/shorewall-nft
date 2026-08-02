@@ -410,6 +410,17 @@ def _disp_and_audit(param, default, line, name):
     return disp, audit
 
 
+def _autobl_rate(count, interval):
+    """The nft rate for count events in interval seconds. Clean intervals map
+    to an nft unit; others are scaled to per-minute with a burst so the window
+    is still honoured."""
+    units = {1: "second", 60: "minute", 3600: "hour", 86400: "day"}
+    if interval in units:
+        return f"{count}/{units[interval]}"
+    per_min = max(1, round(count * 60 / interval))
+    return f"{per_min}/minute burst {count} packets"
+
+
 def _audit_param(param, line, name):
     """A parameter that must be 'audit' or '-' (the fixed-disposition
     wrappers). Returns the audit flag."""
@@ -557,6 +568,32 @@ def _expand_action(line, name, param, src, dst, proto, dport, sport,
         raise line.error("the BLACKLIST action needs ipset-based dynamic "
                          "blacklisting, which shorewall-nft does not support "
                          "yet")
+    if name == "AutoBL":
+        # Auto-blacklist a source that exceeds a rate. Upstream uses the
+        # recent module and events; nft does it with a dynamic set plus a rate
+        # meter (github #21). Parameters: event name, interval seconds, count,
+        # a successive interval (not used, nft has no equivalent), blacklist
+        # seconds, disposition, log level.
+        parts = [p.strip() for p in param.split(",")] if param else []
+        defaults = ["", "60", "5", "2", "300", "DROP", "info"]
+        vals = [parts[i] if i < len(parts) and parts[i] not in ("", "-")
+                else defaults[i] for i in range(7)]
+        event, interval, count, _succ, bltime, disp, _level = vals
+        if not event:
+            raise line.error("AutoBL needs an event name")
+        if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", event):
+            raise line.error(f"invalid AutoBL event name {event!r}")
+        for label, v in (("interval", interval), ("count", count),
+                         ("blacklist time", bltime)):
+            if not v.isdigit() or int(v) == 0:
+                raise line.error(f"AutoBL {label} must be a positive number, "
+                                 f"not {v!r}")
+        if disp not in TERMINAL:
+            raise line.error(f"unsupported AutoBL disposition {disp}")
+        rate = _autobl_rate(int(count), int(interval))
+        return [Rule(action=disp, source=src[0], dest=dst[0], saddr=src[1],
+                     daddr=dst[1], proto=proto, dport=dport, sport=sport,
+                     autobl=(event, rate, int(bltime)), origin=origin)]
     if name == "AllowICMPs":
         # A standard Shorewall action that accepts the ICMP types a network
         # needs: IPv6 neighbour discovery and router advertisement, IPv4 path

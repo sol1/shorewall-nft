@@ -71,6 +71,7 @@ class Rule:
     fib: str = ""             # fib daddr type match, e.g. broadcast, multicast
     tcpflags: str = ""        # a raw tcp flags match, e.g. tcp flags & rst == rst
     helper: str = ""          # conntrack helper to assign, from {HELPER=name}
+    autobl: tuple = ()        # AutoBL: (event, nft rate, blacklist seconds)
     section: str = "NEW"      # rules file section
     inline: str = ""          # raw nft appended after the matches
     inline_full: bool = False # inline is the whole body incl the verdict

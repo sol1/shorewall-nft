@@ -494,6 +494,32 @@ form_rejected("rules: Limit fails loud pointing at the RATE LIMIT column",
               {"rules": "?SECTION NEW\nLimit net $FW\n"})
 form_rejected("rules: BLACKLIST fails loud (needs dynamic blacklisting)",
               {"rules": "?SECTION NEW\nBLACKLIST net $FW\n"})
+# --- rules: AutoBL auto-blacklists a source that exceeds a rate, with a
+# dynamic set and a rate meter (github #21). ---
+_AB = "AutoBL(SSH,60,5,2,300,DROP,warn) net $FW tcp 22\n"
+form_ok("rules: AutoBL declares the dynamic blacklist set",
+        {"rules": "?SECTION NEW\n" + _AB},
+        expect="set autobl_SSH {")
+form_ok("rules: AutoBL drops an already-blacklisted source",
+        {"rules": "?SECTION NEW\n" + _AB},
+        expect="ip saddr @autobl_SSH drop")
+form_ok("rules: AutoBL adds a rate-exceeding source to the set",
+        {"rules": "?SECTION NEW\n" + _AB},
+        expect="limit rate over 5/minute } add @autobl_SSH "
+               "{ ip saddr timeout 300s }")
+form_ok("rules: AutoBL accepts normal under-rate traffic",
+        {"rules": "?SECTION NEW\n" + _AB},
+        expect="tcp dport 22 accept")
+form_ok("rules: an hourly AutoBL interval maps to the hour unit",
+        {"rules": "?SECTION NEW\nAutoBL(HTTP,3600,20,2,600,DROP,info) "
+         "net $FW tcp 80\n"},
+        expect="limit rate over 20/hour")
+form_rejected("rules: AutoBL without an event name is a located error",
+              {"rules": "?SECTION NEW\nAutoBL(,60,5,2,300,DROP,info) "
+               "net $FW tcp 22\n"})
+form_rejected("rules: a non-numeric AutoBL count is a located error",
+              {"rules": "?SECTION NEW\nAutoBL(SSH,60,x,2,300,DROP,info) "
+               "net $FW tcp 22\n"})
 form_ok("rules: interface then included!excluded together",
         {"rules": "?SECTION NEW\n"
          "ACCEPT net:NET_IF:10.0.0.0/24!10.0.0.5 $FW tcp 22\n"},

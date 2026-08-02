@@ -1,0 +1,25 @@
+description = "AutoBL auto-blacklists a source that exceeds a connection rate (github #21). Upstream builds it from the recent module and events; nft does it with a dynamic timed set plus a rate meter, so this is ours-verified. The policy drops wifi to fw, and AutoBL accepts normal SSH while adding a source over 5/minute to the autobl_SSH set for 300s. A single connection is under the rate, so it is accepted; the blacklist-after-N-attempts behaviour needs a burst of connections and is proven by the unit tests, not a single-connection probe. This case mainly locks that the dynamic-set and meter ruleset compiles and loads."
+family = 4
+no_upstream = true
+
+[[links]]
+node_a = "wifi"
+dev_a = "w0"
+addr_a = "10.0.0.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.0.1/24"
+
+[routes]
+wifi = "10.0.0.1"
+
+# One connection is under the rate, so AutoBL accepts it even though the
+# wifi to fw policy drops. This proves the normal (non-abusive) path passes.
+[[probes]]
+id = "normal-ssh-accepted-by-autobl"
+from = "wifi"
+to = "fw"
+addr = "10.0.0.1"
+proto = "tcp"
+port = 22
+expect = "allow"

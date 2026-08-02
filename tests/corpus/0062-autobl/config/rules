@@ -1,0 +1,2 @@
+?SECTION NEW
+AutoBL(SSH,60,5,2,300,DROP,warn)	wifi	$FW	tcp	22
