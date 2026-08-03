@@ -42,8 +42,12 @@ say "dispatcher -> $SBINDIR/shorewall-lite, $SBINDIR/shorewall6-lite"
 if [ -n "${SERVICEDIR:-}" ]; then
     install -d "$DESTDIR$SERVICEDIR"
     for unit in shorewall-lite.service shorewall6-lite.service; do
-        install -m 0644 "$here/packaging/systemd/$unit" \
-            "$DESTDIR$SERVICEDIR/$unit"
+        # Point ExecStart and friends at the real binary directory. On a
+        # unified /usr (Fedora 42 and later) that is /usr/bin, reached
+        # through SBINDIR, not the /usr/sbin the units name by default.
+        sed "s#/usr/sbin/#$SBINDIR/#g" "$here/packaging/systemd/$unit" \
+            > "$DESTDIR$SERVICEDIR/$unit"
+        chmod 0644 "$DESTDIR$SERVICEDIR/$unit"
     done
     say "units -> $SERVICEDIR (disabled; enable when ready)"
 fi

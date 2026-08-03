@@ -86,6 +86,13 @@ jobs:
           shorewall version
           shorewall compile tests/corpus/0003-two-interfaces/config -o /tmp/out.nft
           test -s /tmp/out.nft
+          # The systemd unit must call the binary at its real install path.
+          # On this unified /usr that is /usr/bin, not the /usr/sbin the unit
+          # names by default. Prove the ExecStart binary exists.
+          bin=$(sed -n 's/^ExecStart=\([^ ]*\).*/\1/p' \
+            /usr/lib/systemd/system/shorewall.service)
+          echo "unit ExecStart binary: $bin"
+          test -x "$bin"
 
       - uses: actions/upload-artifact@v4
         with:
