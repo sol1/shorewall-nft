@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.2.8
+Version:        0.2.9
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -162,6 +162,16 @@ exit 0
 %systemd_postun shorewall6-lite.service
 
 %changelog
+* Mon Aug 03 2026 Dave Kempe <dave@sol1.com.au> - 0.2.9-1
+- Four config-compatibility fixes: a VLAN-interface sysctl uses / separators
+  so the dotted name is not split into a path; REDIRECT accepts a service
+  name in DEST; a mangle rule from the firewall zone goes in the output
+  chain; a snat DEST written interface::address parses cleanly.
+- blrules SOURCE and DEST accept a comma-separated zone list, like the rules
+  file.
+- A per-rule {HELPER=name} assigns a conntrack helper, for example tftp.
+- The AutoBL action auto-blacklists a source over a connection rate, using a
+  dynamic timed set and a rate meter. Refused on nft too old (0.9.0).
 * Fri Jul 31 2026 Dave Kempe <dave@sol1.com.au> - 0.2.8-1
 - The firewall starts after the network is online, matching upstream, so
   provider and routes-file routing can reach nexthops on interfaces the
