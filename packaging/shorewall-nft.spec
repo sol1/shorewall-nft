@@ -57,8 +57,11 @@ does not depend on Python.
 # Pure Python; nothing to build.
 
 %install
-DESTDIR=%{buildroot} packaging/install.sh packaging/shorewallrc.redhat
-DESTDIR=%{buildroot} packaging/install-lite.sh packaging/shorewallrc.redhat
+# SBINDIR tracks %{_sbindir}, which is /usr/bin on Fedora 42+ (bin and sbin
+# unified) and /usr/sbin on older releases, so the commands land where the
+# %files list looks for them.
+SBINDIR=%{_sbindir} DESTDIR=%{buildroot} packaging/install.sh packaging/shorewallrc.redhat
+SBINDIR=%{_sbindir} DESTDIR=%{buildroot} packaging/install-lite.sh packaging/shorewallrc.redhat
 
 %files
 %license LICENSE

@@ -53,7 +53,9 @@ jobs:
   rpm:
     name: RPM package
     runs-on: ubuntu-latest
-    container: fedora:41
+    # Fedora 42 unified /usr/sbin into /usr/bin, so %{_sbindir} is /usr/bin
+    # there. Build on it to prove the commands land where %files expects.
+    container: fedora:42
     steps:
       # git must be present before checkout, or actions/checkout falls
       # back to an API tarball with no .git and git archive cannot run.

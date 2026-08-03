@@ -1,7 +1,11 @@
 # Install paths for Fedora and RHEL. Used by the spec through
 # packaging/install.sh with DESTDIR set to the rpm buildroot.
 PYTHON=/usr/bin/python3
-SBINDIR=/usr/sbin
+# The spec passes SBINDIR=%{_sbindir} so the binaries land where %files
+# expects. Fedora 42 unified /usr/sbin into /usr/bin, so %{_sbindir} is
+# /usr/bin there and /usr/sbin on older releases; honour that, defaulting to
+# /usr/sbin for a direct run of this rc.
+SBINDIR=${SBINDIR:-/usr/sbin}
 SHAREDIR=/usr/share/shorewall-nft
 CONFDIR=/etc
 VARDIR=/var/lib/shorewall-nft
