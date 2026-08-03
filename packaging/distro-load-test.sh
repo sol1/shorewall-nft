@@ -41,6 +41,7 @@ NFT_CONCAT_MAPS=No
 NFT_PREFIX_NAT=No
 NFT_TCP_ECN=No
 NFT_IPSEC=No
+NFT_AUTOBL=No
 EOF
     echo "### forcing legacy fallbacks (caps profile)"
 fi

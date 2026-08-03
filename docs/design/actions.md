@@ -126,7 +126,10 @@ macro, also loads instead of producing an unloadable rule.
    { ip saddr timeout <bltime>s }` and the disposition). The parameters are
    the event name, interval, count, blacklist seconds, disposition and log
    level; the successive-interval parameter has no nft equivalent and is
-   ignored. This replaces upstream's recent-module-and-events build.
+   ignored. This replaces upstream's recent-module-and-events build. nft
+   0.9.0 (Debian 10) cannot parse the meter and dynamic-set add, so AutoBL is
+   refused there with a located error, capability NFT_AUTOBL, the same as
+   NETMAP and the ipsec match.
 7. The fail-loud audit for the rest of the not-expressible set (`allowinUPnP`,
    `forwardUPnP`, `IfEvent`, `SetEvent`, `ResetEvent`, `DNSAmp`), each named
    in a located error instead of the generic "unsupported action or macro",

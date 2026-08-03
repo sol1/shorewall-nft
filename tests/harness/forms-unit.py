@@ -520,6 +520,14 @@ form_rejected("rules: AutoBL without an event name is a located error",
 form_rejected("rules: a non-numeric AutoBL count is a located error",
               {"rules": "?SECTION NEW\nAutoBL(SSH,60,x,2,300,DROP,info) "
                "net $FW tcp 22\n"})
+# On an nft without dynamic-set and meter support (0.9.0), AutoBL is refused
+# with a located error rather than an unloadable ruleset, like NETMAP.
+capabilities.CAPABILITIES["NFT_AUTOBL"] = False
+try:
+    form_rejected("rules: AutoBL is refused where nft lacks the meter support",
+                  {"rules": "?SECTION NEW\n" + _AB})
+finally:
+    capabilities.CAPABILITIES["NFT_AUTOBL"] = True
 form_ok("rules: interface then included!excluded together",
         {"rules": "?SECTION NEW\n"
          "ACCEPT net:NET_IF:10.0.0.0/24!10.0.0.5 $FW tcp 22\n"},

@@ -43,6 +43,7 @@ CAPABILITIES = {
     "NFT_TCP_ECN": True,
     "NFT_CONCAT_MAPS": True,
     "NFT_IPSEC": True,
+    "NFT_AUTOBL": True,
 }
 
 # A conntrack-helper capability maps to the nft ct helper type and a
@@ -102,6 +103,13 @@ SYNTAX_PROBES = {
     "NFT_IPSEC": "table ip shorewall_capcheck {\n\tchain c {\n"
                  "\t\ttype filter hook forward priority 0;\n"
                  "\t\tipsec in reqid 1 accept\n\t}\n}\n",
+    # The named meter plus add-to-dynamic-set used by AutoBL. nft 0.9.0
+    # (Debian 10) cannot parse it; newer nft can.
+    "NFT_AUTOBL": "table ip shorewall_capcheck {\n"
+                  "\tset s { type ipv4_addr; flags dynamic, timeout; }\n"
+                  "\tchain c {\n\t\tct state new meter m "
+                  "{ ip saddr limit rate over 5/minute } "
+                  "add @s { ip saddr timeout 300s }\n\t}\n}\n",
 }
 
 _probe_enabled = False

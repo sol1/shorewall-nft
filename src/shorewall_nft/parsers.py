@@ -6,7 +6,7 @@ import re
 import socket
 import sys
 
-from . import macros, valid
+from . import capabilities, macros, valid
 from .errors import ConfigError
 from .model import (AcctRule, DnatRule, HelperRule, Interface, MangleRule,
                     NatRule, NetmapRule, Policy, Provider, RtRule, Rule, SnatRule,
@@ -590,6 +590,13 @@ def _expand_action(line, name, param, src, dst, proto, dport, sport,
                                  f"not {v!r}")
         if disp not in TERMINAL:
             raise line.error(f"unsupported AutoBL disposition {disp}")
+        if not capabilities.lookup("NFT_AUTOBL"):
+            # AutoBL needs the dynamic-set and meter support added after nft
+            # 0.9.0, the same as NETMAP and the ipsec match. Refuse rather
+            # than emit a ruleset that cannot load.
+            raise line.error("AutoBL needs the nft dynamic-set and meter "
+                             "support, added after nft 0.9.0; this nft "
+                             "cannot express it")
         rate = _autobl_rate(int(count), int(interval))
         return [Rule(action=disp, source=src[0], dest=dst[0], saddr=src[1],
                      daddr=dst[1], proto=proto, dport=dport, sport=sport,
