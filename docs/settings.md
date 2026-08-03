@@ -58,7 +58,7 @@ These do not change the generated ruleset. They are paths, tooling,
 logging format, compile-time optimization, or informational, and are
 ignored without harm.
 
-Paths and tooling: PATH, CONFIG_PATH, PERL, IP, IPTABLES, IPSET, TC,
+Paths and tooling: PATH, PERL, IP, IPTABLES, IPSET, TC,
 NFACCT, PAGER, MODULESDIR, LOCKFILE, SUBSYSLOCK, SHOREWALL_SHELL,
 RESTOREFILE, RESTART, RCP_COMMAND, RSH_COMMAND, FIREWALL, GEOIPDIR,
 LOGFILE, STARTUP_LOG, MUTEX_TIMEOUT, PERL_HASH_SEED, PROVIDER_BITS,
@@ -88,6 +88,24 @@ Where one of these has a real effect we do not yet cover (for example
 ACCOUNTING=No to skip the accounting file, or a custom BLACKLIST_DEFAULT
 action), honoring it is future work; today it is a documented no-op, not
 a silent security change, because none of them weakens the firewall.
+
+## CONFIG_PATH
+
+CONFIG_PATH is honored for INCLUDE resolution. An INCLUDE or ?INCLUDE
+directive first looks for the file next to the file that includes it, the
+way a relative path reads. If the name is not found there and has no
+directory part, the directories in CONFIG_PATH are searched in order, and
+the first match is used. This matches upstream find_file, so a bare name
+like `?INCLUDE DMZ.rules` resolves through a `rules.d` entry in
+CONFIG_PATH. A name with a slash in it is taken as written and is not
+searched.
+
+CONFIG_PATH is not used to locate the main configuration files. Those are
+read from the configuration directory given on the command line. Only
+INCLUDE resolution consults it. The `${CONFDIR}` and `${SHAREDIR}`
+references common in a CONFIG_PATH value expand: CONFDIR defaults to the
+parent of the configuration directory, and either may be set in
+shorewall.conf or params.
 
 ## The IP_FORWARDING check
 

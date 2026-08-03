@@ -78,6 +78,27 @@ def expand(text, variables, path, lineno):
     return VAR_RE.sub(sub, text)
 
 
+def resolve_include(inc, path, variables):
+    """Find the file named by an INCLUDE directive. It is first looked
+    for next to the including file, the way a relative path reads. If it
+    is not there and the name has no directory part, the CONFIG_PATH
+    directories are searched in order, matching upstream find_file, so a
+    bare name like DMZ.rules resolves through a rules.d entry. Returns the
+    resolved path, or None if nothing matches."""
+    near = os.path.join(os.path.dirname(path), inc)
+    if os.path.exists(near):
+        return near
+    if "/" not in inc:
+        for directory in variables.get("CONFIG_PATH", "").split(":"):
+            directory = directory.strip()
+            if not directory:
+                continue
+            cand = os.path.join(directory, inc)
+            if os.path.exists(cand):
+                return cand
+    return None
+
+
 def read_file(path, variables, max_format=2):
     """Yield logical Line objects from one config file. max_format is the
     highest ?FORMAT the file supports. Most files stop at 2; conntrack goes
@@ -147,8 +168,8 @@ def read_file(path, variables, max_format=2):
                     raise ConfigError("?INCLUDE needs a file name",
                                       path, buf_start)
                 inc = expand(rest, variables, path, buf_start)
-                inc_path = os.path.join(os.path.dirname(path), inc)
-                if not os.path.exists(inc_path):
+                inc_path = resolve_include(inc, path, variables)
+                if inc_path is None:
                     raise ConfigError(f"?INCLUDE file not found: {inc}",
                                       path, buf_start)
                 yield from read_file(inc_path, variables, max_format)
@@ -176,8 +197,8 @@ def read_file(path, variables, max_format=2):
             if len(parts) < 2 or not parts[1].strip():
                 raise ConfigError("INCLUDE needs a file name", path, buf_start)
             inc = expand(parts[1].strip(), variables, path, buf_start)
-            inc_path = os.path.join(os.path.dirname(path), inc)
-            if not os.path.exists(inc_path):
+            inc_path = resolve_include(inc, path, variables)
+            if inc_path is None:
                 raise ConfigError(f"INCLUDE file not found: {inc}",
                                   path, buf_start)
             yield from read_file(inc_path, variables, max_format)

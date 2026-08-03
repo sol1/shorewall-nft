@@ -18,6 +18,7 @@ from shorewall_nft import capabilities  # noqa: E402
 from shorewall_nft.compile import load  # noqa: E402
 from shorewall_nft.emit import render  # noqa: E402
 from shorewall_nft.errors import ConfigError  # noqa: E402
+from shorewall_nft.reader import resolve_include  # noqa: E402
 
 REPO = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..")
 BASE = os.path.join(REPO, "tests/corpus/0002-one-interface/config")
@@ -934,6 +935,56 @@ try:
     ok("compile: a missing rules file is accepted (policy-only firewall)")
 except Exception as e:                                   # noqa: BLE001
     bad("missing rules file", f"{type(e).__name__}: {str(e)[:80]}")
+finally:
+    shutil.rmtree(d)
+
+# --- INCLUDE resolves through CONFIG_PATH, not only next to the including
+#     file. A bare name like DMZ.rules is found in a rules.d directory listed
+#     in CONFIG_PATH, matching upstream find_file. A name with a slash stays
+#     literal and is not searched (matdarf CONFIG_PATH report) ---
+d = tempfile.mkdtemp(prefix="shorewall-nft-cfgpath-")
+try:
+    os.makedirs(os.path.join(d, "rules.d"))
+    incl = os.path.join(d, "rules.d", "DMZ.rules")
+    open(incl, "w").close()
+    near = os.path.join(d, "near.rules")
+    open(near, "w").close()
+    including = os.path.join(d, "rules")
+    variables = {"CONFIG_PATH": os.path.join(d, "rules.d")}
+    if resolve_include("near.rules", including, {}) != near:
+        bad("resolve_include", "a sibling file was not found next to the includer")
+    elif resolve_include("DMZ.rules", including, variables) != incl:
+        bad("resolve_include", "a bare name was not found through CONFIG_PATH")
+    elif resolve_include("DMZ.rules", including, {}) is not None:
+        bad("resolve_include", "a bare name resolved with no CONFIG_PATH set")
+    elif resolve_include("sub/DMZ.rules", including, variables) is not None:
+        bad("resolve_include", "a name with a slash was searched in CONFIG_PATH")
+    else:
+        ok("resolve_include: sibling first, then CONFIG_PATH, slash stays literal")
+finally:
+    shutil.rmtree(d)
+
+# --- end to end: a ?INCLUDE of a bare file name pulls a rule from a rules.d
+#     directory named in CONFIG_PATH, with ${CONFDIR} expanded to a real path.
+#     This is the config the matdarf report used against SW-Iptables ---
+d = build({"rules": "?INCLUDE extra.rules\n"})
+try:
+    base = os.path.basename(os.path.normpath(d))
+    with open(os.path.join(d, "shorewall.conf"), "a") as f:
+        f.write(f'\nCONFIG_PATH="${{CONFDIR}}/{base}/rules.d"\n')
+    os.makedirs(os.path.join(d, "rules.d"))
+    with open(os.path.join(d, "rules.d", "extra.rules"), "w") as f:
+        f.write("ACCEPT net $FW tcp 22\n")
+    text = render(load(d, 4))
+    loads, msg = nft_loads(text)
+    if not loads:
+        bad("INCLUDE via CONFIG_PATH", f"nft rejected: {msg}")
+    elif "dport 22" not in text:
+        bad("INCLUDE via CONFIG_PATH", "the included rule did not reach the ruleset")
+    else:
+        ok("INCLUDE: a bare name resolves through a CONFIG_PATH rules.d")
+except Exception as e:                                   # noqa: BLE001
+    bad("INCLUDE via CONFIG_PATH", f"{type(e).__name__}: {str(e)[:100]}")
 finally:
     shutil.rmtree(d)
 

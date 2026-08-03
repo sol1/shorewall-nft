@@ -172,8 +172,14 @@ def _check_config_security(confdir, variables):
 def load(confdir, family=4):
     cfg = Config(confdir, family)
     variables = {}
+    # Seed the shorewallrc path anchors so a CONFIG_PATH written with
+    # ${CONFDIR}/${SHAREDIR} expands to real directories. The config dir we
+    # were given is ${CONFDIR}/<product>, so its parent is CONFDIR. These are
+    # defaults; shorewall.conf or params may set their own.
+    variables["CONFDIR"] = os.path.dirname(os.path.abspath(confdir))
+    variables["SHAREDIR"] = "/usr/share/shorewall-nft"
     conf = "shorewall6.conf" if family == 6 else "shorewall.conf"
-    variables.update(read_simple_vars(_path(confdir, conf)))
+    read_simple_vars(_path(confdir, conf), variables=variables)
     # Check permissions before reading params: a params file that uses shell
     # logic is sourced through bash, so an insecure one must be warned about,
     # or refused under REQUIRE_SECURE_CONFIG, before it is executed.
