@@ -1,3 +1,16 @@
+shorewall-nft (0.2.10) unstable; urgency=medium
+
+  * INCLUDE and ?INCLUDE resolve a bare file name through the CONFIG_PATH
+    directories, matching upstream, so an include like DMZ.rules is found in
+    a rules.d directory listed in CONFIG_PATH. CONFIG_PATH was ignored
+    before. The file is still looked for next to the including file first.
+  * The systemd units call the firewall binary at its real install path,
+    taken from SBINDIR at install time, instead of hardcoding /usr/sbin. On
+    a unified /usr (Fedora 42 and later) that is /usr/bin, so the units keep
+    working if the /usr/sbin compatibility symlink is removed.
+
+ -- Dave Kempe <dave@sol1.com.au>  Mon, 03 Aug 2026 16:12:04 +1000
+
 shorewall-nft (0.2.9) unstable; urgency=medium
 
   * Four configuration-compatibility fixes found checking iptables configs.

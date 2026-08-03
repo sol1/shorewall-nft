@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.2.9
+Version:        0.2.10
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -165,6 +165,15 @@ exit 0
 %systemd_postun shorewall6-lite.service
 
 %changelog
+* Mon Aug 03 2026 Dave Kempe <dave@sol1.com.au> - 0.2.10-1
+- INCLUDE and ?INCLUDE resolve a bare file name through the CONFIG_PATH
+  directories, matching upstream, so an include like DMZ.rules is found in a
+  rules.d directory named in CONFIG_PATH. CONFIG_PATH was ignored before. The
+  file is still looked for next to the including file first.
+- The systemd units call the firewall binary at its real install path, taken
+  from SBINDIR, instead of hardcoding /usr/sbin. On a unified /usr (Fedora 42
+  and later) that is /usr/bin, so the units survive removal of the /usr/sbin
+  compatibility symlink.
 * Mon Aug 03 2026 Dave Kempe <dave@sol1.com.au> - 0.2.9-1
 - Four config-compatibility fixes: a VLAN-interface sysctl uses / separators
   so the dotted name is not split into a path; REDIRECT accepts a service
