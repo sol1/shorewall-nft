@@ -26,6 +26,14 @@ anything it does not support, naming the file and line, and never
 silently produces a weaker firewall.
 .SH COMMANDS
 .TP
+.B init \fR[\fItopology\fR]
+Bootstrap a clean configuration for a standalone host, a gateway, or a
+three-zone firewall. With no arguments it runs an interactive wizard.
+SSH to the firewall is always kept open so the wizard cannot lock you
+out. Refuses to overwrite an existing configuration; use
+.B migrate
+for that.
+.TP
 .B start
 Compile the configuration and load the ruleset.
 .TP
@@ -48,6 +56,19 @@ out.
 .B safe-start\fR, \fBsafe-restart
 Like start and restart, but revert automatically unless confirmed.
 .TP
+.B load \fR[\fB--caps \fIfile\fR|\fB--capture\fR] \fIsystem\fR, \fBreload \fR[\fIsystem\fR]
+Deploy to a Shorewall Lite target. Compile the local configuration to an
+export script, copy it to
+.I system
+over ssh, and run it there, so the target needs no Python.
+.B --capture
+pulls the target's capabilities with shorecap first, so the ruleset
+matches the target's kernel;
+.B --caps
+uses a profile captured earlier.
+.B reload
+with no system recompiles and reloads the local firewall.
+.TP
 .B check \fR[\fIdirectory\fR] \fR[\fB-r \fIsystem\fR] \fR[\fB--capture\fR]
 Compile and validate a configuration without loading it. Reports
 anything unsupported. Reads only; changes nothing. With
@@ -65,11 +86,26 @@ Write the generated nftables ruleset to a file.
 .B status
 Show the loaded ruleset.
 .TP
+.B monitor \fR[\fBfancy\fR]
+A live view of the firewall.
+.B monitor
+is a refreshing text screen;
+.B monitor fancy
+is a full-screen view that uses an optional library the package does not
+depend on.
+.TP
 .B show\fR, \fBlist\fR, \fBls
 Show parts of the running configuration in nft syntax.
 .TP
-.B save\fR, \fBrestore\fR, \fBforget
+.B save\fR, \fBrestore\fR, \fBforget\fR, \fBsavesets
 Manage a saved ruleset.
+.B savesets
+snapshots the runtime contents of externally-filled ipsets so they
+survive a reload or a reboot restore.
+.TP
+.B automate \fIcommand
+The machine interface for configuration management tools such as
+Ansible. Reads and writes the configuration and reports state as JSON.
 .TP
 .B migrate \fR[\fB--undo\fR] [\fB--yes\fR]
 Move a Shorewall system to shorewall-nft. Validates
@@ -83,6 +119,19 @@ reverses the service handover. See
 .B geoip-update \fR[\fB--from \fIdir\fR] [\fIcc\fR ...]
 Fill the geoip country sets from CIDR data, downloaded or read from a
 local directory. Run on a schedule by the shipped systemd timer.
+.TP
+.B enable \fIprovider\fR, \fBdisable \fIprovider\fR, \fBreenable \fIprovider
+Take a provider in or out of service and recompute routing over the
+providers that remain, without a full reload.
+.TP
+.B lsm \fR[\fB--once\fR]
+Run the link status monitor. Probe each provider and enable or disable it
+on a state change. It re-enables only the providers it disabled itself,
+so an operator
+.B disable
+is never undone by a link flap.
+.B --once
+runs a single check cycle, for scripting.
 .TP
 .B ipcalc\fR, \fBiprange
 Address arithmetic helpers.
