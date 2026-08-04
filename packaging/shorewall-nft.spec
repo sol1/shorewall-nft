@@ -79,13 +79,10 @@ SBINDIR=%{_sbindir} DESTDIR=%{buildroot} packaging/install-lite.sh packaging/sho
 # 0750 like shorewall's own state dir: it holds saved rulesets and resolved
 # addresses, which a less-privileged user should not read.
 %attr(0750,root,root) %dir %{_localstatedir}/lib/shorewall-nft
-# A skeleton /etc/shorewall and /etc/shorewall6 on a fresh install, so the
-# commands have a configuration to read. noreplace means an upgrade never
-# touches a configuration the administrator has edited.
-%dir %{_sysconfdir}/shorewall
-%dir %{_sysconfdir}/shorewall6
-%config(noreplace) %{_sysconfdir}/shorewall/*
-%config(noreplace) %{_sysconfdir}/shorewall6/*
+# /etc/shorewall is not owned by this package. %post seeds a skeleton there on
+# a fresh install, file by file, only where a file is absent, so an install
+# over an existing configuration never touches it. The skeleton master lives
+# under the share directory.
 
 %files lite
 %license LICENSE
@@ -106,6 +103,13 @@ SBINDIR=%{_sbindir} DESTDIR=%{buildroot} packaging/install-lite.sh packaging/sho
 %dir %{_localstatedir}/lib/shorewall6-lite
 
 %post
+# Seed a skeleton /etc/shorewall and /etc/shorewall6 for files that are not
+# there, so the commands have a configuration to read on a fresh install. An
+# existing configuration is left untouched, one file at a time.
+if [ -x %{_datadir}/shorewall-nft/seed-config.sh ]; then
+    sh %{_datadir}/shorewall-nft/seed-config.sh \
+        %{_datadir}/shorewall-nft/configfiles %{_sysconfdir} || :
+fi
 # Register the unit but do not enable or start it. The admin runs
 # `shorewall migrate` or `shorewall start` when ready.
 %systemd_post shorewall.service

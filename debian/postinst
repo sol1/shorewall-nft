@@ -33,6 +33,15 @@ restore() {   # $1 = restore cmd, $2 = save cmd, $3 = stash file, $4 = label
 }
 
 if [ "$1" = "configure" ]; then
+    # Seed a skeleton /etc/shorewall and /etc/shorewall6 for files that are
+    # not there, so the commands have a configuration to read on a fresh
+    # install. The package does not own /etc/shorewall, so an install over an
+    # existing configuration, including the Shorewall this package replaces,
+    # never touches it.
+    if [ -x /usr/share/shorewall-nft/seed-config.sh ]; then
+        sh /usr/share/shorewall-nft/seed-config.sh \
+            /usr/share/shorewall-nft/configfiles /etc || :
+    fi
     # 0750 like shorewall's own state dir: it holds saved rulesets and
     # resolved addresses, which a less-privileged user should not read.
     for d in /var/lib/shorewall-nft /var/lib/shorewall6-nft; do

@@ -1,9 +1,14 @@
 #!/bin/bash
-# The package installs a skeleton /etc/shorewall and /etc/shorewall6 on a
-# fresh install, so the commands have a configuration to read and `shorewall
-# check` works out of the box. Prove install.sh stages the skeleton, that it
-# compiles, that the v6 tree gets a shorewall6.conf, and that a second run
-# (an upgrade) never clobbers a file the administrator has edited.
+# The package ships a skeleton configuration under the share directory and
+# seeds /etc/shorewall and /etc/shorewall6 from it, file by file, only where a
+# file is absent. It never owns /etc/shorewall. Prove:
+#   - install.sh (a package build, DESTDIR set) stages the skeleton and the
+#     seeding helper under the share directory and does NOT write to /etc, so
+#     the package cannot fight an existing configuration,
+#   - seeding a fresh /etc lays down a config that compiles, in both trees,
+#     with the v6 settings file named shorewall6.conf,
+#   - seeding over an existing configuration leaves every file of it byte for
+#     byte untouched, and only fills in the files that were missing.
 set -u
 export PATH=/usr/sbin:/sbin:/usr/bin:/bin
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
@@ -17,40 +22,52 @@ check() { SWNFT_CONFDIR="$1" PYTHONPATH="$REPO/src" \
               python3 -m shorewall_nft check ${2:+--family "$2"} \
               >"$OUT/log" 2>&1; }
 
+SHARE=usr/share/shorewall-nft
+
+# 1. A package build stages the skeleton and helper under the share directory,
+#    and writes nothing under /etc: the package does not own the config.
 DESTDIR="$OUT/root" sh "$REPO/packaging/install.sh" \
     "$REPO/packaging/shorewallrc.default" >"$OUT/install.log" 2>&1 \
     || { bad "install.sh exited non-zero"; cat "$OUT/install.log"; }
+[ -f "$OUT/root/$SHARE/configfiles/shorewall.conf" ] \
+    && [ -f "$OUT/root/$SHARE/configfiles/zones" ] \
+    && [ -x "$OUT/root/$SHARE/seed-config.sh" ] \
+    || bad "skeleton or seed-config.sh not staged under the share directory"
+[ -e "$OUT/root/etc/shorewall" ] \
+    && bad "install.sh wrote /etc/shorewall in a package build (would own it)" \
+    || pass "package build stages the skeleton under share, owns no /etc config"
 
-# The skeleton files are present in both trees.
-for f in shorewall.conf zones interfaces policy rules; do
-    [ -f "$OUT/root/etc/shorewall/$f" ] || bad "missing /etc/shorewall/$f"
-done
-[ -f "$OUT/root/etc/shorewall6/shorewall6.conf" ] \
-    || bad "v6 tree has no shorewall6.conf"
-[ -f "$OUT/root/etc/shorewall6/shorewall.conf" ] \
-    && bad "v6 tree wrongly has a shorewall.conf"
-[ "$FAIL" = 0 ] && pass "install.sh stages the skeleton in both trees"
+SEED="$OUT/root/$SHARE/seed-config.sh"
+SRC="$OUT/root/$SHARE/configfiles"
 
-# The staged skeleton compiles and passes nft-check.
-if check "$OUT/root/etc/shorewall"; then
-    pass "the shipped /etc/shorewall skeleton compiles and checks"
+# 2. Seeding a fresh /etc lays down a config that compiles, in both trees.
+FRESH="$OUT/fresh"
+sh "$SEED" "$SRC" "$FRESH"
+[ -f "$FRESH/shorewall6/shorewall6.conf" ] || bad "v6 tree has no shorewall6.conf"
+[ -f "$FRESH/shorewall6/shorewall.conf" ] && bad "v6 tree wrongly has shorewall.conf"
+if check "$FRESH/shorewall" && check "$FRESH/shorewall6" 6; then
+    pass "seeded /etc/shorewall and /etc/shorewall6 compile and check"
 else
-    bad "the shipped skeleton does not check"; cat "$OUT/log"
-fi
-if check "$OUT/root/etc/shorewall6" 6; then
-    pass "the shipped /etc/shorewall6 skeleton compiles and checks"
-else
-    bad "the shipped v6 skeleton does not check"; cat "$OUT/log"
+    bad "a seeded skeleton does not check"; cat "$OUT/log"
 fi
 
-# A second run is an upgrade: an edited file must survive it.
-echo "# admin edit" >> "$OUT/root/etc/shorewall/zones"
-DESTDIR="$OUT/root" sh "$REPO/packaging/install.sh" \
-    "$REPO/packaging/shorewallrc.default" >/dev/null 2>&1
-if grep -q "admin edit" "$OUT/root/etc/shorewall/zones"; then
-    pass "a second install run leaves an edited config file untouched"
+# 3. The safety property: seeding over an existing configuration never touches
+#    a file that is already there, and fills in only what is missing. Stand up
+#    a live config the way an install over the top of Shorewall would find it.
+LIVE="$OUT/live/shorewall"; mkdir -p "$LIVE"
+printf 'fw\tfirewall\nnet\tipv4\nloc\tipv4\n' > "$LIVE/zones"
+printf '?FORMAT 2\nnet\teth0\nloc\teth1\n'    > "$LIVE/interfaces"
+before_zones=$(cat "$LIVE/zones")
+sh "$SEED" "$SRC" "$OUT/live"
+if [ "$(cat "$LIVE/zones")" = "$before_zones" ] \
+   && grep -q "eth1" "$LIVE/interfaces"; then
+    pass "seeding leaves an existing config file byte for byte untouched"
 else
-    bad "a second install run clobbered an edited config file"
+    bad "seeding altered an existing config file"
 fi
+# The files the live config did not have are filled in.
+[ -f "$LIVE/policy" ] && [ -f "$LIVE/shorewall.conf" ] \
+    && pass "seeding fills in only the files that were missing" \
+    || bad "seeding did not add the missing skeleton files"
 
 exit "$FAIL"

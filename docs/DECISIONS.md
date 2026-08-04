@@ -85,18 +85,26 @@ matches to route packets into them. nftables verdict maps replace the cascade
 with one hash lookup: `iifname . oifname vmap { ... }`. The zone-pair chains
 themselves remain, so rule placement stays recognizable to Shorewall users.
 
-## 2026-08-05: The package ships a skeleton /etc/shorewall
+## 2026-08-05: The package seeds a skeleton /etc/shorewall, does not own it
 
 Earlier the packages owned no configuration, on the reasoning that
 /etc/shorewall is the administrator's. That left a fresh install with no
 configuration directory, so `shorewall check` and the other commands failed on
 a missing file. Upstream Shorewall ships a skeleton config on install, and we
-now mirror that: a fresh install lays down /etc/shorewall and /etc/shorewall6
-with an empty zones, interfaces, policy and rules, and a shorewall.conf that
-sets safe defaults and leaves the firewall disabled. The files are conffiles
-(dpkg) and %config(noreplace) (rpm), and install.sh writes a file only when it
-is absent, so an upgrade never touches a configuration the administrator has
-edited. `shorewall init` still writes a working topology config on top; the
-skeleton just means the commands have something to read out of the box. load()
-also fails with a located error, not a traceback, when the directory or a
-mandatory file is missing, so a truly empty box still gets a clean message.
+now mirror that: a fresh install has /etc/shorewall and /etc/shorewall6 with an
+empty zones, interfaces, policy and rules, and a shorewall.conf that sets safe
+defaults and leaves the firewall disabled.
+
+The package does not own those files. It replaces the Shorewall package, which
+owns /etc/shorewall as its conffiles, so owning them too would fire a dpkg
+conffile prompt (a careless "replace" losing the admin's config) or shuffle an
+.rpmnew on rpm. Instead the skeleton ships under the share directory, and
+seed-config.sh lays it into /etc one file at a time, only where a file is
+absent, run from the deb postinst, the rpm %post, and install.sh on a source
+install. An install over an existing configuration, including the Shorewall
+being replaced, leaves every file of it untouched. `shorewall init` still
+writes a working topology config on top.
+
+load() also fails with a located ConfigError, not a traceback, when the
+directory or a mandatory file is missing, so a box with no configuration at
+all still gets a clean message pointing at `shorewall init`.

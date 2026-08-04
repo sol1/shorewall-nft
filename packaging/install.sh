@@ -110,23 +110,23 @@ if [ -n "$SERVICEDIR" ]; then
     say "units -> $SERVICEDIR (disabled; enable when ready)"
 fi
 
-# Skeleton configuration, on a fresh install only. A file that is already
-# there is left as the administrator has it, so an upgrade, or a second run,
-# never clobbers a live configuration. Packages get the same behaviour: dpkg
-# treats these as conffiles and rpm as %config(noreplace).
-if [ -n "$CONFDIR" ]; then
-    for prod in shorewall shorewall6; do
-        install -d "$DESTDIR$CONFDIR/$prod"
-        for src in "$here"/packaging/configfiles/*; do
-            name=$(basename "$src")
-            dest="$DESTDIR$CONFDIR/$prod/$name"
-            if [ "$name" = shorewall.conf ] && [ "$prod" = shorewall6 ]; then
-                dest="$DESTDIR$CONFDIR/$prod/shorewall6.conf"
-            fi
-            [ -e "$dest" ] || install -m 0644 "$src" "$dest"
-        done
-    done
-    say "skeleton config -> $CONFDIR/shorewall, $CONFDIR/shorewall6 (new installs only)"
+# Skeleton configuration. The package never owns /etc/shorewall: it would
+# otherwise fight the configuration of the Shorewall it replaces, prompting on
+# a conffile or shuffling an .rpmnew. Instead the skeleton ships under the
+# share directory, and seed-config.sh lays it into /etc one file at a time,
+# only where a file is not already there. So an install over an existing
+# configuration leaves every file of it untouched.
+install -d "$DESTDIR$SHAREDIR/configfiles"
+install -m 0644 "$here"/packaging/configfiles/* "$DESTDIR$SHAREDIR/configfiles/"
+install -m 0755 "$here/packaging/seed-config.sh" "$DESTDIR$SHAREDIR/seed-config.sh"
+say "skeleton config -> $SHAREDIR/configfiles"
+
+# A source install seeds /etc now. A package install does not: its DESTDIR is
+# a buildroot, and the deb postinst and rpm %post run the same seeding on the
+# target instead, so the package never lays a file over a live configuration.
+if [ -z "$DESTDIR" ] && [ -n "$CONFDIR" ]; then
+    sh "$here/packaging/seed-config.sh" "$here/packaging/configfiles" "$CONFDIR"
+    say "seeded $CONFDIR/shorewall, $CONFDIR/shorewall6 (new files only)"
 fi
 
 echo
