@@ -1024,11 +1024,23 @@ def _rsh(system, *command):
     return subprocess.run(base + [system, *command]).returncode
 
 
+def _rsh_capture(system, *command):
+    """Run a command on system and return (returncode, stdout). Used to pull a
+    capability profile back from the target with shorecap."""
+    import shlex
+    override = os.environ.get("SWNFT_LITE_RSH")
+    base = shlex.split(override) if override else ["ssh"]
+    p = subprocess.run(base + [system, *command],
+                       capture_output=True, text=True)
+    return p.returncode, p.stdout
+
+
 def _lite_deploy(args, family, remote_verb):
     """Compile the local configuration to an export firewall script and deploy
     it to a Shorewall Lite target over ssh, then run remote_verb there. This is
     `shorewall load` (remote_verb start) and `shorewall reload` with a system."""
     caps_file = None
+    capture = False
     rest = []
     i = 0
     while i < len(args):
@@ -1037,11 +1049,16 @@ def _lite_deploy(args, family, remote_verb):
                 _fatal("--caps needs a file")
             caps_file = args[i + 1]
             i += 2
+        elif args[i] in ("--capture", "-c"):
+            capture = True
+            i += 1
         else:
             rest.append(args[i])
             i += 1
     if len(rest) != 1:
-        _fatal("usage: shorewall load [--caps FILE] SYSTEM")
+        _fatal("usage: shorewall load [--caps FILE | --capture] SYSTEM")
+    if capture and caps_file:
+        _fatal("--capture and --caps cannot be combined")
     system = rest[0]
     confdir = _confdir(family)
     if not os.path.isdir(confdir):
@@ -1049,15 +1066,27 @@ def _lite_deploy(args, family, remote_verb):
     prog = "shorewall6-lite" if family == 6 else "shorewall-lite"
     remote_firewall = f"/var/lib/{prog}/firewall"
 
-    # Compile against the target's capabilities if a profile was captured with
-    # shorecap, else the conservative static defaults, never the build host's
-    # probed kernel.
-    if caps_file:
-        capabilities.load_profile(caps_file)
-    else:
-        capabilities.enable_probe(False)
-
     with tempfile.TemporaryDirectory(prefix="shorewall-nft-load-") as d:
+        # --capture runs shorecap on the target and compiles against the
+        # profile it returns, so the ruleset matches the target's kernel
+        # without a separate `ssh target shorecap > file` step.
+        if capture:
+            print(f"Capturing capabilities from {system}")
+            rc, profile = _rsh_capture(system, "shorecap")
+            if rc != 0 or "HELPER" not in profile:
+                _fatal(f"could not capture capabilities from {system}. Is the "
+                       f"shorewall-lite package (with shorecap) installed "
+                       f"there?")
+            caps_file = os.path.join(d, "captured.caps")
+            with open(caps_file, "w") as f:
+                f.write(profile)
+        # Compile against the target's capabilities if a profile was captured
+        # or supplied, else the conservative static defaults, never the build
+        # host's probed kernel.
+        if caps_file:
+            capabilities.load_profile(caps_file)
+        else:
+            capabilities.enable_probe(False)
         script = os.path.join(d, "firewall")
         try:
             compile_config(confdir, script + ".nft", family, script_path=script)
@@ -1069,8 +1098,7 @@ def _lite_deploy(args, family, remote_verb):
         if _rsh(system, prog, remote_verb) != 0:
             _fatal(f"the firewall was copied but '{prog} {remote_verb}' "
                    f"failed on {system}")
-    print(f"{system} is running the deployed ruleset "
-          f"(validate with '{prog} check' there).")
+    print(f"{system} is running the deployed ruleset.")
     return 0
 
 

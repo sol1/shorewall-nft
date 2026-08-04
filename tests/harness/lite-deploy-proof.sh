@@ -95,5 +95,24 @@ fi
 [ -f "$OUT/rcp.log" ] && bad "load copied a firewall despite a compile error" \
     || pass "nothing was deployed on a compile error"
 
+# 3. --capture pulls the target's capabilities with shorecap and compiles
+#    against them, so no separate 'ssh target shorecap > file' step is needed.
+cp "$REPO/packaging/lite/shorecap" "$BIN/shorecap"; chmod +x "$BIN/shorecap"
+nft delete table ip shorewall 2>/dev/null || :
+rm -f /var/lib/shorewall-lite/firewall "$OUT/rsh.log"
+if SWNFT_CONFDIR="$REPO/tests/corpus/0005-dnat/config" PYTHONPATH="$REPO/src" \
+       SWNFT_LITE_RCP="$OUT/rcp" SWNFT_LITE_RSH="$OUT/rsh" \
+       python3 -m shorewall_nft load --capture fakehost 2>>"$OUT/load.err"; then
+    pass "load --capture exits 0"
+else
+    bad "load --capture failed (see $OUT/load.err)"
+fi
+grep -q "fakehost shorecap" "$OUT/rsh.log" 2>/dev/null \
+    && pass "load --capture ran shorecap on the target" \
+    || bad "shorecap not run on target: $(cat "$OUT/rsh.log" 2>/dev/null)"
+[ -x /var/lib/shorewall-lite/firewall ] \
+    && pass "load --capture deployed the firewall" \
+    || bad "load --capture did not deploy"
+
 [ "$FAIL" = 0 ] && echo "lite-deploy-proof: all passed"
 exit "$FAIL"
