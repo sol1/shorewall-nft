@@ -1,0 +1,6 @@
+#
+# Shorewall-nft interfaces. Attach each zone to the interface it is reached
+# on. See shorewall-interfaces(5).
+#
+?FORMAT 2
+#ZONE	INTERFACE	OPTIONS

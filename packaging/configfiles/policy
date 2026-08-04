@@ -1,0 +1,6 @@
+#
+# Shorewall-nft policy. The default action for a connection from one zone to
+# another, applied after the rules file. Add an 'all all REJECT' last line
+# once your zones are defined. See shorewall-policy(5).
+#
+#SOURCE	DEST		POLICY		LEVEL

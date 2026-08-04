@@ -110,6 +110,25 @@ if [ -n "$SERVICEDIR" ]; then
     say "units -> $SERVICEDIR (disabled; enable when ready)"
 fi
 
+# Skeleton configuration, on a fresh install only. A file that is already
+# there is left as the administrator has it, so an upgrade, or a second run,
+# never clobbers a live configuration. Packages get the same behaviour: dpkg
+# treats these as conffiles and rpm as %config(noreplace).
+if [ -n "$CONFDIR" ]; then
+    for prod in shorewall shorewall6; do
+        install -d "$DESTDIR$CONFDIR/$prod"
+        for src in "$here"/packaging/configfiles/*; do
+            name=$(basename "$src")
+            dest="$DESTDIR$CONFDIR/$prod/$name"
+            if [ "$name" = shorewall.conf ] && [ "$prod" = shorewall6 ]; then
+                dest="$DESTDIR$CONFDIR/$prod/shorewall6.conf"
+            fi
+            [ -e "$dest" ] || install -m 0644 "$src" "$dest"
+        done
+    done
+    say "skeleton config -> $CONFDIR/shorewall, $CONFDIR/shorewall6 (new installs only)"
+fi
+
 echo
 say "done. shorewall-nft is installed and inert."
-say "next: 'shorewall check /etc/shorewall' then 'shorewall migrate'."
+say "next: 'shorewall check' then edit $CONFDIR/shorewall, or 'shorewall init'."

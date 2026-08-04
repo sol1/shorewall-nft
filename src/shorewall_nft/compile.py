@@ -170,6 +170,18 @@ def _check_config_security(confdir, variables):
 
 
 def load(confdir, family=4):
+    # A clean install has no configuration directory. Say so and point at the
+    # wizard, rather than letting a file read fail with a traceback.
+    if not os.path.isdir(confdir):
+        raise ConfigError(f"no configuration directory at {confdir}. Run "
+                          f"'shorewall init' to create a starting "
+                          f"configuration.")
+    missing = [n for n in ("zones", "interfaces", "policy")
+               if not os.path.exists(_path(confdir, n))]
+    if missing:
+        raise ConfigError(f"the configuration in {confdir} is incomplete, "
+                          f"missing {', '.join(missing)}. Run 'shorewall init' "
+                          f"to create a starting configuration.")
     cfg = Config(confdir, family)
     variables = {}
     # Seed the shorewallrc path anchors so a CONFIG_PATH written with

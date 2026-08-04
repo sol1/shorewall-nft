@@ -79,7 +79,13 @@ SBINDIR=%{_sbindir} DESTDIR=%{buildroot} packaging/install-lite.sh packaging/sho
 # 0750 like shorewall's own state dir: it holds saved rulesets and resolved
 # addresses, which a less-privileged user should not read.
 %attr(0750,root,root) %dir %{_localstatedir}/lib/shorewall-nft
-# /etc/shorewall is the administrator's, never owned by this package.
+# A skeleton /etc/shorewall and /etc/shorewall6 on a fresh install, so the
+# commands have a configuration to read. noreplace means an upgrade never
+# touches a configuration the administrator has edited.
+%dir %{_sysconfdir}/shorewall
+%dir %{_sysconfdir}/shorewall6
+%config(noreplace) %{_sysconfdir}/shorewall/*
+%config(noreplace) %{_sysconfdir}/shorewall6/*
 
 %files lite
 %license LICENSE

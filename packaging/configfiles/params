@@ -1,0 +1,4 @@
+#
+# Shorewall-nft params. Shell-style VARIABLE=value assignments, expanded as
+# $VARIABLE or ${VARIABLE} in the other files. See shorewall-params(5).
+#

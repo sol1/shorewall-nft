@@ -1,0 +1,6 @@
+#
+# Shorewall-nft SNAT and masquerade. One line per source-address rewrite on
+# the way out. See shorewall-snat(5).
+#
+?FORMAT 2
+#ACTION			SOURCE			DEST

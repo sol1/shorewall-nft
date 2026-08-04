@@ -84,3 +84,19 @@ Upstream generates a chain per zone pair and a linear cascade of interface
 matches to route packets into them. nftables verdict maps replace the cascade
 with one hash lookup: `iifname . oifname vmap { ... }`. The zone-pair chains
 themselves remain, so rule placement stays recognizable to Shorewall users.
+
+## 2026-08-05: The package ships a skeleton /etc/shorewall
+
+Earlier the packages owned no configuration, on the reasoning that
+/etc/shorewall is the administrator's. That left a fresh install with no
+configuration directory, so `shorewall check` and the other commands failed on
+a missing file. Upstream Shorewall ships a skeleton config on install, and we
+now mirror that: a fresh install lays down /etc/shorewall and /etc/shorewall6
+with an empty zones, interfaces, policy and rules, and a shorewall.conf that
+sets safe defaults and leaves the firewall disabled. The files are conffiles
+(dpkg) and %config(noreplace) (rpm), and install.sh writes a file only when it
+is absent, so an upgrade never touches a configuration the administrator has
+edited. `shorewall init` still writes a working topology config on top; the
+skeleton just means the commands have something to read out of the box. load()
+also fails with a located error, not a traceback, when the directory or a
+mandatory file is missing, so a truly empty box still gets a clean message.

@@ -1009,4 +1009,35 @@ except Exception as e:                                   # noqa: BLE001
 finally:
     shutil.rmtree(d)
 
+# --- a clean install has no configuration. load must say so with a located
+#     ConfigError, not a FileNotFoundError traceback, so `shorewall check` on
+#     a fresh box prints a clean message and exits non-zero ---
+d = tempfile.mkdtemp(prefix="shorewall-nft-clean-")
+shutil.rmtree(d)                                   # a directory that is not there
+try:
+    load(d, 4)
+    bad("clean install", "a missing config directory did not raise")
+except ConfigError as e:
+    if "shorewall init" in str(e):
+        ok("clean install: a missing config directory is a located error")
+    else:
+        bad("clean install", f"unhelpful message: {str(e)[:80]}")
+except Exception as e:                                   # noqa: BLE001
+    bad("clean install", f"traceback leaked: {type(e).__name__}: {e}")
+
+# An existing but incomplete directory (no zones) is also a clean error.
+d = tempfile.mkdtemp(prefix="shorewall-nft-partial-")
+try:
+    load(d, 4)
+    bad("incomplete config", "a directory with no zones did not raise")
+except ConfigError as e:
+    if "incomplete" in str(e):
+        ok("clean install: an incomplete config directory is a located error")
+    else:
+        bad("incomplete config", f"unhelpful message: {str(e)[:80]}")
+except Exception as e:                                   # noqa: BLE001
+    bad("incomplete config", f"traceback leaked: {type(e).__name__}: {e}")
+finally:
+    shutil.rmtree(d)
+
 sys.exit(1 if fails else 0)

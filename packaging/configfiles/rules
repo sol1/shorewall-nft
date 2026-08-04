@@ -1,0 +1,6 @@
+#
+# Shorewall-nft rules. Exceptions to the policy, matched before it. See
+# shorewall-rules(5) or docs/coverage.md.
+#
+#ACTION	SOURCE	DEST	PROTO	DPORT	SPORT	ORIGDEST	RATE	USER	MARK
+?SECTION NEW
