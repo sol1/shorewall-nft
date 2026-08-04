@@ -3,9 +3,11 @@
 How shorewall-nft filters traffic to and from an IPSEC peer as a normal
 Shorewall zone. The target is site-to-site tunnels keyed by reqid, the common
 sol1 case. The site-to-site core, the full option set, and cleartext
-coexistence on a shared interface are built (Phases 1 to 3). The nat, masq,
-accounting and provider paths and the harness xfrm dimension are Phases 4
-and 5.
+coexistence on a shared interface are built (Phases 1 to 3). The tunnels file
+that opens IKE and ESP to the peer, and the harness xfrm dimension that proves
+a live SA matches the zone, are built (the tunnels part of Phase 4, and Phase
+5). The remaining nat, masq, accounting and provider policy-match paths are
+the rest of Phase 4.
 
 ## The goal
 
@@ -63,12 +65,17 @@ in match, OUT OPTIONS only to the out match. A bare ipsec zone with no options
 is valid and emits `--pol ipsec` with no qualifier (any SA). mss and blacklist
 also apply to non-ipsec zones; the rest are ipsec-only.
 
-The load-bearing detail for a faithful clone: whenever any ipsec zone or host
+One more detail for a faithful clone: whenever any ipsec zone or host
 is present, upstream also sprays `--pol none --dir {in|out}` on the
 non-encrypted paths, so a decrypted packet does not fall through to a
 cleartext rule on the same interface. The `--dir in` rules are ordered first
-in the forward chain for the same reason. The `tunnels` file also changes:
-with ipsec in play it opens only the key-exchange UDP ports, not raw ESP/AH.
+in the forward chain for the same reason. The `tunnels` file opens the tunnel
+itself: an `ipsec` entry accepts ESP (proto 50), AH (proto 51, unless `:noah`)
+and IKE (udp 500; 500 and 4500 for `ipsecnat`) between the firewall and the
+peer gateway, in the gateway's cleartext zone. The arriving ESP has no
+secpath yet, so it is cleartext to the firewall. Without this accept it is
+dropped before the kernel can decrypt it, and the ipsec zone never sees a
+packet.
 
 ## The nft mechanism and how it maps
 
@@ -148,11 +155,23 @@ and ECN; nft 0.9.3 (Ubuntu 20.04) and later have it.
    ipsec zone attached by a hosts entry on a shared interface) correct.
    Corpus 0052 locks it against upstream, whose emitted `--pol none` on the
    cleartext paths and `--pol ipsec --reqid` on the tunnel confirm the split.
-4. The rest of the upstream ipsec surface: the nat/masq, accounting and
-   provider paths that also emit a policy match, and the `tunnels` file
-   opening only key-exchange ports when ipsec is in play.
-5. The harness IPSEC dimension: build an xfrm SA in the netns and prove SA
-   traffic matches the zone while cleartext does not.
+4. Partly done. The `tunnels` file is built: an `ipsec`/`ipsecnat` entry
+   opens IKE, ESP and AH to the peer gateway in its cleartext zone, following
+   upstream Tunnels.pm, so the arriving ESP is accepted and the kernel can
+   decrypt it. The tunnel rules are synthesised as ordinary ACCEPT rules in
+   the gateway-zone-to-firewall and firewall-to-gateway-zone chains, scoped to
+   the gateway address, which on a shared interface inherit the cleartext
+   `meta secpath missing` guard. Still to do: the nat/masq, accounting and
+   provider paths that also emit a policy match.
+5. Done. The harness IPSEC dimension. The userns harness builds an xfrm SA
+   between two nodes with `ip xfrm state`/`ip xfrm policy`, given a known
+   reqid, loads the ruleset, and probes that traffic carried over the SA
+   matches the ipsec zone while cleartext does not. Corpus 0061 proves the
+   `ipsec in reqid` match end to end against a live transport SA: SSH over the
+   SA is decrypted, carries reqid 100, matches the tun zone and is accepted,
+   while cleartext SSH is dropped. The tunnels file opens the ESP so the
+   decryption happens; without it the firewall drops the ESP and the SA never
+   sees a packet.
 
 ## Testing
 

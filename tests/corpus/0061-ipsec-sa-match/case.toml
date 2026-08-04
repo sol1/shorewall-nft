@@ -1,0 +1,55 @@
+description = "The ipsec zone matches real SA traffic end to end. A transport ESP SA with reqid 100 is built between the peer and the firewall on the shared interface eth1, which carries both the cleartext net zone and the tun ipsec zone (hosts). A tunnels-file entry opens IKE and ESP to the peer, the way upstream does, so the arriving ESP is accepted and the kernel decrypts it. The decrypted SSH then carries a secpath with reqid 100, matches the tun zone's ipsec-in dispatch, and the ACCEPT rule passes it. A cleartext SSH from the net zone on eth0 is not in the tun zone and the policy drops it. This proves the ipsec-in reqid match works against a live SA, not only that cleartext on the tunnel interface is dropped (corpus 0051, 0052). Ours-verified: the xfrm SA is runtime state the upstream iptables probe path does not mirror."
+family = 4
+no_upstream = true
+
+[[links]]
+node_a = "peer"
+dev_a = "s0"
+addr_a = "10.0.9.2/24"
+node_b = "fw"
+dev_b = "eth1"
+addr_b = "10.0.9.1/24"
+
+[[links]]
+node_a = "net"
+dev_a = "n0"
+addr_a = "10.0.2.2/24"
+node_b = "fw"
+dev_b = "eth0"
+addr_b = "10.0.2.1/24"
+
+# A bidirectional transport ESP SA, reqid 100, between the peer and the fw.
+[[ipsec_sa]]
+node_a = "peer"
+node_b = "fw"
+addr_a = "10.0.9.2"
+addr_b = "10.0.9.1"
+reqid = 100
+spi = 256
+mode = "transport"
+
+[routes]
+peer = "10.0.9.1"
+net = "10.0.2.1"
+
+# SSH from the peer arrives over the SA, decrypted with reqid 100, so it
+# matches the tun ipsec zone and the ACCEPT rule.
+[[probes]]
+id = "sa-traffic-matches-the-ipsec-zone"
+from = "peer"
+to = "fw"
+addr = "10.0.9.1"
+proto = "tcp"
+port = 22
+expect = "allow"
+
+# A cleartext connection from the net zone is not in the tun zone; the policy
+# drops it.
+[[probes]]
+id = "cleartext-is-not-in-the-ipsec-zone"
+from = "net"
+to = "fw"
+addr = "10.0.2.1"
+proto = "tcp"
+port = 22
+expect = "drop"

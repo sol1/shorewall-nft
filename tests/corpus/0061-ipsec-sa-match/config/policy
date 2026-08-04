@@ -1,0 +1,6 @@
+#SOURCE	DEST	POLICY
+$FW	net	ACCEPT
+$FW	tun	ACCEPT
+net	all	DROP
+tun	all	DROP
+all	all	REJECT

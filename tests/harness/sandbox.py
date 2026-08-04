@@ -211,6 +211,50 @@ def ns(node, *args, **kw):
     return sh("ip", "netns", "exec", node, *args, **kw)
 
 
+# A fixed AEAD key and ICV length for rfc4106(gcm(aes)). Test-only: both ends
+# and both directions share it, which is all the harness needs to encrypt.
+_XFRM_KEY = "0x0123456789abcdef0123456789abcdef00000000"
+_XFRM_ICV = "128"
+
+
+def _xfrm_state(node, src, dst, spi, reqid, mode):
+    ns(node, "ip", "xfrm", "state", "add", "src", src, "dst", dst,
+       "proto", "esp", "spi", spi, "reqid", reqid, "mode", mode,
+       "aead", "rfc4106(gcm(aes))", _XFRM_KEY, _XFRM_ICV)
+
+
+def _xfrm_policy(node, src, dst, direction, reqid, mode):
+    ns(node, "ip", "xfrm", "policy", "add", "src", src, "dst", dst,
+       "dir", direction, "tmpl", "src", src, "dst", dst,
+       "proto", "esp", "reqid", reqid, "mode", mode)
+
+
+def setup_ipsec(case):
+    """The ipsec dimension. For each [[ipsec_sa]] entry, build a bidirectional
+    transport (or tunnel) SA between two nodes, so traffic between them is
+    encrypted and arrives decrypted carrying a secpath with the SA's reqid.
+    That secpath is what an ipsec zone's `ipsec in reqid N` match keys on, so
+    this is how a case proves SA traffic matches the zone while cleartext to
+    the same address does not."""
+    for sa in case.get("ipsec_sa", []):
+        a, b = sa["node_a"], sa["node_b"]
+        aa, ab = sa["addr_a"], sa["addr_b"]
+        reqid = str(sa["reqid"])
+        mode = sa.get("mode", "transport")
+        base = int(sa.get("spi", 256))
+        spi_ab, spi_ba = hex(base), hex(base + 1)
+        # The a->b and b->a SAs exist on both nodes (each end needs to encrypt
+        # one way and decrypt the other).
+        for node in (a, b):
+            _xfrm_state(node, aa, ab, spi_ab, reqid, mode)
+            _xfrm_state(node, ab, aa, spi_ba, reqid, mode)
+        # Each node encrypts outbound to its peer and requires the SA inbound.
+        _xfrm_policy(a, aa, ab, "out", reqid, mode)
+        _xfrm_policy(a, ab, aa, "in", reqid, mode)
+        _xfrm_policy(b, ab, aa, "out", reqid, mode)
+        _xfrm_policy(b, aa, ab, "in", reqid, mode)
+
+
 def build(case):
     nodes = {"fw"}
     for link in case.get("links", []):
@@ -252,6 +296,7 @@ def build(case):
     for node in ["fw"] + case.get("forward", []):
         ns(node, "sysctl", "-qw", "net.ipv4.ip_forward=1")
     ns("fw", "sysctl", "-qw", "net.ipv6.conf.all.forwarding=1")
+    setup_ipsec(case)
     _settle(case)
     return nodes
 

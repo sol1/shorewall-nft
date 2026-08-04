@@ -1,0 +1,4 @@
+?FORMAT 2
+#ZONE	INTERFACE	OPTIONS
+net	NET_SA		tcpflags,physical=eth1
+net	NET_CLR		tcpflags,physical=eth0

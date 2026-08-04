@@ -1,0 +1,2 @@
+#ZONE	HOSTS		OPTIONS
+tun	eth1:0.0.0.0/0	ipsec

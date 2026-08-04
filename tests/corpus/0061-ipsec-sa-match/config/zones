@@ -1,0 +1,4 @@
+#ZONE	TYPE	OPTIONS
+fw	firewall
+net	ipv4
+tun	ipsec	reqid=100

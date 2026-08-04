@@ -299,6 +299,27 @@ try:
 finally:
     capabilities.CAPABILITIES["NFT_IPSEC"] = True
 
+# --- tunnels file: an ipsec tunnel opens IKE and ESP to the peer gateway in
+# the gateway's cleartext zone, so the arriving ESP is accepted and the kernel
+# can decrypt it. Without this the ipsec zone never receives traffic. Follows
+# upstream Tunnels.pm: proto 50 (ESP), 51 (AH), udp 500 (IKE), and 500,4500
+# for ipsecnat. Corpus 0061 proves the decrypted traffic then matches. ---
+form_ok("tunnels: an ipsec tunnel opens ESP inbound from the gateway",
+        {**_IPSEC, "tunnels": "ipsec net 10.0.9.2\n"},
+        expect="ip saddr 10.0.9.2 meta l4proto 50 accept")
+form_ok("tunnels: an ipsec tunnel opens IKE inbound from the gateway",
+        {**_IPSEC, "tunnels": "ipsec net 10.0.9.2\n"},
+        expect="ip saddr 10.0.9.2 udp dport 500 accept")
+form_ok("tunnels: an ipsec tunnel opens ESP outbound to the gateway",
+        {**_IPSEC, "tunnels": "ipsec net 10.0.9.2\n"},
+        expect="ip daddr 10.0.9.2 meta l4proto 50 accept")
+form_ok("tunnels: an ipsec tunnel opens AH, upstream proto 51",
+        {**_IPSEC, "tunnels": "ipsec net 10.0.9.2\n"},
+        expect="ip saddr 10.0.9.2 meta l4proto 51 accept")
+form_ok("tunnels: ipsecnat opens IKE and the NAT-T port 4500",
+        {**_IPSEC, "tunnels": "ipsecnat net 10.0.9.2\n"},
+        expect="udp dport { 500, 4500 } accept")
+
 # --- zones: a cleartext zone sharing an interface with an ipsec zone (the
 # --pol none companion). Decrypted traffic carries a secpath and belongs to
 # the ipsec zone, so the cleartext inbound dispatch excludes it with
