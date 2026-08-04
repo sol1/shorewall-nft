@@ -48,9 +48,16 @@ out.
 .B safe-start\fR, \fBsafe-restart
 Like start and restart, but revert automatically unless confirmed.
 .TP
-.B check \fR[\fIdirectory\fR]
+.B check \fR[\fIdirectory\fR] \fR[\fB-r \fIsystem\fR] \fR[\fB--capture\fR]
 Compile and validate a configuration without loading it. Reports
-anything unsupported. Reads only; changes nothing.
+anything unsupported. Reads only; changes nothing. With
+.B -r \fIsystem\fR
+the configuration is validated against a remote Shorewall Lite target's
+kernel: it is compiled here, copied to the target, and its check verb
+(\fBnft -c\fR) is run there, loading nothing.
+.B --capture
+pulls the target's capabilities with shorecap first, so the compile
+matches the target.
 .TP
 .B compile \fR[\fIdirectory\fR] \fB-o \fIfile
 Write the generated nftables ruleset to a file.

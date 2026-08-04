@@ -114,5 +114,44 @@ grep -q "fakehost shorecap" "$OUT/rsh.log" 2>/dev/null \
     && pass "load --capture deployed the firewall" \
     || bad "load --capture did not deploy"
 
+# 4. check -r validates the config against the target's kernel: it copies the
+#    firewall to the target and runs its check verb (nft -c) there, loading
+#    nothing. A direct-exec rsh shim stands in for ssh, since the remote
+#    command is 'sh SCRIPT check', not a lite dispatcher call.
+cat > "$OUT/rsh_direct" <<EOF
+#!/bin/sh
+echo "\$@" >> "$OUT/rsh4.log"
+shift                              # drop the SYSTEM argument, run the rest
+PATH="/usr/sbin:/sbin:/usr/bin:/bin" exec "\$@"
+EOF
+chmod +x "$OUT/rsh_direct"
+rcheck() {   # $1 = confdir
+    SWNFT_CONFDIR="$1" PYTHONPATH="$REPO/src" \
+        SWNFT_LITE_RCP="$OUT/rcp" SWNFT_LITE_RSH="$OUT/rsh_direct" \
+        python3 -m shorewall_nft check -r fakehost >"$OUT/check.log" 2>&1
+}
+rm -f "$OUT/rsh4.log"
+nft delete table ip shorewall 2>/dev/null || :    # clear the earlier load
+if rcheck "$REPO/tests/corpus/0002-one-interface/config"; then
+    pass "check -r validates against the target and exits 0"
+else
+    bad "check -r failed: $(cat "$OUT/check.log")"
+fi
+grep -q "sh /tmp/shorewall-nft-check.* check" "$OUT/rsh4.log" 2>/dev/null \
+    && pass "check -r ran the firewall check verb on the target" \
+    || bad "check verb not run on target: $(cat "$OUT/rsh4.log" 2>/dev/null)"
+nft list table ip shorewall >/dev/null 2>&1 \
+    && bad "check -r loaded a ruleset (must be non-destructive)" \
+    || pass "check -r loaded nothing on the target"
+
+# A config that does not compile fails check -r before any remote step.
+bad_cfg2="$OUT/badcfg2"; cp -r "$REPO/tests/corpus/0002-one-interface/config" "$bad_cfg2"
+echo "BOGUSACTION net fw" >> "$bad_cfg2/rules"
+if rcheck "$bad_cfg2"; then
+    bad "check -r passed a config that does not compile"
+else
+    pass "check -r fails when the config does not compile"
+fi
+
 [ "$FAIL" = 0 ] && echo "lite-deploy-proof: all passed"
 exit "$FAIL"

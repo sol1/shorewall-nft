@@ -224,7 +224,30 @@ def _check_ruleset(path, family):
 
 
 def cmd_check(args, family):
-    directory, _, fam_flag, _, caps = _parse_compile_args(args)
+    # -r SYSTEM checks against a remote Shorewall Lite target's kernel instead
+    # of this host's. --capture (with -r) pulls the target's capabilities with
+    # shorecap first. Pull both out before the positional compile-arg parse.
+    system = None
+    capture = False
+    rest = []
+    i = 0
+    while i < len(args):
+        if args[i] in ("-r", "--remote"):
+            if i + 1 >= len(args):
+                _fatal("-r needs a SYSTEM (user@host)")
+            system = args[i + 1]
+            i += 2
+        elif args[i] in ("--capture", "-c"):
+            capture = True
+            i += 1
+        else:
+            rest.append(args[i])
+            i += 1
+    if system:
+        return _remote_check(rest, family, system, capture)
+    if capture:
+        _fatal("--capture only applies with -r SYSTEM")
+    directory, _, fam_flag, _, caps = _parse_compile_args(rest)
     confdir = directory or _confdir(family)
     family = fam_flag or family
     family = _infer_family(confdir, family, fam_flag)
@@ -244,6 +267,54 @@ def cmd_check(args, family):
         return 0
     finally:
         os.unlink(path)
+
+
+def _remote_check(args, family, system, capture):
+    """Validate the local configuration against a remote Shorewall Lite
+    target's kernel. Compile here, copy the firewall script to the target, and
+    run its check verb there, so the verdict reflects the target's nft and
+    kernel, not the build host's. Non-destructive: nothing is loaded, and the
+    deployed firewall is not touched."""
+    directory, _, fam_flag, _, caps = _parse_compile_args(args)
+    confdir = directory or _confdir(family)
+    family = _infer_family(confdir, fam_flag or family, fam_flag)
+    if not os.path.isdir(confdir):
+        _fatal(f"no configuration at {confdir}")
+    if capture and caps:
+        _fatal("--capture and --caps cannot be combined")
+    with tempfile.TemporaryDirectory(prefix="shorewall-nft-check-") as d:
+        # --capture compiles against the target's own capabilities; else the
+        # conservative static defaults. Either way the target's nft has the
+        # final say when it runs the check.
+        if capture:
+            print(f"Capturing capabilities from {system}")
+            rc, profile = _rsh_capture(system, "shorecap")
+            if rc != 0 or "HELPER" not in profile:
+                _fatal(f"could not capture capabilities from {system}. Is the "
+                       f"shorewall-lite package (with shorecap) installed "
+                       f"there?")
+            caps = os.path.join(d, "captured.caps")
+            with open(caps, "w") as f:
+                f.write(profile)
+        if caps:
+            capabilities.load_profile(caps)
+        else:
+            capabilities.enable_probe(False)
+        script = os.path.join(d, "firewall")
+        try:
+            compile_config(confdir, script + ".nft", family, script_path=script)
+        except ConfigError as e:
+            _fatal(f"configuration does not compile: {e}")
+        remote = f"/tmp/shorewall-nft-check.{os.getpid()}"
+        print(f"Checking {confdir} against {system}")
+        if _rcp(script, system, remote) != 0:
+            _fatal(f"could not copy the firewall to {system}")
+        rc = _rsh(system, "sh", remote, "check")
+        _rsh(system, "rm", "-f", remote)
+        if rc != 0:
+            _fatal(f"the ruleset does not load on {system}'s kernel")
+        print(f"Shorewall configuration in {confdir} verified against {system}")
+        return 0
 
 
 def cmd_compile(args, family):
