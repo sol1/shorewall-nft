@@ -125,6 +125,12 @@ install -m 0644 "$here"/packaging/configfiles/* "$DESTDIR$SHAREDIR/configfiles/"
 install -m 0755 "$here/packaging/seed-config.sh" "$DESTDIR$SHAREDIR/seed-config.sh"
 say "skeleton config -> $SHAREDIR/configfiles"
 
+# Worked example configurations, for reference and to copy from. These are
+# the Shorewall sample topologies, which compile unchanged.
+cp -a "$here/packaging/samples" "$DESTDIR$SHAREDIR/samples"
+find "$DESTDIR$SHAREDIR/samples" -type f -exec chmod 0644 {} +
+say "sample configs -> $SHAREDIR/samples"
+
 # A source install seeds /etc now. A package install does not: its DESTDIR is
 # a buildroot, and the deb postinst and rpm %post run the same seeding on the
 # target instead, so the package never lays a file over a live configuration.
