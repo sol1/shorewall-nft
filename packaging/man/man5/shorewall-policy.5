@@ -32,6 +32,16 @@ policy \- Shorewall policy file
 .SH "SYNOPSIS"
 .HP \w'\fB/etc/shorewall[6]/policy\fR\ 'u
 \fB/etc/shorewall[6]/policy\fR
+.SH "SHOREWALL\-NFT"
+.PP
+This is a
+\fBshorewall\-nft\fR
+manual page\&. shorewall\-nft reads the same configuration files as Shorewall, so this page describes the file format as it does for Shorewall, and a configuration behaves the same way here\&.
+.PP
+Where a keyword or column maps to a specific construct in the nftables ruleset, a note led by
+\fBnftables:\fR
+records it\&. Adding those notes to every page is still in progress\&. A construct without one works as documented, because the configuration format is unchanged\&. See
+\fBshorewall\fR(8) and the coverage document for the overall support state\&.
 .SH "DESCRIPTION"
 .PP
 This file defines the high\-level policy for connections between zones defined in

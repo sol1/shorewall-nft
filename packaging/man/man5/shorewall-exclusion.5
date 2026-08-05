@@ -34,6 +34,16 @@ exclusion \- Exclude a set of hosts from a definition in a shorewall configurati
 \fB!\fR\fIaddress\-or\-range\fR[,\fIaddress\-or\-range\fR]...
 .HP \w'\ 'u
 \fB!\fR\fIzone\-name\fR[,\fIzone\-name\fR]...
+.SH "SHOREWALL\-NFT"
+.PP
+This is a
+\fBshorewall\-nft\fR
+manual page\&. shorewall\-nft reads the same configuration files as Shorewall, so this page describes the file format as it does for Shorewall, and a configuration behaves the same way here\&.
+.PP
+Where a keyword or column maps to a specific construct in the nftables ruleset, a note led by
+\fBnftables:\fR
+records it\&. Adding those notes to every page is still in progress\&. A construct without one works as documented, because the configuration format is unchanged\&. See
+\fBshorewall\fR(8) and the coverage document for the overall support state\&.
 .SH "DESCRIPTION"
 .PP
 The first form of exclusion is used when you wish to exclude one or more addresses from a definition\&. An exclamation point is followed by a comma\-separated list of addresses\&. The addresses may be single host addresses (e\&.g\&., 192\&.168\&.1\&.4) or they may be network addresses in CIDR format (e\&.g\&., 192\&.168\&.1\&.0/24)\&. If your kernel and iptables include iprange support, you may also specify ranges of ip addresses of the form

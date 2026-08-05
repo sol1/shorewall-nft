@@ -27,6 +27,24 @@ HERE = os.path.dirname(os.path.realpath(__file__))
 SRC = os.path.join(HERE, "docbook")
 OUT = os.path.join(HERE, "man5")
 
+# Injected at the top of every page. shorewall-nft reads the same files as
+# Shorewall, so the format described below is correct as written. The nftables
+# notes are being added page by page; a page without them is still an accurate
+# reference for the file format.
+NFT_NOTE = """<refsect1>
+  <title>Shorewall-nft</title>
+  <para>This is a <emphasis role="bold">shorewall-nft</emphasis> manual page.
+  shorewall-nft reads the same configuration files as Shorewall, so this page
+  describes the file format as it does for Shorewall, and a configuration
+  behaves the same way here.</para>
+  <para>Where a keyword or column maps to a specific construct in the nftables
+  ruleset, a note led by <emphasis role="bold">nftables:</emphasis> records
+  it. Adding those notes to every page is still in progress. A construct
+  without one works as documented, because the configuration format is
+  unchanged. See <emphasis role="bold">shorewall</emphasis>(8) and the coverage
+  document for the overall support state.</para>
+</refsect1>"""
+
 # The manpages stylesheet, at its usual place on Debian, Fedora and Arch.
 STYLESHEETS = [
     "/usr/share/xml/docbook/stylesheet/docbook-xsl/manpages/docbook.xsl",
@@ -46,6 +64,18 @@ def find_stylesheet():
     sys.exit("docbook-xsl manpages stylesheet not found; install docbook-xsl")
 
 
+def inject_note(doc):
+    """Put the shorewall-nft note in as the first section, before the upstream
+    Description, on every page."""
+    root = doc.getroot()
+    note = etree.fromstring(NFT_NOTE)
+    for i, child in enumerate(root):
+        if isinstance(child.tag, str) and child.tag.endswith("refsect1"):
+            root.insert(i, note)
+            return
+    root.append(note)
+
+
 def main():
     xsl = etree.parse(find_stylesheet())
     # The manpages stylesheet writes its output with exsl:document, so lxml
@@ -59,6 +89,8 @@ def main():
     count = 0
     for xml in sorted(glob.glob(os.path.join(SRC, "*.xml"))):
         base = os.path.splitext(os.path.basename(xml))[0]
+        doc = etree.parse(xml)
+        inject_note(doc)
         # The stylesheet names the output by the refname and writes it to the
         # working directory, so run each conversion in its own temp dir and
         # rename the result to the source's own name (man shorewall-rules, not
@@ -67,7 +99,7 @@ def main():
         with tempfile.TemporaryDirectory() as d:
             os.chdir(d)
             try:
-                transform(etree.parse(xml))
+                transform(doc)
                 produced = sorted(glob.glob("*.[0-9]"))
                 if not produced:
                     sys.exit(f"no man page produced for {os.path.basename(xml)}")
