@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.2.10
+Version:        0.3.0
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -175,6 +175,22 @@ exit 0
 %systemd_postun shorewall6-lite.service
 
 %changelog
+* Wed Aug 05 2026 Dave Kempe <dave@sol1.com.au> - 0.3.0-1
+- The configuration-file man pages, shorewall-rules(5) and the rest, are
+  generated from Shorewall's own DocBook so they read like upstream, with
+  shorewall-nft notes added where a setting maps to a specific nftables
+  construct. The command reference documents the verbs that are ours.
+- The Shorewall sample configurations are bundled under the share directory.
+- A fresh install has a skeleton /etc/shorewall and /etc/shorewall6, seeded
+  from %post only for files that are absent, so an install over an existing
+  configuration never touches it. The package does not own /etc/shorewall.
+- shorewall load gains --capture, which runs shorecap on the target and
+  compiles against its kernel; shorewall check -r validates a configuration
+  against a remote Shorewall Lite target's kernel.
+- The ipsec zone match is proven against a live xfrm SA, and the tunnels file
+  opens IKE and ESP so the SA traffic is decrypted and matched.
+- A clean install with no configuration reports a located error, not a
+  traceback.
 * Mon Aug 03 2026 Dave Kempe <dave@sol1.com.au> - 0.2.10-1
 - INCLUDE and ?INCLUDE resolve a bare file name through the CONFIG_PATH
   directories, matching upstream, so an include like DMZ.rules is found in a

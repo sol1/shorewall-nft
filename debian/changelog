@@ -1,3 +1,24 @@
+shorewall-nft (0.3.0) unstable; urgency=medium
+
+  * The configuration-file man pages, shorewall-rules(5) and the rest, are
+    generated from Shorewall's own DocBook so they read like upstream, with
+    shorewall-nft notes added where a setting maps to a specific nftables
+    construct. The command reference documents the verbs that are ours.
+  * The Shorewall sample configurations are bundled under the share directory.
+  * A fresh install has a skeleton /etc/shorewall and /etc/shorewall6, seeded
+    from the postinst only for files that are absent, so an install over an
+    existing configuration never touches it. The package does not own
+    /etc/shorewall.
+  * shorewall load gains --capture, which runs shorecap on the target and
+    compiles against its kernel; shorewall check -r validates a configuration
+    against a remote Shorewall Lite target's kernel.
+  * The ipsec zone match is proven against a live xfrm SA, and the tunnels
+    file opens IKE and ESP so the SA traffic is decrypted and matched.
+  * A clean install with no configuration reports a located error, not a
+    traceback.
+
+ -- Dave Kempe <dave@sol1.com.au>  Wed, 05 Aug 2026 10:55:20 +1000
+
 shorewall-nft (0.2.10) unstable; urgency=medium
 
   * INCLUDE and ?INCLUDE resolve a bare file name through the CONFIG_PATH
