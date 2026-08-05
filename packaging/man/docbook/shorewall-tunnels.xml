@@ -1,0 +1,383 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-tunnels</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>tunnels</refname>
+
+    <refpurpose>Shorewall VPN definition file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/etc/shorewall[6]/tunnels</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>The tunnels file is used to define rules for encapsulated (usually
+    encrypted) traffic to pass between the Shorewall system and a remote
+    gateway. Traffic flowing through the tunnel is handled using the normal
+    zone/policy/rule mechanism. See <ulink
+    url="../VPNBasics.html">https://shorewall.org/VPNBasics.html</ulink> for
+    details.</para>
+
+    <para>The columns in the file are as follows.</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><emphasis role="bold">TYPE</emphasis> - {<emphasis
+        role="bold">ipsec</emphasis>[<emphasis
+        role="bold">:{noah</emphasis>|ah}]|<emphasis
+        role="bold">ipsecnat</emphasis>|<emphasis
+        role="bold">ipip</emphasis>|<emphasis
+        role="bold">gre</emphasis>|l2tp|<emphasis
+        role="bold">pptpclient</emphasis>|<emphasis
+        role="bold">pptpserver</emphasis>|?COMMENT|{<emphasis
+        role="bold">openvpn</emphasis>|<emphasis
+        role="bold">openvpnclient</emphasis>|<emphasis
+        role="bold">openvpnserver</emphasis>}[:{<emphasis
+        role="bold">tcp</emphasis>|<emphasis
+        role="bold">udp</emphasis>}]<emphasis
+        role="bold">[</emphasis>:<emphasis>port</emphasis>]|<emphasis
+        role="bold">generic</emphasis><emphasis
+        role="bold">:</emphasis><emphasis>protocol</emphasis>[<emphasis
+        role="bold">:</emphasis><emphasis>port</emphasis>]}</term>
+
+        <listitem>
+          <para>Types are as follows:</para>
+
+          <programlisting>        <emphasis role="bold">6to4</emphasis> or <emphasis
+              role="bold">6in4</emphasis>  - 6to4 or 6in4 tunnel. The <emphasis
+              role="bold">6in4</emphasis> synonym was added in 4.4.24.
+        <emphasis role="bold">ipsec</emphasis>         - IPv4 IPSEC
+        <emphasis role="bold">ipsecnat</emphasis>      - IPv4 IPSEC with NAT Traversal (UDP port 4500 encapsulation)
+        <emphasis role="bold">ipip</emphasis>          - IPv4 encapsulated in IPv4 (Protocol 4)
+        <emphasis role="bold">gre</emphasis>           - Generalized Routing Encapsulation (Protocol 47)
+        <emphasis role="bold">l2tp</emphasis>          - Layer 2 Tunneling Protocol (UDP port 1701)
+        <emphasis role="bold">pptpclient</emphasis>    - PPTP Client runs on the firewall
+        <emphasis role="bold">pptpserver</emphasis>    - PPTP Server runs on the firewall
+        <emphasis role="bold">openvpn</emphasis>       - OpenVPN in point-to-point mode
+        <emphasis role="bold">openvpnclient</emphasis> - OpenVPN client runs on the firewall
+        <emphasis role="bold">openvpnserver</emphasis> - OpenVPN server runs on the firewall
+        <emphasis role="bold">generic</emphasis>       - Other tunnel type
+        <emphasis role="bold">tinc</emphasis>          - TINC (added in Shorewall 4.6.6)</programlisting>
+
+          <para>If the type is <emphasis role="bold">ipsec</emphasis>, it may
+          be followed by <emphasis role="bold">:ah</emphasis> to indicate that
+          the Authentication Headers protocol (51) is used by the tunnel (the
+          default is <option>:noah</option> which means that protocol 51 is
+          not used). NAT traversal is only supported with ESP (protocol 50) so
+          <emphasis role="bold">ipsecnat</emphasis> tunnels don't allow the
+          <emphasis role="bold">ah</emphasis> option (<emphasis
+          role="bold">ipsecnat:noah</emphasis> may be specified but is
+          redundant).</para>
+
+          <para>If type is <emphasis role="bold">openvpn</emphasis>, <emphasis
+          role="bold">openvpnclient</emphasis> or <emphasis
+          role="bold">openvpnserver</emphasis> it may optionally be followed
+          by ":" and <emphasis role="bold">tcp</emphasis> or <emphasis
+          role="bold">udp</emphasis> to specify the protocol to be used. If
+          not specified, <emphasis role="bold">udp</emphasis> is
+          assumed.</para>
+
+          <para>If type is <emphasis role="bold">openvpn</emphasis>, <emphasis
+          role="bold">openvpnclient</emphasis> or <emphasis
+          role="bold">openvpnserver</emphasis> it may optionally be followed
+          by ":" and the port number used by the tunnel. if no ":" and port
+          number are included, then the default port of 1194 will be used. .
+          Where both the protocol and port are specified, the protocol must be
+          given first (e.g., openvpn:tcp:4444).</para>
+
+          <para>If type is <emphasis role="bold">generic</emphasis>, it must
+          be followed by ":" and a protocol name (from /etc/protocols) or a
+          protocol number. If the protocol is <emphasis
+          role="bold">tcp</emphasis> or <emphasis role="bold">udp</emphasis>
+          (6 or 17), then it may optionally be followed by ":" and a port
+          number.</para>
+
+          <para>Comments may be attached to Netfilter rules generated from
+          entries in this file through the use of /COMMENT lines. These lines
+          begin with ?COMMENT; the remainder of the line is treated as a
+          comment which is attached to subsequent rules until another ?COMMENT
+          line is found or until the end of the file is reached. To stop
+          adding comments to rules, use a line containing only
+          ?COMMENT.</para>
+
+          <note>
+            <para>Beginning with Shorewall 4.5.11, ?COMMENT is a synonym for
+            COMMENT and is preferred.</para>
+          </note>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">ZONE</emphasis> -
+        <emphasis>zone</emphasis></term>
+
+        <listitem>
+          <para>The <emphasis>zone</emphasis> of the physical interface
+          through which tunnel traffic passes. This is normally your internet
+          zone.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">GATEWAY</emphasis>(S) (gateway or
+        gateways) - <emphasis>address-or-range</emphasis> <emphasis
+        role="bold">[ , ... ]</emphasis></term>
+
+        <listitem>
+          <para>The IP address of the remote tunnel gateway. If the remote
+          gateway has no fixed address (Road Warrior) then specify the gateway
+          as <emphasis role="bold">0.0.0.0/0</emphasis>. May be specified as a
+          network address and if your kernel and iptables include iprange
+          match support then IP address ranges are also allowed.</para>
+
+          <para>Beginning with Shorewall 4.5.3, a list of addresses or ranges
+          may be given. Exclusion (<ulink
+          url="shorewall-exclusion.html">shorewall-exclusion</ulink>
+          (5) ) is not supported.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">GATEWAY ZONES</emphasis> (gateway_zone or
+        gateway_zones) - [<emphasis>zone</emphasis>[<emphasis
+        role="bold">,</emphasis><emphasis>zone</emphasis>]...]</term>
+
+        <listitem>
+          <para>Optional. If the gateway system specified in the third column
+          is a standalone host then this column should contain a
+          comma-separated list of the names of the zones that the host might
+          be in. This column only applies to IPSEC tunnels where it enables
+          ISAKMP traffic to flow through the tunnel to the remote
+          gateway(s).</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Example</title>
+
+    <variablelist>
+      <varlistentry>
+        <term>IPv4 Example 1:</term>
+
+        <listitem>
+          <para>IPSec tunnel.</para>
+
+          <para>The remote gateway is 4.33.99.124 and the remote subnet is
+          192.168.9.0/24. The tunnel does not use the AH protocol</para>
+
+          <programlisting>        #TYPE           ZONE    GATEWAY
+        ipsec:noah      net     4.33.99.124</programlisting>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>IPv4 Example 2:</term>
+
+        <listitem>
+          <para>Road Warrior (LapTop that may connect from anywhere) where the
+          "gw" zone is used to represent the remote LapTop</para>
+
+          <programlisting>        #TYPE           ZONE    GATEWAY         GATEWAY ZONES
+        ipsec           net     0.0.0.0/0       gw</programlisting>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>IPv4 Example 3:</term>
+
+        <listitem>
+          <para>Host 4.33.99.124 is a standalone system connected via an ipsec
+          tunnel to the firewall system. The host is in zone gw.</para>
+
+          <programlisting>        #TYPE           ZONE    GATEWAY         GATEWAY ZONES
+        ipsec           net     4.33.99.124     gw</programlisting>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>IPv4 Example 4:</term>
+
+        <listitem>
+          <para>Road Warriors that may belong to zones vpn1, vpn2 or vpn3. The
+          FreeS/Wan _updown script will add the host to the appropriate zone
+          using the <command>shorewall add</command> command on connect and
+          will remove the host from the zone at disconnect time.</para>
+
+          <programlisting>        #TYPE           ZONE    GATEWAY         GATEWAY ZONES
+        ipsec           net     0.0.0.0/0       vpn1,vpn2,vpn3</programlisting>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>IPv4 Example 5:</term>
+
+        <listitem>
+          <para>You run the Linux PPTP client on your firewall and connect to
+          server 192.0.2.221.</para>
+
+          <programlisting>        #TYPE           ZONE    GATEWAY         GATEWAY ZONES
+        pptpclient      net     192.0.2.221</programlisting>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>IPv4 Example 6:</term>
+
+        <listitem>
+          <para>You run a PPTP server on your firewall.</para>
+
+          <programlisting>        #TYPE           ZONE    GATEWAY         GATEWAY ZONES
+        pptpserver      net     0.0.0.0/0</programlisting>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>Example 7:</term>
+
+        <listitem>
+          <para>OPENVPN tunnel. The remote gateway is 4.33.99.124 and openvpn
+          uses port 7777.</para>
+
+          <programlisting>        #TYPE           ZONE    GATEWAY         GATEWAY ZONES
+        openvpn:7777    net     4.33.99.124</programlisting>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>IPv4 Example 8:</term>
+
+        <listitem>
+          <para>You have a tunnel that is not one of the supported types. Your
+          tunnel uses UDP port 4444. The other end of the tunnel is
+          4.3.99.124.</para>
+
+          <programlisting>        #TYPE            ZONE    GATEWAY         GATEWAY ZONES
+        generic:udp:4444 net     4.3.99.124</programlisting>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>IPv4 Example 9:</term>
+
+        <listitem>
+          <para>TINC tunnel where the remote gateways are not specified. If
+          you wish to specify a list of gateways, you can do so in the GATEWAY
+          column.</para>
+
+          <programlisting>        #TYPE            ZONE    GATEWAY          GATEWAY ZONES
+        tinc             net     0.0.0.0/0</programlisting>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>IPv6 Example 1:</term>
+
+        <listitem>
+          <para>IPSec tunnel.</para>
+
+          <para>The remote gateway is 2001:cec792b4:1::44. The tunnel does not
+          use the AH protocol</para>
+
+          <programlisting>        #TYPE           ZONE    GATEWAY
+        ipsec:noah      net     2002:cec792b4:1::44</programlisting>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>IPv6 Example 2:</term>
+
+        <listitem>
+          <para>Road Warrior (LapTop that may connect from anywhere) where the
+          "gw" zone is used to represent the remote LapTop</para>
+
+          <programlisting>        #TYPE           ZONE    GATEWAY                 GATEWAY ZONES
+        ipsec           net     ::/0                    gw</programlisting>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>IPv6 Example 3:</term>
+
+        <listitem>
+          <para>Host 2001:cec792b4:1::44 is a standalone system connected via
+          an ipsec tunnel to the firewall system. The host is in zone
+          gw.</para>
+
+          <programlisting>        #TYPE           ZONE    GATEWAY                 GATEWAY ZONES
+        ipsec           net     2001:cec792b4:1::44     gw</programlisting>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>IPv6 Example 4:</term>
+
+        <listitem>
+          <para>OPENVPN tunnel. The remote gateway is 2001:cec792b4:1::44 and
+          openvpn uses port 7777.</para>
+
+          <programlisting>        #TYPE           ZONE    GATEWAY                 GATEWAY ZONES
+        openvpn:7777    net     2001:cec792b4:1::44</programlisting>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>IPv6 Example 8:</term>
+
+        <listitem>
+          <para>You have a tunnel that is not one of the supported types. Your
+          tunnel uses UDP port 4444. The other end of the tunnel is
+          2001:cec792b4:1::44.</para>
+
+          <programlisting>        #TYPE            ZONE    GATEWAY                GATEWAY ZONES
+        generic:udp:4444 net     2001:cec792b4:1::44</programlisting>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>IPv6 Example 9:</term>
+
+        <listitem>
+          <para>TINC tunnel where the remote gateways are not specified. If
+          you wish to specify a list of gateways, you can do so in the GATEWAY
+          column.</para>
+
+          <programlisting>        #TYPE            ZONE    GATEWAY          GATEWAY ZONES
+        tinc             net     ::/0</programlisting>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall/tunnels</para>
+
+    <para>/etc/shorewall6/tunnels</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para><ulink
+    url="../configuration_file_basics.htm#Pairs">https://shorewall.org/configuration_file_basics.htm#Pairs</ulink></para>
+
+    <para>shorewall(8)</para>
+  </refsect1>
+</refentry>

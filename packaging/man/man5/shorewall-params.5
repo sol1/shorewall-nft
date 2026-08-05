@@ -1,0 +1,201 @@
+'\" t
+.\"     Title: shorewall-params
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Configuration Files
+.\"    Source: Configuration Files
+.\"  Language: English
+.\"
+.TH "SHOREWALL\-PARAMS" "5" "08/05/2026" "Configuration Files" "Configuration Files"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+params \- Shorewall parameters file
+.SH "SYNOPSIS"
+.HP \w'\fB/etc/shorewall[6]/params\fR\ 'u
+\fB/etc/shorewall[6]/params\fR
+.SH "DESCRIPTION"
+.PP
+Assign any shell variables that you need in this file\&. The file is always processed by
+/bin/sh
+so the full range of shell capabilities may be used\&.
+.PP
+It is suggested that variable names begin with an upper case letter to distinguish them from variables used internally within the Shorewall programs
+.PP
+The following variable names must be avoided\&. Those in
+\fBbold font\fR
+must be avoided in all Shorewall versions; those in regular font must be avoided in versions prior to 4\&.4\&.8\&.
+.RS 4
+\fBAny option from \fR\fB\m[blue]\fBshorewall\&.conf\fR\m[]\&\s-2\u[1]\d\s+2\fR\fB
+      (5)\fR
+.RE
+.RS 4
+\fBCOMMAND\fR
+.RE
+.RS 4
+\fBCONFDIR\fR
+.RE
+.RS 4
+DEBUG
+.RE
+.RS 4
+ECHO_E
+.RE
+.RS 4
+ECHO_N
+.RE
+.RS 4
+EXPORT
+.RE
+.RS 4
+FAST
+.RE
+.RS 4
+FILEMODE
+.RE
+.RS 4
+HOSTNAME
+.RE
+.RS 4
+IPT_OPTIONS
+.RE
+.RS 4
+NOROUTES
+.RE
+.RS 4
+PREVIEW
+.RE
+.RS 4
+PRODUCT
+.RE
+.RS 4
+PROFILE
+.RE
+.RS 4
+PURGE
+.RE
+.RS 4
+RECOVERING
+.RE
+.RS 4
+RESTOREPATH
+.RE
+.RS 4
+RING_BELL
+.RE
+.RS 4
+\fBSHAREDIR\fR
+.RE
+.RS 4
+\fBAny name beginning with SHOREWALL_ or
+      SW_\fR
+.RE
+.RS 4
+STOPPING
+.RE
+.RS 4
+TEST
+.RE
+.RS 4
+TIMESTAMP
+.RE
+.RS 4
+USE_VERBOSITY
+.RE
+.RS 4
+\fBVARDIR\fR
+.RE
+.RS 4
+VERBOSE
+.RE
+.RS 4
+VERBOSE_OFFSET
+.RE
+.RS 4
+VERSION
+.RE
+.PP
+Example params file:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+NET_IF=eth0
+NET_BCAST=130\&.252\&.100\&.255
+NET_OPTIONS=routefilter
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Example
+\m[blue]\fBshorewall\-interfaces\fR\m[]\&\s-2\u[2]\d\s+2(5) file\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ZONE    INTERFACE       BROADCAST       OPTIONS
+net     $NET_IF         $NET_BCAST      $NET_OPTIONS
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+This is the same as if the interfaces file had contained:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ZONE    INTERFACE       BROADCAST       OPTIONS
+net     eth0            130\&.252\&.100\&.255 routefilter
+.fi
+.if n \{\
+.RE
+.\}
+.SH "FILES"
+.PP
+/etc/shorewall/params
+.PP
+/etc/shorewall6/params
+.SH "SEE ALSO"
+.PP
+\m[blue]\fBhttps://shorewall\&.org/configuration_file_basics\&.htm#Variables\fR\m[]\&\s-2\u[3]\d\s+2
+.PP
+shorewall(8)
+.SH "NOTES"
+.IP " 1." 4
+shorewall.conf
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall.conf.html
+.RE
+.IP " 2." 4
+shorewall-interfaces
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-interfaces.html
+.RE
+.IP " 3." 4
+https://shorewall.org/configuration_file_basics.htm#Variables
+.RS 4
+\%[set $man.base.url.for.relative.links]/../configuration_file_basics.htm#Variables
+.RE

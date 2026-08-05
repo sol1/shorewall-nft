@@ -1,0 +1,315 @@
+'\" t
+.\"     Title: shorewall-hosts
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Configuration Files
+.\"    Source: Configuration Files
+.\"  Language: English
+.\"
+.TH "SHOREWALL\-HOSTS" "5" "08/05/2026" "Configuration Files" "Configuration Files"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+hosts \- Shorewall file
+.SH "SYNOPSIS"
+.HP \w'\fB/etc/shorewall[6]/hosts\fR\ 'u
+\fB/etc/shorewall[6]/hosts\fR
+.SH "DESCRIPTION"
+.PP
+This file is used to define zones in terms of subnets and/or individual IP addresses\&. Most simple setups don\*(Aqt need to (should not) place anything in this file\&.
+.PP
+The order of entries in this file is not significant in determining zone composition\&. Rather, the order that the zones are declared in
+\m[blue]\fBshorewall\-zones\fR\m[]\&\s-2\u[1]\d\s+2(5) determines the order in which the records in this file are interpreted\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBWarning\fR
+.ps -1
+.br
+.PP
+The only time that you need this file is when you have more than one zone connected through a single interface\&.
+.sp .5v
+.RE
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBWarning\fR
+.ps -1
+.br
+.PP
+If you have an entry for a zone and interface in
+\m[blue]\fBshorewall\-interfaces\fR\m[]\&\s-2\u[2]\d\s+2(5) then do not include any entries in this file for that same (zone, interface) pair\&.
+.sp .5v
+.RE
+.PP
+The columns in the file are as follows\&.
+.PP
+\fBZONE\fR \- \fIzone\-name\fR
+.RS 4
+The name of a zone declared in
+\m[blue]\fBshorewall\-zones\fR\m[]\&\s-2\u[1]\d\s+2(5)\&. You may not list the firewall zone in this column\&.
+.RE
+.PP
+\fBHOST(S)\fR \- \fIinterface\fR:{[{\fIaddress\-or\-range\fR[\fB,\fR\fIaddress\-or\-range\fR]\&.\&.\&.|\fB+\fR\fIipset\fR|\fBdynamic\fR}[\fIexclusion\fR]
+.RS 4
+The name of an interface defined in the
+\m[blue]\fBshorewall\-interfaces\fR\m[]\&\s-2\u[2]\d\s+2(5) file followed by a colon (":") and a comma\-separated list whose elements are either:
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+The IP
+\fIaddress\fR
+of a host\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
+A network in CIDR format\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 3.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  3." 4.2
+.\}
+An IP address range of the form
+\fIlow\&.address\fR\-\fIhigh\&.address\fR\&. Your kernel and iptables must have iprange match support\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 4.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  4." 4.2
+.\}
+The name of an
+\fIipset\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 5.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  5." 4.2
+.\}
+The word
+\fBdynamic\fR
+which makes the zone dynamic in that you can use the
+\fBshorewall add\fR
+and
+\fBshorewall delete\fR
+commands to change to composition of the zone\&.
+.RE
+.sp
+You may also exclude certain hosts through use of an
+\fIexclusion\fR
+(see
+\m[blue]\fBshorewall\-exclusion\fR\m[]\&\s-2\u[3]\d\s+2(5)\&.
+.RE
+.PP
+\fBOPTIONS\fR (Optional) \- [\fIoption\fR[\fB,\fR\fIoption\fR]\&.\&.\&.]
+.RS 4
+A comma\-separated list of options from the following list\&. The order in which you list the options is not significant but the list must have no embedded white\-space\&.
+.PP
+\fBblacklist\fR
+.RS 4
+Check packets arriving on this port against the
+\m[blue]\fBshorewall\-blacklist\fR\m[]\&\s-2\u[4]\d\s+2(5) file\&.
+.RE
+.PP
+\fBbroadcast\fR
+.RS 4
+Used when you want to include limited broadcasts (destination IP address 255\&.255\&.255\&.255) from the firewall to this zone\&. Only necessary when:
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+The network specified in the HOST(S) column does not include 255\&.255\&.255\&.255\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
+The zone does not have an entry for this interface in
+\m[blue]\fBshorewall\-interfaces\fR\m[]\&\s-2\u[2]\d\s+2(5)\&.
+.RE
+.RE
+.PP
+\fBdestonly\fR
+.RS 4
+Normally used with the Multi\-cast IP address range (224\&.0\&.0\&.0/4)\&. Specifies that traffic will be sent to the specified net(s) but that no traffic will be received from the net(s)\&.
+.RE
+.PP
+\fBipsec\fR
+.RS 4
+The zone is accessed via a kernel 2\&.6 ipsec SA\&. Note that if the zone named in the ZONE column is specified as an IPSEC zone in the
+\m[blue]\fBshorewall\-zones\fR\m[]\&\s-2\u[1]\d\s+2(5) file then you do NOT need to specify the \*(Aqipsec\*(Aq option here\&.
+.RE
+.PP
+\fBmaclist\fR
+.RS 4
+Connection requests from these hosts are compared against the contents of
+\m[blue]\fBshorewall\-maclist\fR\m[]\&\s-2\u[5]\d\s+2(5)\&. If this option is specified, the interface must be an Ethernet NIC or equivalent and must be up before Shorewall is started\&.
+.RE
+.PP
+\fBmss\fR=\fImss\fR
+.RS 4
+Added in Shorewall 4\&.5\&.2\&. When present, causes the TCP mss for new connections to/from the hosts given in the HOST(S) column to be clamped at the specified
+\fImss\fR\&.
+.RE
+.PP
+\fBnosmurfs\fR
+.RS 4
+This option only makes sense for ports on a bridge\&.
+.sp
+Filter packets for smurfs (packets with a broadcast address as the source)\&.
+.sp
+Smurfs will be optionally logged based on the setting of SMURF_LOG_LEVEL in
+\m[blue]\fBshorewall\&.conf\fR\m[]\&\s-2\u[6]\d\s+2(5)\&. After logging, the packets are dropped\&.
+.RE
+.PP
+\fBrouteback\fR
+.RS 4
+Shorewall should set up the infrastructure to pass packets from this/these address(es) back to themselves\&. This is necessary if hosts in this group use the services of a transparent proxy that is a member of the group or if DNAT is used to send requests originating from this group to a server in the group\&.
+.RE
+.PP
+\fBtcpflags\fR
+.RS 4
+Packets arriving from these hosts are checked for certain illegal combinations of TCP flags\&. Packets found to have such a combination of flags are handled according to the setting of TCP_FLAGS_DISPOSITION after having been logged according to the setting of TCP_FLAGS_LOG_LEVEL\&.
+.RE
+.PP
+nodbl
+.RS 4
+This option was added in Shorewall 5\&.2\&.9\&. It causes addresses in the HOSTS column to be exempted from ipset\-based dynamic blacklisting (DYNAMIC_BLACKLIST={\fBipset\fR|\fBipsec\-only\fR)\&.\&.\&. in
+\m[blue]\fBShorewall\&.conf\fR\m[]\&\s-2\u[6]\d\s+2(5))\&. It may only be specified if the
+\fIzone\-name\fR
+listed in the ZONE column is defined as an
+\fBip\fR
+(\fBip\fR,
+\fBip4\fR, or
+\fBip6\fR) zone in
+\m[blue]\fBshorewall\-zones\fR\m[]\&\s-2\u[1]\d\s+2(5)\&.
+.RE
+.RE
+.SH "EXAMPLES"
+.PP
+Example 1
+.RS 4
+The firewall runs a PPTP server which creates a ppp interface for each remote client\&. The clients are assigned IP addresses in the network 192\&.168\&.3\&.0/24 and in a zone named \*(Aqvpn\*(Aq\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+#ZONE       HOST(S)               OPTIONS
+vpn         ppp+:192\&.168\&.3\&.0/24
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.SH "FILES"
+.PP
+/etc/shorewall/hosts
+.PP
+/etc/shorewall6/hosts
+.SH "SEE ALSO"
+.PP
+\m[blue]\fBhttps://shorewall\&.org/configuration_file_basics\&.htm#Pairs\fR\m[]\&\s-2\u[7]\d\s+2
+.PP
+shorewall(8)
+.SH "NOTES"
+.IP " 1." 4
+shorewall-zones
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-zones.html
+.RE
+.IP " 2." 4
+shorewall-interfaces
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-interfaces.html
+.RE
+.IP " 3." 4
+shorewall-exclusion
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-exclusion.html
+.RE
+.IP " 4." 4
+shorewall-blacklist
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-blacklist.html
+.RE
+.IP " 5." 4
+shorewall-maclist
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-maclist.html
+.RE
+.IP " 6." 4
+shorewall.conf
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall.conf.html
+.RE
+.IP " 7." 4
+https://shorewall.org/configuration_file_basics.htm#Pairs
+.RS 4
+\%[set $man.base.url.for.relative.links]/../configuration_file_basics.htm#Pairs
+.RE

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>file</refname>
+
+    <refpurpose>Shorewall file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/etc/shorewall/</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>The columns in the file are as follows.</para>
+
+    <variablelist>
+      <varlistentry>
+        <term>COLUMN 1</term>
+
+        <listitem>
+          <para></para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Example</title>
+
+    <para></para>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall/</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para>shorewall(8), shorewall-accounting(5), shorewall-actions(5),
+    shorewall-blacklist(5), shorewall-hosts(5), shorewall_interfaces(5),
+    shorewall-ipsets(5), shorewall-maclist(5), shorewall-masq(5),
+    shorewall-nat(5), shorewall-netmap(5), shorewall-params(5),
+    shorewall-policy(5), shorewall-providers(5), shorewall-proxyarp(5),
+    shorewall-rtrules(5), shorewall-routestopped(5), shorewall-rules(5),
+    shorewall.conf(5), shorewall-secmarks(5), shorewall-tcclasses(5),
+    shorewall-tcdevices(5), shorewall-mangle(5), shorewall-tos(5),
+    shorewall-tunnels(5), shorewall-zones(5)</para>
+  </refsect1>
+</refentry>

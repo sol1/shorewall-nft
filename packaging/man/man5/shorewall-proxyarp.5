@@ -1,0 +1,137 @@
+'\" t
+.\"     Title: shorewall-proxyarp
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Configuration Files
+.\"    Source: Configuration Files
+.\"  Language: English
+.\"
+.TH "SHOREWALL\-PROXYARP" "5" "08/05/2026" "Configuration Files" "Configuration Files"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+proxyarp \- Shorewall Proxy ARP file
+.SH "SYNOPSIS"
+.HP \w'\fB/etc/shorewall/proxyarp\fR\ 'u
+\fB/etc/shorewall/proxyarp\fR
+.SH "DESCRIPTION"
+.PP
+IPv4 only\&.
+.PP
+This file is used to define Proxy ARP\&. There is one entry in this file for each IP address to be proxied\&.
+.PP
+The columns in the file are as follows\&.
+.PP
+\fBADDRESS\fR \- \fIaddress\fR
+.RS 4
+IP Address\&.
+.RE
+.PP
+\fBINTERFACE\fR \- \fIinterface\fR (Optional as of Shorewall 4\&.4\&.16)
+.RS 4
+Local interface where system with the ip address in ADDRESS is connected\&. This column is only required when HAVEROUTE is set to
+\fBNo\fR
+(\fBno\fR) or is left empty\&.
+.RE
+.PP
+\fBEXTERNAL\fR \- \fIinterface\fR
+.RS 4
+External Interface to be used to access this system from the Internet\&.
+.RE
+.PP
+\fBHAVEROUTE\fR \- [\fB\-\fR|\fBYes\fR|\fBNo\fR]
+.RS 4
+If there is already a route from the firewall to the host whose address is given, enter
+\fBYes\fR
+or
+\fByes\fR
+in this column\&. Otherwise, enter
+\fBno\fR
+or
+\fBNo\fR
+or leave the column empty and Shorewall will add the route for you\&. If Shorewall adds the route, its persistence depends on the value of the\fBPERSISTENT\fR
+column contains
+\fBYes\fR; otherwise,
+\fBshorewall stop\fR
+or
+\fBshorewall clear\fR
+will delete the route\&.
+.RE
+.PP
+\fBPERSISTENT\fR \- [\fB\-\fR|\fBYes\fR|\fBNo\fR]
+.RS 4
+If HAVEROUTE is
+\fBNo\fR
+or
+\fBno\fR, then the value of this column determines if the route added by Shorewall persists after a
+\fBshorewall stop\fR
+or a
+\fBshorewall clear\fR\&. If this column contains
+\fBYes\fR
+or
+\fByes\fR
+then the route persists; If the column is empty or contains
+\fBNo\fR
+or
+\fBno\fR
+then the route is deleted by
+\fBshorewall stop\fR
+or
+\fBshorewall clear\fR\&.
+.RE
+.SH "EXAMPLE"
+.PP
+Example 1:
+.RS 4
+Host with IP 155\&.186\&.235\&.6 is connected to interface eth1 and we want hosts attached via eth0 to be able to access it using that address\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+       #ADDRESS        INTERFACE       EXTERNAL
+       155\&.186\&.235\&.6   eth1            eth0
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.SH "FILES"
+.PP
+/etc/shorewall/proxyarp
+.SH "SEE ALSO"
+.PP
+\m[blue]\fBhttps://shorewall\&.org/ProxyARP\&.htm\fR\m[]\&\s-2\u[1]\d\s+2
+.PP
+\m[blue]\fBhttps://shorewall\&.org/configuration_file_basics\&.htm#Pairs\fR\m[]\&\s-2\u[2]\d\s+2
+.PP
+shorewall(8)
+.SH "NOTES"
+.IP " 1." 4
+https://shorewall.org/ProxyARP.htm
+.RS 4
+\%[set $man.base.url.for.relative.links]/../ProxyARP.htm
+.RE
+.IP " 2." 4
+https://shorewall.org/configuration_file_basics.htm#Pairs
+.RS 4
+\%[set $man.base.url.for.relative.links]/../configuration_file_basics.htm#Pairs
+.RE

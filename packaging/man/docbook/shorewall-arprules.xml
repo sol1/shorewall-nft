@@ -1,0 +1,388 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-arprules</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>arprules</refname>
+
+    <refpurpose>Shorewall ARP rules file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/etc/shorewall/arprules</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>IPv4 only.</para>
+
+    <para>This file was added in Shorewall 4.5.12 and is used to describe
+    low-level rules managed by arptables (8). These rules only affect Address
+    Resolution Protocol (ARP), Reverse Address Resolution Protocol (RARP) and
+    Dynamic Reverse Address Resolution Protocol (DRARP) frames.</para>
+
+    <para>The columns in the file are as shown below. MAC addresses are
+    specified normally (6 hexadecimal numbers separated by colons).</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><emphasis role="bold">ACTION</emphasis></term>
+
+        <listitem>
+          <para>Describes the action to take when a frame matches the criteria
+          in the other columns. Possible values are:</para>
+
+          <variablelist>
+            <varlistentry>
+              <term><emphasis role="bold">ACCEPT</emphasis></term>
+
+              <listitem>
+                <para>This is the default action if no rules matches a frame;
+                it lets the frame go through.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">DROP</emphasis></term>
+
+              <listitem>
+                <para>Causes the frame to be dropped.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">SNAT:</emphasis><replaceable>ip-address</replaceable></term>
+
+              <listitem>
+                <para>Modifies the source IP address to the specified
+                <replaceable>ip-address</replaceable>.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">DNAT:</emphasis><replaceable>ip-address</replaceable></term>
+
+              <listitem>
+                <para>Modifies the destination IP address to the specified
+                <replaceable>ip-address</replaceable>.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">SMAT:</emphasis><replaceable>mac-address</replaceable></term>
+
+              <listitem>
+                <para>Modifies the source MAC address to the specified
+                <replaceable>mac-address</replaceable>.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">DMAT:</emphasis><replaceable>mac-address</replaceable></term>
+
+              <listitem>
+                <para>Modifies the destination MAC address to the specified
+                <replaceable>mac-address</replaceable>.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">SNATC:</emphasis><replaceable>ip-address</replaceable></term>
+
+              <listitem>
+                <para>Like SNAT except that the frame is then passed to the
+                next rule.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">DNATC:</emphasis><replaceable>ip-address</replaceable></term>
+
+              <listitem>
+                <para>Like DNAT except that the frame is then passed to the
+                next rule.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">SMATC:</emphasis><replaceable>mac-address</replaceable></term>
+
+              <listitem>
+                <para>Like SMAT except that the frame is then passed to the
+                next rule.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">DMATC:</emphasis><replaceable>mac-address</replaceable></term>
+
+              <listitem>
+                <para>Like DMAT except that the frame is then passed to the
+                next rule.</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">SOURCE</emphasis> - <emphasis
+        role="bold">[<replaceable>interface</replaceable>[:[!]<replaceable>ipaddress</replaceable>[/ip<replaceable>mask</replaceable>][:[!]<replaceable>macaddress</replaceable>[/<replaceable>macmask</replaceable>]]]]</emphasis></term>
+
+        <listitem>
+          <para>Where</para>
+
+          <variablelist>
+            <varlistentry>
+              <term><replaceable>interface</replaceable></term>
+
+              <listitem>
+                <para>Is an interface defined in
+                shorewall-interfaces(5).</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><replaceable>ipaddress</replaceable></term>
+
+              <listitem>
+                <para>is an IPv4 address. DNS names are not allowed.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><replaceable>ipmask</replaceable></term>
+
+              <listitem>
+                <para>specifies a mask to be applied to
+                <replaceable>ipaddress</replaceable>.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><replaceable>macaddress</replaceable></term>
+
+              <listitem>
+                <para>The source MAC address.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><replaceable>macmask</replaceable></term>
+
+              <listitem>
+                <para>Mask for MAC address; must be specified as 6 hexadecimal
+                numbers separated by colons.</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+
+          <para>When '!' is specified, the test is inverted.</para>
+
+          <para>If not specified, matches only frames originating on the
+          firewall itself.</para>
+
+          <caution>
+            <para>Either SOURCE or DEST must be specified.</para>
+          </caution>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">DEST</emphasis> - <emphasis
+        role="bold">[<replaceable>interface</replaceable>[:[!]<replaceable>ipaddress</replaceable>[/ip<replaceable>mask</replaceable>][:[!]<replaceable>macaddress</replaceable>[/<replaceable>macmask</replaceable>]]]]</emphasis></term>
+
+        <listitem>
+          <para>Where</para>
+
+          <variablelist>
+            <varlistentry>
+              <term><replaceable>interface</replaceable></term>
+
+              <listitem>
+                <para>Is an interface defined in
+                shorewall-interfaces(5).</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><replaceable>ipaddress</replaceable></term>
+
+              <listitem>
+                <para>is an IPv4 address. DNS Names are not allowed.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><replaceable>ipmask</replaceable></term>
+
+              <listitem>
+                <para>specifies a mask to be applied to frame
+                addresses.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><replaceable>macaddress</replaceable></term>
+
+              <listitem>
+                <para>The destination MAC address.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><replaceable>macmask</replaceable></term>
+
+              <listitem>
+                <para>Mask for MAC address; must be specified as 6 hexadecimal
+                numbers separated by colons.</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+
+          <para>When '!' is specified, the test is inverted and the rule
+          matches frames which do not match the specified address/mask.</para>
+
+          <para>If not specified, matches only frames originating on the
+          firewall itself.</para>
+
+          <para>If both SOURCE and DEST are specified, then both interfaces
+          must be bridge ports on the same bridge.</para>
+
+          <caution>
+            <para>Either SOURCE or DEST must be specified.</para>
+          </caution>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>OPCODE - [[!]<replaceable>opcode</replaceable>]</term>
+
+        <listitem>
+          <para>Optional. Describes the type of frame. Possible
+          <replaceable>opcode</replaceable> values are:</para>
+
+          <variablelist>
+            <varlistentry>
+              <term>1</term>
+
+              <listitem>
+                <para>ARP Request</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>2</term>
+
+              <listitem>
+                <para>ARP Reply</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>3</term>
+
+              <listitem>
+                <para>RARP Request</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>4</term>
+
+              <listitem>
+                <para>RARP Reply</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>5</term>
+
+              <listitem>
+                <para>Dynamic RARP Request</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>6</term>
+
+              <listitem>
+                <para>Dynamic RARP Reply</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>7</term>
+
+              <listitem>
+                <para>Dynamic RARP Error</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>8</term>
+
+              <listitem>
+                <para>InARP Request</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>9</term>
+
+              <listitem>
+                <para>ARP NAK</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+
+          <para>When '!' is specified, the test is inverted and the rule
+          matches frames which do not match the specified
+          <replaceable>opcode</replaceable>.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Example</title>
+
+    <para>The eth1 interface has both a public IP address and a private
+    address (10.1.10.11/24). When sending ARP requests to 10.1.10.0/24, use
+    the private address as the IP source:</para>
+
+    <programlisting>#ACTION                SOURCE                  DEST                ARP OPCODE
+SNAT:10.1.10.11        -                       eth1:10.1.10.0/24   1</programlisting>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall/arprules</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para>shorewall(8)</para>
+  </refsect1>
+</refentry>

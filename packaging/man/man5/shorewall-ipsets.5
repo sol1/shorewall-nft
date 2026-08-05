@@ -1,0 +1,271 @@
+'\" t
+.\"     Title: shorewall-ipsets
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Configuration Files
+.\"    Source: Configuration Files
+.\"  Language: English
+.\"
+.TH "SHOREWALL\-IPSETS" "5" "08/05/2026" "Configuration Files" "Configuration Files"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+ipsets \- Specifying the name if an ipset in Shorewall configuration files
+.SH "SYNOPSIS"
+.HP \w'\fB+\fR\fB\fIipsetname\fR\fR\ 'u
+\fB+\fR\fB\fIipsetname\fR\fR
+.HP \w'\fB+\fR\fB\fIipsetname\fR\fR\fB[\fR\fB\fIflag\fR\fR\fB,\&.\&.\&.]\fR\ 'u
+\fB+\fR\fB\fIipsetname\fR\fR\fB[\fR\fB\fIflag\fR\fR\fB,\&.\&.\&.]\fR
+.HP \w'\fB+[ipsetname,\&.\&.\&.]\fR\ 'u
+\fB+[ipsetname,\&.\&.\&.]\fR
+.SH "DESCRIPTION"
+.PP
+Note: In the above syntax descriptions, the square brackets ("[]") are to be taken literally rather than as meta\-characters\&.
+.PP
+In most places where a network address may be entered, an ipset may be substituted\&. Set names must be prefixed by the character "+", must start with a letter and may be composed of alphanumeric characters, "\-" and "_"\&.
+.PP
+Whether the set is matched against the packet source or destination is determined by which column the set name appears (SOURCE or DEST)\&. For those set types that specify a tuple, two alternative syntaxes are available:
+.RS 4
+[\fInumber\fR] \- Indicates that \*(Aqsrc\*(Aq or
+      \*(Aqdst\*(Aq should be repeated \fInumber\fR times\&.
+      Example: myset[2]\&.
+.RE
+.RS 4
+[\fIflag\fR,\&.\&.\&.] where
+      \fIflag\fR is \fBsrc\fR or
+      \fBdst\fR\&. Example: myset[src,dst]\&.
+.RE
+.PP
+In a SOURCE or SPORT column, the following pairs are equivalent:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
++myset[2] and +myset[src,src]
+.RE
+.PP
+In a DEST or DPORT column, the following pairs are equivalent:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
++myset[2] and +myset[dst,dst]
+.RE
+.PP
+Beginning with Shorewall 4\&.4\&.14, multiple source or destination matches may be specified by enclosing the set names within +[\&.\&.\&.]\&. The set names need not be prefixed with \*(Aq+\*(Aq\&. When such a list of sets is specified, matching packets must match all of the listed sets\&.
+.PP
+For information about set lists and exclusion, see
+\m[blue]\fBshorewall\-exclusion\fR\m[]\&\s-2\u[1]\d\s+2
+(5)\&.
+.PP
+Beginning with Shorewall 4\&.5\&.16, you can increment one or more nfacct objects each time a packet matches an ipset\&. You do that by listing the objects separated by commas within parentheses\&.
+.PP
+Example:
+.RS 4
++myset[src](myobject)
+.RE
+.PP
+In that example, when the source address of a packet matches the
+\fBmyset\fR
+ipset, the
+\fBmyobject\fR
+nfacct counter will be incremented\&.
+.PP
+Beginning with Shorewall 4\&.6\&.0, an ipset name (and src/dst list, if any) can be immediately be followed by a list of match options\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+.PP
+These additional match options are not available in
+\m[blue]\fBshorewall\-tcfilters(5)\fR\m[]\&\s-2\u[2]\d\s+2\&.
+.sp .5v
+.RE
+.PP
+Available options are:
+.PP
+nomatch
+.RS 4
+If the set type supports the nomatch flag, then the matching is reversed: a match with an element flagged with nomatch returns true, while a match with a plain element returns false\&. This option requires the \*(AqIpset Match nomatch\*(Aq capability in your kernel and ip[6]tables\&.
+.RE
+.PP
+no\-update\-counters
+.RS 4
+The packet and byte counters of the matching element in the set won\*(Aqt be updated\&. By default, the packet and byte counters are updated\&. This option and those that follow require the \*(AqIpset Match counters\*(Aq capability in your kernel and ip[6]tables\&.
+.RE
+.PP
+no\-update\-subcounters
+.RS 4
+The packet and byte counters of the matching element in the member set of a list type of set won\*(Aqt be updated\&. Default the packet and byte counters are updated\&.
+.RE
+.PP
+packets=\fIvalue\fR
+.RS 4
+If the packet is matched an element in the set, match only if the packet counter of the element matches the given
+\fIvalue\fR
+also\&.
+.RE
+.PP
+packets<\fIvalue\fR
+.RS 4
+If the packet is matched an element in the set, match only if the packet counter of the element is less than the given
+\fIvalue\fR
+as well\&.
+.RE
+.PP
+packets>\fIvalue\fR
+.RS 4
+If the packet is matched an element in the set, match only if the packet counter of the element is greater than the given
+\fIvalue\fR
+as well\&.
+.RE
+.PP
+packets!=\fIvalue\fR
+.RS 4
+If the packet is matched an element in the set, match only if the packet counter of the element does not match the given
+\fIvalue\fR
+also\&.
+.RE
+.PP
+bytes=\fIvalue\fR
+.RS 4
+If the packet is matched an element in the set, match only if the byte counter of the element matches the given
+\fIvalue\fR
+also\&.
+.RE
+.PP
+bytes<\fIvalue\fR
+.RS 4
+If the packet is matched an element in the set, match only if the byte counter of the element is less than the given
+\fIvalue\fR
+as well\&.
+.RE
+.PP
+bytes>\fIvalue\fR
+.RS 4
+If the packet is matched an element in the set, match only if the byte counter of the element is greater than the given
+\fIvalue\fR
+as well\&.
+.RE
+.PP
+bytes<>\fIvalue\fR
+.RS 4
+If the packet is matched an element in the set, match only if the byte counter of the element does not match the given
+\fIvalue\fR
+also\&.
+.RE
+.SH "EXAMPLES"
+.PP
+In the examples that follow,
+myset,
+myset1
+and
+myset2
+are ipsets and
+myObject
+is an NFacct object name\&.
+.PP
++myset
+.PP
++myset[src]
+.PP
++myset[2]
+.PP
++[myset1,myset2[dst]]
+.PP
++myset[src](myObject)
+.PP
++myset[src,nomatch,packets>100]
+.PP
++myset[nomatch,no\-update\-counters](myObject)
+.SH "FILES"
+.PP
+/etc/shorewall/accounting
+.PP
+/etc/shorewall6/accounting
+.PP
+/etc/shorewall/blrules
+.PP
+/etc/shorewall6/blrules
+.PP
+/etc/shorewall/hosts \-\-
+\fBNote:\fR
+Multiple matches enclosed in +[\&.\&.\&.] may not be used in this file\&.
+.PP
+/etc/shorewall6/hosts \-\-
+\fBNote:\fR
+Multiple matches enclosed in +[\&.\&.\&.] may not be used in this file\&.
+.PP
+/etc/shorewall/maclist \-\-
+\fBNote:\fR
+Multiple matches enclosed in +[\&.\&.\&.] may not be used in this file\&.
+.PP
+/etc/shorewall6/maclist \-\-
+\fBNote:\fR
+Multiple matches enclosed in +[\&.\&.\&.] may not be used in this file\&.
+.PP
+/etc/shorewall/rules
+.PP
+/etc/shorewall6/rules
+.PP
+/etc/shorewall/secmarks
+.PP
+/etc/shorewall6/secmarks
+.PP
+/etc/shorewall/mangle
+.PP
+/etc/shorewall6/mangle
+.PP
+/etc/shorewall/snat
+.PP
+/etc/shorewall6/snat
+.SH "SEE ALSO"
+.PP
+shorewall(8)
+.SH "NOTES"
+.IP " 1." 4
+shorewall-exclusion
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-exclusion.html
+.RE
+.IP " 2." 4
+shorewall-tcfilters(5)
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-tcfilters.html
+.RE

@@ -1,0 +1,186 @@
+'\" t
+.\"     Title: shorewall-init
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Administrative Commands
+.\"    Source: Administrative Commands
+.\"  Language: English
+.\"
+.TH "SHOREWALL\-INIT" "8" "08/05/2026" "Administrative Commands" "Administrative Commands"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+shorewall-init \- Companion package
+.SH "SYNOPSIS"
+.HP \w'\fBshorewall\-init\fR\ 'u
+\fBshorewall\-init\fR [start|stop]
+.SH "DESCRIPTION"
+.PP
+Shorewall\-init is an optional package (added in Shorewall 4\&.4\&.10) that can be installed along with Shorewall, Shorewall6, Shorewall\-lite and/or Shorewall6\-lite\&. It provides two key features:
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+It can close (stop) the firewall during boot prior to starting the network\&. This can prevent unwanted connections from being accepted after the network comes up but before the firewall is started\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
+It can interface with your distribution\*(Aqs ifup/ifdown scripts and/or NetworkManager to allow firewall actions when an interface starts or stops\&.
+.RE
+.PP
+These two capabilities can be enabled separately\&.
+.PP
+After you install the shorewall\-init package, you can activate it by modifying the
+Shorewall\-init configuration file:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+On Debian\-based system, the file is
+/etc/default/shorewall\-init\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+On other systems, the file is
+/etc/sysconfig/shorewall\-init\&.
+.RE
+.PP
+To activate the safe boot feature, edit the configuration file and set PRODUCTS to a space\-separated list of Shorewall products that you want to be closed before networking starts\&.
+.PP
+Example:
+.RS 4
+PRODUCTS="shorewall shorewall6"
+.RE
+.PP
+You also must insure that the compiled scripts for the listed products are compiled using Shorewall 4\&.4\&.10 or later\&.
+.PP
+Shorewall
+.RS 4
+\fBshorewall compile\fR
+.RE
+.PP
+Shorewall6
+.RS 4
+\fBshorewall6 compile\fR
+.RE
+.PP
+Shorewall\-lite
+.RS 4
+On the administrative system, enter the command
+\fBshorewall export firewall\fR
+from the firewall\*(Aqs configuration directory\&.
+.RE
+.PP
+Shorewall6\-lite
+.RS 4
+On the administrative system, enter the command
+\fBshorewall6 export firewall\fR
+from the firewall\*(Aqs configuration directory\&.
+.RE
+.PP
+The second feature (ifup/ifdown and NetworkManager integration) should only be activated on systems that do not use a link status monitor line swping or LSM\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Edit the configuration file and set IFUPDOWN=1
+.RE
+.PP
+For NetworkManager integration, you will want to disable firewall startup at boot and delay it to when your interface comes up\&. For this to work correctly, you must set the
+required
+or the
+optional
+option on at least one interface then:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+On Debian\-based systems, edit /etc/default/\fIproduct\fR
+for each
+\fIproduct\fR
+listed in the PRODUCTS setting and set
+\fBstartup=0\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+On other systems, use the distribution\*(Aqs service control tool (insserv, chkconfig, etc\&.) to disable startup of the products listed in the PRODUCTS setting\&.
+.RE
+.PP
+On a laptop with both Ethernet and wireless interfaces, you will want to make both interfaces optional and set the REQUIRE_INTERFACE option to Yes in
+\m[blue]\fBshorewall\&.conf\fR\m[]\&\s-2\u[1]\d\s+2(5) or
+\m[blue]\fBshorewall6\&.conf\fR\m[]\&\s-2\u[1]\d\s+2
+(5)\&. This causes the firewall to remain stopped until at least one of the interfaces comes up\&.
+.SH "FILES"
+.PP
+/etc/default/shorewall\-init
+(Debian\-based systems) or
+/etc/sysconfig/shorewall\-init
+(other distributions)
+.SH "SEE ALSO"
+.PP
+shorewall(8)
+.SH "NOTES"
+.IP " 1." 4
+shorewall.conf
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall.conf.html
+.RE

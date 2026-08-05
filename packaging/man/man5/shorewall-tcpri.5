@@ -1,0 +1,164 @@
+'\" t
+.\"     Title: shorewall-tcpri
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Configuration Files
+.\"    Source: Configuration Files
+.\"  Language: English
+.\"
+.TH "SHOREWALL\-TCPRI" "5" "08/05/2026" "Configuration Files" "Configuration Files"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+tcpri \- Shorewall file
+.SH "SYNOPSIS"
+.HP \w'\fB/etc/shorewall[6]/tcpri\fR\ 'u
+\fB/etc/shorewall[6]/tcpri\fR
+.SH "DESCRIPTION"
+.PP
+This file is used to specify the priority of traffic for simple traffic shaping (TC_ENABLED=Simple in
+\m[blue]\fBshorewall\&.conf\fR\m[]\&\s-2\u[1]\d\s+2(5))\&. Beginning with Shorewall 5\&.2\&.7, the file allows ?FORMAT 2 which inserts a SPORT column immediately to the right of the DPORT column\&.
+.PP
+The priority band of each packet is determined by the
+\fBlast\fR
+entry that the packet matches\&. If a packet doesn\*(Aqt match any entry in this file, then its priority will be determined by its TOS field\&. The default mapping is as follows but can be changed by setting the TC_PRIOMAP option in
+\m[blue]\fBshorewall\&.conf\fR\m[]\&\s-2\u[1]\d\s+2(5)\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+TOS     Bits  Means                    Linux Priority    BAND
+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+0x0     0     Normal Service           0 Best Effort     2
+0x2     1     Minimize Monetary Cost   1 Filler          3
+0x4     2     Maximize Reliability     0 Best Effort     2
+0x6     3     mmc+mr                   0 Best Effort     2
+0x8     4     Maximize Throughput      2 Bulk            3
+0xa     5     mmc+mt                   2 Bulk            3
+0xc     6     mr+mt                    2 Bulk            3
+0xe     7     mmc+mr+mt                2 Bulk            3
+0x10    8     Minimize Delay           6 Interactive     1
+0x12    9     mmc+md                   6 Interactive     1
+0x14    10    mr+md                    6 Interactive     1
+0x16    11    mmc+mr+md                6 Interactive     1
+0x18    12    mt+md                    4 Int\&. Bulk       2
+0x1a    13    mmc+mt+md                4 Int\&. Bulk       2
+0x1c    14    mr+mt+md                 4 Int\&. Bulk       2
+0x1e    15    mmc+mr+mt+md             4 Int\&. Bulk       2
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+The columns in the file are as follows\&.
+.PP
+\fBBAND\fR \- {\fB1\fR|\fB2\fR|\fB3\fR}
+.RS 4
+Classifies matching traffic as High Priority (1), Medium Priority (2) or Low Priority (3)\&. For those interfaces listed in
+\m[blue]\fBshorewall\-tcinterfaces\fR\m[]\&\s-2\u[2]\d\s+2(5), Priority 2 traffic will be deferred so long and there is Priority 1 traffic queued and Priority 3 traffic will be deferred so long as there is Priority 1 or Priority 2 traffic to send\&.
+.RE
+.PP
+\fBPROTO\fR \- \fIprotocol\fR[,\&.\&.\&.]
+.RS 4
+Optional\&. The name or number of an IPv4
+\fIprotocol\fR\&.
+.sp
+Beginning with Shorewall 4\&.5\&.12, this column can accept a comma\-separated list of protocols\&.
+.RE
+.PP
+DPORT \- \fIport\fR [,\&.\&.\&.]
+.RS 4
+This column was named PORT prior to Shorewall 5\&.2\&.7\&. Both \*(Aqport\*(Aq and \*(Aqdport\*(Aq may be used in the
+\m[blue]\fBalternate input format\fR\m[]\&\s-2\u[3]\d\s+2\&.
+.sp
+Optional\&. May only be given if the the PROTO is TCP (6), UDP (17), DCCP (33), SCTP (132) or UDPLITE (136)\&. A list of one or more port numbers or service names from /etc/services\&. Port ranges of the form
+\fIlowport\fR:\fIhighport\fR
+may also be included\&. In format 1, packets whose source or destination port matches the specified
+\fIport\fR(s) are assigned to the band given in the BAND column\&.
+.RE
+.PP
+SPORT \- \fIport\fR [,\&.\&.\&.]
+.RS 4
+Only present in file format 2\&. Optional\&. May only be given if the the PROTO is TCP (6), UDP (17), DCCP (33), SCTP (132) or UDPLITE (136)\&. A list of one or more port numbers or service names from /etc/services\&. Port ranges of the form
+\fIlowport\fR:\fIhighport\fR
+may also be included\&.
+.RE
+.PP
+ADDRESS \- [\fIaddress\fR]
+.RS 4
+Optional\&. The IP or MAC address that the traffic originated from\&. MAC addresses must be given in Shorewall format\&. If this column contains an address, then the PROTO, PORT(S) and INTERFACE column must be empty ("\-")\&.
+.RE
+.PP
+INTERFACE \- [\fIinterface\fR]
+.RS 4
+Optional\&. The logical name of an
+\fIinterface\fR
+that traffic arrives from\&. If given, the PROTO, PORT(S) and ADDRESS columns must be empty ("\-")\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+INTERFACE classification of packets occurs before classification by PROTO/PORT(S)/ADDRESS\&. So it is highly recommended to place entries that specify INTERFACE at the top of the file so that the rule about
+\fIlast entry matches\fR
+is preserved\&.
+.sp .5v
+.RE
+.RE
+.PP
+\fBHELPER\fR \- [\fIhelper\fR]
+.RS 4
+Optional\&. Names a Netfilter protocol helper module such as ftp, sip, amanda, etc\&. A packet will match if it was accepted by the named helper module\&. You can also append "\-" and a port number to the helper module name (e\&.g\&., ftp\-21) to specify the port number that the original connection was made on\&.
+.RE
+.SH "FILES"
+.PP
+/etc/shorewall/tcpri
+.PP
+/etc/shorewall6/tcpri
+.SH "SEE ALSO"
+.PP
+\m[blue]\fBhttps://shorewall\&.org/configuration_file_basics\&.htm#Pairs\fR\m[]\&\s-2\u[3]\d\s+2
+.PP
+prio(8), shorewall(8)
+.SH "NOTES"
+.IP " 1." 4
+shorewall.conf
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall.conf.html
+.RE
+.IP " 2." 4
+shorewall-tcinterfaces
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-tcinterfaces.html
+.RE
+.IP " 3." 4
+alternate input format
+.RS 4
+\%[set $man.base.url.for.relative.links]/../configuration_file_basics.htm#Pairs
+.RE

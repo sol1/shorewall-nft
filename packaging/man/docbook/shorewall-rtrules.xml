@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-rtrules</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>rtrules</refname>
+
+    <refpurpose>Shorewall Routing Rules file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/etc/shorewall[6]/rtrules</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>Entries in this file cause traffic to be routed to one of the
+    providers listed in <ulink
+    url="shorewall-providers.html">shorewall-providers</ulink>(5).</para>
+
+    <para>The columns in the file are as follows.</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><emphasis role="bold">SOURCE</emphasis> (Optional) - {<emphasis
+        role="bold">-</emphasis>|[&amp;]<emphasis>interface</emphasis>|<emphasis>address</emphasis>|<emphasis>interface</emphasis><firstterm>:</firstterm><emphasis>address</emphasis>}</term>
+
+        <listitem>
+          <para>An ip <emphasis>address</emphasis> (network or host) that
+          matches the source IP address in a packet. May also be specified as
+          an <emphasis>interface</emphasis> name optionally followed by ":"
+          and an address. If the device <emphasis role="bold">lo</emphasis> is
+          specified, the packet must originate from the firewall
+          itself.</para>
+
+          <para>Beginning with Shorewall 4.5.0, you may specify
+          &amp;<replaceable>interface</replaceable> in this column to indicate
+          that the source is the primary IP address of the named
+          interface.</para>
+
+          <para>Beginning with Shorewall 4.6.8, you may specify a
+          comma-separated list of addresses in this column.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">DEST</emphasis> (Optional) - {<emphasis
+        role="bold">-</emphasis>|<emphasis>address</emphasis>}</term>
+
+        <listitem>
+          <para>An ip address (network or host) that matches the destination
+          IP address in a packet.</para>
+
+          <para>If you choose to omit either <emphasis
+          role="bold">SOURCE</emphasis> or <emphasis
+          role="bold">DEST</emphasis>, place "-" in that column. Note that you
+          may not omit both <emphasis role="bold">SOURCE</emphasis> and
+          <emphasis role="bold">DEST</emphasis>.</para>
+
+          <para>Beginning with Shorewall 4.6.8, you may specify a
+          comma-separated list of addresses in this column.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">PROVIDER</emphasis> -
+        {<emphasis>provider-name</emphasis>|<emphasis>provider-number</emphasis>|<emphasis
+        role="bold">main</emphasis>}</term>
+
+        <listitem>
+          <para>The provider to route the traffic through. May be expressed
+          either as the provider name or the provider number. May also be
+          <emphasis role="bold">main</emphasis> or 254 for the main routing
+          table. This can be used in combination with VPN tunnels, see example
+          2 below.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">PRIORITY</emphasis> -
+        <emphasis>priority</emphasis><emphasis
+        role="bold">[!]</emphasis></term>
+
+        <listitem>
+          <para>The rule's numeric <emphasis>priority</emphasis> which
+          determines the order in which the rules are processed. Rules with
+          equal priority are applied in the order in which they appear in the
+          file.</para>
+
+          <variablelist>
+            <varlistentry>
+              <term>1000-1999</term>
+
+              <listitem>
+                <para>Before Shorewall-generated 'MARK' rules</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>11000-11999</term>
+
+              <listitem>
+                <para>After 'MARK' rules but before Shorewall-generated rules
+                for ISP interfaces.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>26000-26999</term>
+
+              <listitem>
+                <para>After ISP interface rules but before 'default'
+                rule.</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+
+          <para>Beginning with Shorewall 5.0.2, the priority may be followed
+          optionally by an exclaimation mark ("!"). This causes the rule to
+          remain in place if the interface is disabled.</para>
+
+          <caution>
+            <para>Be careful when using rules of the same PRIORITY as some
+            unexpected behavior can occur when multiple rules have the same
+            SOURCE. For example, in the following rules, the second rule
+            overwrites the first unless the priority in the second is changed
+            to 19001 or higher:</para>
+
+            <programlisting>10.10.0.0/24    192.168.5.6 provider1 19000
+10.10.0.0/24    -           provider2 19000</programlisting>
+          </caution>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">MARK -
+        {-|<replaceable>mark</replaceable>[/<replaceable>mask</replaceable>]}</emphasis></term>
+
+        <listitem>
+          <para>Optional -- added in Shorewall 4.4.25. For this rule to be
+          applied to a packet, the packet's mark value must match the
+          <replaceable>mark</replaceable> when logically anded with the
+          <replaceable>mask</replaceable>. If a
+          <replaceable>mask</replaceable> is not supplied, Shorewall supplies
+          a suitable provider mask.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Examples</title>
+
+    <variablelist>
+      <varlistentry>
+        <term>Example 1:</term>
+
+        <listitem>
+          <para>You want all traffic coming in on eth1 to be routed to the
+          ISP1 provider.</para>
+
+          <programlisting>        #SOURCE                 DEST            PROVIDER        PRIORITY      MASK
+        eth1                    -               ISP1            1000
+</programlisting>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>IPv4 Example 2:</term>
+
+        <listitem>
+          <para>You use OpenVPN (routed setup /tunX) in combination with
+          multiple providers. In this case you have to set up a rule to ensure
+          that the OpenVPN traffic is routed back through the tunX
+          interface(s) rather than through any of the providers. 10.8.0.0/24
+          is the subnet chosen in your OpenVPN configuration (server 10.8.0.0
+          255.255.255.0).</para>
+
+          <programlisting>         #SOURCE                 DEST            PROVIDER        PRIORITY     MASK
+         -                       10.8.0.0/24     main            1000
+</programlisting>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall/rtrules</para>
+
+    <para>/etc/shorewall6/rtrules</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para><ulink
+    url="../MultiISP.html">https://shorewall.org/MultiISP.html</ulink></para>
+
+    <para><ulink
+    url="../configuration_file_basics.htm#Pairs">https://shorewall.org/configuration_file_basics.htm#Pairs</ulink></para>
+
+    <para>shorewall(8)</para>
+  </refsect1>
+</refentry>

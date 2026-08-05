@@ -1,0 +1,368 @@
+'\" t
+.\"     Title: shorewall-secmarks
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Configuration Files
+.\"    Source: Configuration Files
+.\"  Language: English
+.\"
+.TH "SHOREWALL\-SECMARKS" "5" "08/05/2026" "Configuration Files" "Configuration Files"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+secmarks \- Shorewall file
+.SH "SYNOPSIS"
+.HP \w'\fB/etc/shorewall[6]/secmarks\fR\ 'u
+\fB/etc/shorewall[6]/secmarks\fR
+.SH "DESCRIPTION"
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+.PP
+Unlike rules in the
+\m[blue]\fBshorewall\-rules\fR\m[]\&\s-2\u[1]\d\s+2(5) file, evaluation of rules in this file will continue after a match\&. So the final secmark for each packet will be the one assigned by the LAST rule that matches\&.
+.sp .5v
+.RE
+.PP
+The secmarks file is used to associate an SELinux context with packets\&. It was added in Shorewall version 4\&.4\&.13\&.
+.PP
+The columns in the file are as follows (where the column name is followed by a different name in parentheses, the different name is used in the alternate specification syntax)\&.
+.PP
+\fBSECMARK \- {SAVE|RESTORE|\fR\fB\fIcontext\fR\fR\fB|?COMMENT \fR\fB\fIcomment\fR\fR\fB}\fR
+.RS 4
+.PP
+\fBSAVE\fR
+.RS 4
+If an SELinux context is associated with the packet, the context is saved in the connection\&. Normally, the remaining columns should be left blank\&.
+.RE
+.PP
+\fBRESTORE\fR
+.RS 4
+If an SELinux context is not currently associated with the packet, then the saved context (if any) is associated with the packet\&. Normally, the remaining columns should be left blank\&.
+.RE
+.PP
+\fIcontext\fR
+.RS 4
+An SELinux context\&.
+.RE
+.PP
+?COMMENT
+.RS 4
+The remainder of the line is treated as a comment which is attached to subsequent rules until another ?COMMENT line is found or until the end of the file is reached\&. To stop adding comments to rules, use a line with only the word ?COMMENT\&.
+.RE
+.RE
+.PP
+\fBCHAIN \- {P|I|F|O|T}[:{N|I|U|IU|NI|NU|NIU|NUI:E|ER}]\fR
+.RS 4
+This column determines the CHAIN where the SELinux context is to be applied:
+.RS 4
+P \- PREROUTING
+.RE
+.RS 4
+I \- INPUT
+.RE
+.RS 4
+F \- FORWARD
+.RE
+.RS 4
+O \- OUTPUT
+.RE
+.RS 4
+T \- POSTROUTING
+.RE
+It may be optionally followed by a colon and an indication of the Netfilter connection state(s) at which the context is to be applied:
+.RS 4
+:N \- NEW connection
+.RE
+.RS 4
+:I \- INVALID connection
+.RE
+.RS 4
+:NI \- NEW or INVALID connection
+.RE
+.RS 4
+:E \- ESTABLISHED connection
+.RE
+.RS 4
+:ER \- ESTABLISHED or RELATED connection
+.RE
+Beginning with Shorewall 4\&.5\&.10, the following additional options are available
+.RS 4
+:U \- UNTRACKED connection
+.RE
+.RS 4
+:IU \- INVALID or UNTRACKED connection
+.RE
+.RS 4
+:NU \- NEW or UNTRACKED connection
+.RE
+.RS 4
+:NIU \- NEW, INVALID or UNTRACKED connection\&.
+.RE
+This column was formerly labelled CHAIN:STATE\&.
+.RE
+.PP
+\fBSOURCE\fR \- {\fB\-\fR\fIinterface\fR|[\fIinterface\fR:]\fIaddress\-or\-range\fR[\fB,\fR\fIaddress\-or\-range\fR]\&.\&.\&.}[\fIexclusion\fR]
+.RS 4
+May be:
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+An interface name \- matches traffic entering the firewall on the specified interface\&. May not be used in classify rules or in rules using the T in the CHAIN column\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
+A comma\-separated list of host or network IP addresses or MAC addresses\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 3.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  3." 4.2
+.\}
+An interface name followed by a colon (":") followed by a comma\-separated list of host or network IP addresses or MAC addresses\&.
+.RE
+.sp
+MAC addresses must be prefixed with "~" and use "\-" as a separator\&.
+.sp
+Example: ~00\-A0\-C9\-15\-39\-78
+.sp
+You may exclude certain hosts from the set already defined through use of an
+\fIexclusion\fR
+(see
+\m[blue]\fBshorewall\-exclusion\fR\m[]\&\s-2\u[2]\d\s+2(5))\&.
+.sp
+Addresses may be specified using an ipset name preceded by \*(Aq+\*(Aq\&.
+.RE
+.PP
+\fBDEST\fR \- {\fB\-\fR|{\fIinterface\fR|[\fIinterface\fR:]\fIaddress\-or\-range\fR[\fB,\fR\fIaddress\-or\-range\fR]\&.\&.\&.}[\fIexclusion\fR]
+.RS 4
+May be:
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+An interface name\&. May not be used in the PREROUTING or INPUT chains\&. The interface name may be optionally followed by a colon (":") and an IP address list\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
+A comma\-separated list of host or network IP addresses\&. The list may include ip address ranges if your kernel and iptables include iprange support\&.
+.RE
+.sp
+You may exclude certain hosts from the set already defined through use of an
+\fIexclusion\fR
+(see
+\m[blue]\fBshorewall\-exclusion\fR\m[]\&\s-2\u[2]\d\s+2(5))\&.
+.sp
+Addresses may be specified using an ipset name preceded by \*(Aq+\*(Aq\&.
+.RE
+.PP
+\fBPROTO\fR \- {\fB\-\fR|\fBtcp:syn\fR|\fBipp2p\fR|\fBipp2p:udp\fR|\fBipp2p:all\fR|\fIprotocol\-number\fR|\fIprotocol\-name\fR|\fBall}[,\&.\&.\&.]\fR
+.RS 4
+See
+\m[blue]\fBshorewall\-rules(5)\fR\m[]\&\s-2\u[1]\d\s+2
+for details\&.
+.sp
+Beginning with Shorewall 4\&.5\&.12, this column can accept a comma\-separated list of protocols\&.
+.RE
+.PP
+\fBDPORT\fR \- [\fB\-\fR|\fIport\-name\-number\-or\-range\fR[\fB,\fR\fIport\-name\-number\-or\-range\fR]\&.\&.\&.]
+.RS 4
+Optional destination Ports\&. A comma\-separated list of Port names (from services(5)),
+\fIport number\fRs or
+\fIport range\fRs; if the protocol is
+\fBicmp\fR, this column is interpreted as the destination icmp\-type(s)\&. ICMP types may be specified as a numeric type, a numeric type and code separated by a slash (e\&.g\&., 3/4), or a typename\&. See
+\m[blue]\fBhttps://shorewall\&.org/configuration_file_basics\&.htm#ICMP\fR\m[]\&\s-2\u[3]\d\s+2\&.
+.sp
+If the protocol is
+\fBipp2p\fR, this column is interpreted as an ipp2p option without the leading "\-\-" (example
+\fBbit\fR
+for bit\-torrent)\&. If no PORT is given,
+\fBipp2p\fR
+is assumed\&.
+.sp
+This column is ignored if PROTOCOL = all but must be entered if any of the following field is supplied\&. In that case, it is suggested that this field contain "\-"
+.sp
+This column was formerly labelled DEST PORT(S)\&.
+.RE
+.PP
+\fBSPORT\fR \- [\fB\-\fR|\fIport\-name\-number\-or\-range\fR[\fB,\fR\fIport\-name\-number\-or\-range\fR]\&.\&.\&.]
+.RS 4
+Optional source port(s)\&. If omitted, any source port is acceptable\&. Specified as a comma\-separated list of port names, port numbers or port ranges\&.
+.sp
+This column was formerly labelled SOURCE PORT(S)\&.
+.RE
+.PP
+\fBUSER\fR \- [\fB!\fR][\fIuser\-name\-or\-number\fR][\fB:\fR\fIgroup\-name\-or\-number\fR]
+.RS 4
+This optional column may only be non\-empty if the SOURCE is the firewall itself\&.
+.sp
+When this column is non\-empty, the rule applies only if the program generating the output is running under the effective
+\fIuser\fR
+and/or
+\fIgroup\fR
+specified (or is NOT running under that id if "!" is given)\&.
+.sp
+Examples:
+.PP
+joe
+.RS 4
+program must be run by joe
+.RE
+.PP
+:kids
+.RS 4
+program must be run by a member of the \*(Aqkids\*(Aq group
+.RE
+.PP
+!:kids
+.RS 4
+program must not be run by a member of the \*(Aqkids\*(Aq group
+.RE
+.RE
+.PP
+\fBMARK\fR \- [\fB!\fR]\fIvalue\fR[/\fImask\fR][\fB:C\fR]
+.RS 4
+Defines a test on the existing packet or connection mark\&. The rule will match only if the test returns true\&.
+.sp
+If you don\*(Aqt want to define a test but need to specify anything in the following columns, place a "\-" in this field\&.
+.PP
+!
+.RS 4
+Inverts the test (not equal)
+.RE
+.PP
+\fIvalue\fR
+.RS 4
+Value of the packet or connection mark\&.
+.RE
+.PP
+\fImask\fR
+.RS 4
+A mask to be applied to the mark before testing\&.
+.RE
+.PP
+\fB:C\fR
+.RS 4
+Designates a connection mark\&. If omitted, the packet mark\*(Aqs value is tested\&.
+.RE
+.RE
+.SH "EXAMPLE"
+.PP
+Mark the first incoming packet of a connection on the loopback interface and destined for address 127\&.0\&.0\&.1 and tcp port 3306 with context system_u:object_r:mysqld_t:s0 and save that context in the conntrack table\&. On subsequent input packets in the connection, set the context from the conntrack table\&.
+.PP
+/etc/shorewall/interfaces:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+#ZONE      INTERFACE      BROADCAST       OPTIONS
+\-          lo             \-               ignore
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+/etc/shorewall/secmarks:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+#SECMARK                              CHAIN      SOURCE  DEST       PROTO   DPORT      SPORT       USER      MARK       
+system_u:object_r:mysqld_packet_t:s0  I:N        lo      127\&.0\&.0\&.1  tcp     3306
+SAVE                                  I:N        lo      127\&.0\&.0\&.1  tcp     3306
+RESTORE                               I:ER
+.fi
+.if n \{\
+.RE
+.\}
+.SH "FILES"
+.PP
+/etc/shorewall/secmarks
+.PP
+/etc/shorewall6/secmarks
+.SH "SEE ALSO"
+.PP
+\m[blue]\fBhttp://james\-morris\&.livejournal\&.com/11010\&.html\fR\m[]
+.PP
+\m[blue]\fBhttps://shorewall\&.org/configuration_file_basics\&.htm#Pairs\fR\m[]\&\s-2\u[4]\d\s+2
+.PP
+shorewall(8)
+.SH "NOTES"
+.IP " 1." 4
+shorewall-rules
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-rules.html
+.RE
+.IP " 2." 4
+shorewall-exclusion
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-exclusion.html
+.RE
+.IP " 3." 4
+https://shorewall.org/configuration_file_basics.htm#ICMP
+.RS 4
+\%[set $man.base.url.for.relative.links]/../configuration_file_basics.htm#ICMP
+.RE
+.IP " 4." 4
+https://shorewall.org/configuration_file_basics.htm#Pairs
+.RS 4
+\%[set $man.base.url.for.relative.links]/../configuration_file_basics.htm#Pairs
+.RE

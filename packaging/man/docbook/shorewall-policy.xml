@@ -1,0 +1,475 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-policy</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>policy</refname>
+
+    <refpurpose>Shorewall policy file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/etc/shorewall[6]/policy</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>This file defines the high-level policy for connections between
+    zones defined in <ulink
+    url="shorewall-zones.html">shorewall-zones</ulink>(5).</para>
+
+    <important>
+      <para>The order of entries in this file is important</para>
+
+      <para>This file determines what to do with a new connection request if
+      we don't get a match from the <ulink
+      url="shorewall-blrules.html">shorewall-blrules</ulink>(5) or
+      <ulink url="shorewall-rules.html">shorewall-rules</ulink>(5)
+      files. For each source/destination pair, the file is processed in order
+      until a match is found ("all" will match any source or
+      destination).</para>
+    </important>
+
+    <important>
+      <para>Intra-zone policies are pre-defined</para>
+
+      <para>For $FW and for all of the zones defined in <ulink
+      url="shorewall-zones.html">shorewall-zones</ulink>(5), the
+      POLICY for connections from the zone to itself is ACCEPT (with no
+      logging or TCP connection rate limiting) but may be overridden by an
+      entry in this file. The overriding entry must be explicit (specifying
+      the zone name in both SOURCE and DEST) or it must use "all+" (Shorewall
+      4.5.17 or later).</para>
+
+      <para>Similarly, if you have IMPLICIT_CONTINUE=Yes in <ulink
+      url="shorewall.conf.html">shorewall.conf</ulink>(5), then the
+      implicit policy to/from any sub-zone is CONTINUE. These implicit
+      CONTINUE policies may also be overridden by an explicit entry in this
+      file.</para>
+    </important>
+
+    <para>The columns in the file are as follows (where the column name is
+    followed by a different name in parentheses, the different name is used in
+    the alternate specification syntax).</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><emphasis role="bold">SOURCE</emphasis> -
+        <emphasis>zone</emphasis>[,...[+]]|<emphasis
+        role="bold">$FW</emphasis>|<emphasis
+        role="bold">all[+][!<replaceable>ezone</replaceable>[,...]]</emphasis></term>
+
+        <listitem>
+          <para>Source zone. Must be the name of a zone defined in <ulink
+          url="shorewall-zones.html">shorewall-zones</ulink>(5),
+          $FW, "all" or "all+".</para>
+
+          <para>Support for <emphasis role="bold">all+</emphasis> was added in
+          Shorewall 4.5.17. <emphasis role="bold">all</emphasis> does not
+          override the implicit intra-zone ACCEPT policy while <emphasis
+          role="bold">all+</emphasis> does.</para>
+
+          <para>Beginning with Shorewall 5.0.12, multiple zones may be listed
+          separated by commas. As above, if '+' is specified after two or more
+          zone names, then the policy overrides the implicit intra-zone ACCEPT
+          policy if the same <replaceable>zone</replaceable> appears in both
+          the SOURCE and DEST columns.</para>
+
+          <para>Beginning with Shorewall 5.2.3, a comma-separated list of
+          excluded zones preceded by "!" may follow <emphasis
+          role="bold">all</emphasis> or <emphasis
+          role="bold">all+.</emphasis></para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">DEST</emphasis> -
+        <emphasis>zone</emphasis>[,...[+]]|<emphasis
+        role="bold">$FW</emphasis>|all[+][!<replaceable>ezone</replaceable>[,...]]</term>
+
+        <listitem>
+          <para>Destination zone. Must be the name of a zone defined in <ulink
+          url="shorewall-zones.html">shorewall-zones</ulink>(5),
+          $FW, "all" or "all+". If the DEST is a bport zone, then the SOURCE
+          must be "all", "all+", another bport zone associated with the same
+          bridge, or it must be an ipv4 zone that is associated with only the
+          same bridge.</para>
+
+          <para>Support for "all+" was added in Shorewall 4.5.17. "all" does
+          not override the implicit intra-zone ACCEPT policy while "all+"
+          does.</para>
+
+          <para>Beginning with Shorewall 5.0.12, multiple zones may be listed
+          separated by commas. As above, if '+' is specified after two or more
+          zone names, then the policy overrides the implicit intra-zone ACCEPT
+          policy if the same <replaceable>zone</replaceable> appears in both
+          the SOURCE and DEST columns.</para>
+
+          <para>Beginning with Shorewall 5.2.3, a comma-separated list of
+          excluded zones preceded by "!" may follow <emphasis
+          role="bold">all</emphasis> or <emphasis
+          role="bold">all+</emphasis>.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">POLICY</emphasis> - {<emphasis
+        role="bold">ACCEPT</emphasis>|<emphasis
+        role="bold">DROP</emphasis>|<emphasis
+        role="bold">REJECT</emphasis>|<emphasis
+        role="bold">BLACKLIST</emphasis>|<emphasis
+        role="bold">CONTINUE</emphasis>|<emphasis
+        role="bold">QUEUE</emphasis>|<emphasis
+        role="bold">NFQUEUE</emphasis>[([<replaceable>queuenumber</replaceable>1[:<replaceable>queuenumber2</replaceable>[c]][,bypass]]|bypass)]|<emphasis
+        role="bold">NONE</emphasis>}[<emphasis
+        role="bold">:</emphasis>{[+]<emphasis>policy-action</emphasis>[:level][,...]|<emphasis
+        role="bold">None</emphasis>}]</term>
+
+        <listitem>
+          <para>Policy if no match from the rules file is found.</para>
+
+          <para>If the policy is neither CONTINUE nor NONE then the policy may
+          be followed by ":" and one of the following:</para>
+
+          <orderedlist numeration="loweralpha">
+            <listitem>
+              <para>The word "None" or "none". This causes any default action
+              defined in <ulink
+              url="shorewall.conf.html">shorewall.conf</ulink>(5) to
+              be omitted for this policy.</para>
+            </listitem>
+
+            <listitem>
+              <para>The name of an action with optional parameters enclosed in
+              parentheses. The action will be invoked before the policy is
+              enforced.</para>
+            </listitem>
+          </orderedlist>
+
+          <para>Actions can have parameters specified.</para>
+
+          <para>Beginning with Shorewall 4.5.10, the action name can be
+          followed optionally by a colon and a log level. The level will be
+          applied to each rule in the action or body that does not already
+          have a log level.</para>
+
+          <para>Beginning with Shorewall 5.1.2, multiple
+          <replaceable>action</replaceable>[:<replaceable>level</replaceable>]
+          specification may be listeded, separated by commas. The actions are
+          invoked in the order listed. Also beginning with Shorewall 5.1.2,
+          the policy-action list can be prefixed with a plus sign ("+")
+          indicating that the listed actions are in addition to those listed
+          in the related _DEFAULT setting in <ulink
+          url="shorewall.conf.html">shorewall.conf</ulink>(5).</para>
+
+          <para>Possible policies are:</para>
+
+          <variablelist>
+            <varlistentry>
+              <term><emphasis role="bold">ACCEPT</emphasis></term>
+
+              <listitem>
+                <para>Accept the connection.</para>
+
+                <para><emphasis role="bold">nftables:</emphasis> the zone-pair
+                chain ends in <emphasis role="bold">accept</emphasis>, after
+                the leading <emphasis role="bold">ct state
+                established,related accept</emphasis> that every chain
+                carries.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">DROP</emphasis></term>
+
+              <listitem>
+                <para>Ignore the connection request.</para>
+
+                <para><emphasis role="bold">nftables:</emphasis> the chain ends
+                in <emphasis role="bold">drop</emphasis>. With a log level it
+                is preceded by a <emphasis role="bold">log prefix
+                "shorewall:<replaceable>chain</replaceable>:DROP:"</emphasis>
+                rule.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">REJECT</emphasis></term>
+
+              <listitem>
+                <para>For TCP, send RST. For all other, send an "unreachable"
+                ICMP.</para>
+
+                <para><emphasis role="bold">nftables:</emphasis> the chain
+                jumps to a reject chain that answers TCP with <emphasis
+                role="bold">reject with tcp reset</emphasis> and everything
+                else with an ICMP unreachable (<emphasis
+                role="bold">reject</emphasis>).</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">BLACKLIST</emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 5.1.1 and requires that the
+                DYNAMIC_BLACKLIST setting in <ulink
+                url="shorewall.conf.html">shorewall.conf</ulink>(5)
+                specifies ipset-based dynamic blacklisting. The SOURCE IP
+                address is added to the blacklist ipset and the connection
+                request is ignored.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">QUEUE</emphasis></term>
+
+              <listitem>
+                <para>Queue the request for a user-space application such as
+                Snort-inline.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">NFQUEUE</emphasis></term>
+
+              <listitem>
+                <para>Queue the request for a user-space application using the
+                nfnetlink_queue mechanism. If a
+                <replaceable>queuenumber1</replaceable> is not given, queue
+                zero (0) is assumed. Beginning with Shorewall 4.6.10, a second
+                queue number (queuenumber2) may be given. This specifies a
+                range of queues to use. Packets are then balanced across the
+                given queues. This is useful for multicore systems: start
+                multiple instances of the userspace program on queues x, x+1,
+                .. x+n and use "x:x+n". Packets belonging to the same
+                connection are put into the same nfqueue. Beginning with
+                Shorewall 5.1.0, queuenumber2 may be followed by the letter
+                'c' to indicate that the CPU ID will be used as an index to
+                map packets to the queues. The idea is that you can improve
+                performance if there's a queue per CPU. Requires the NFQUEUE
+                CPU Fanout capability in your kernel and iptables.</para>
+
+                <para>Beginning with Shorewall 4.6.10, the keyword <emphasis
+                role="bold">bypass</emphasis> can be given. By default, if no
+                userspace program is listening on an NFQUEUE, then all packets
+                that are to be queued are dropped. When this option is used,
+                the NFQUEUE rule behaves like ACCEPT instead.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">CONTINUE</emphasis></term>
+
+              <listitem>
+                <para>Pass the connection request past any other rules that it
+                might also match (where the source or destination zone in
+                those rules is a superset of the SOURCE or DEST in this
+                policy). See <ulink
+                url="shorewall-nesting.html">shorewall-nesting</ulink>(5)
+                for additional information.</para>
+
+                <para><emphasis role="bold">nftables:</emphasis> the chain
+                returns without a terminal verdict, so the packet keeps
+                traversing the rules that follow.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">NONE</emphasis></term>
+
+              <listitem>
+                <para>Assume that there will never be any packets from this
+                SOURCE to this DEST. Shorewall will not create any
+                infrastructure to handle such packets and you may not have any
+                rules with this SOURCE and DEST in the /etc/shorewall/rules
+                file. If such a packet <emphasis role="bold">is</emphasis>
+                received, the result is undefined. NONE may not be used if the
+                SOURCE or DEST columns contain the firewall zone ($FW) or
+                "all".</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">LOGLEVEL</emphasis> (loglevel) -
+        [<emphasis>log-level</emphasis>|<emphasis
+        role="bold">ULOG|NFLOG</emphasis>]</term>
+
+        <listitem>
+          <para>Optional - if supplied, each connection handled under the
+          default POLICY is logged at that level. If not supplied, no log
+          message is generated. See syslog.conf(5) for a description of log
+          levels.</para>
+
+          <para>You may also specify ULOG or NFLOG (must be in upper case).
+          This will log to the ULOG or NFLOG target and will send to a
+          separate log through use of ulogd (<ulink
+          url="http://www.netfilter.org/projects/ulogd/index.html">http://www.netfilter.org/projects/ulogd/index.html</ulink>).</para>
+
+          <para>For a description of logging, see <ulink
+          url="../shorewall_logging.html">shorewall-logging(5)</ulink>.</para>
+
+          <para>If you don't want to log but need to specify the following
+          column, place "-" here.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">RATE</emphasis> (rate) -
+        [-|<replaceable>limit</replaceable>]</term>
+
+        <listitem>
+          <para>where limit is one of:</para>
+
+          <simplelist>
+            <member>[<emphasis role="bold">-</emphasis>|[{<emphasis
+            role="bold">s</emphasis>|<emphasis
+            role="bold">d</emphasis>}[/<replaceable>vlsm</replaceable>]:[[<replaceable>name</replaceable>][(ht-buckets,ht-max)]:]]]<emphasis>rate</emphasis><emphasis
+            role="bold">/</emphasis>{<emphasis
+            role="bold">sec</emphasis>|<emphasis
+            role="bold">min</emphasis>|<emphasis
+            role="bold">hour</emphasis>|<emphasis
+            role="bold">day</emphasis>}[:<emphasis>burst</emphasis>]</member>
+
+            <member>[<replaceable>name</replaceable>1:]<emphasis>rate1</emphasis><emphasis
+            role="bold">/</emphasis>{<emphasis
+            role="bold">sec</emphasis>|<emphasis
+            role="bold">min</emphasis>|<emphasis
+            role="bold">hour</emphasis>|<emphasis
+            role="bold">day</emphasis>}[:<emphasis>burst1</emphasis>],[<replaceable>name</replaceable>2:]<emphasis>rate2</emphasis><emphasis
+            role="bold">/</emphasis>{<emphasis
+            role="bold">sec</emphasis>|<emphasis
+            role="bold">min</emphasis>|<emphasis
+            role="bold">hour</emphasis>|<emphasis
+            role="bold">day</emphasis>}[:<emphasis>burst2</emphasis>]</member>
+          </simplelist>
+
+          <para>If passed, specifies the maximum TCP connection
+          <emphasis>rate</emphasis> and the size of an acceptable
+          <emphasis>burst</emphasis>. If not specified, TCP connections are
+          not limited. If the <replaceable>burst</replaceable> parameter is
+          omitted, a value of 5 is assumed.</para>
+
+          <para>When <option>s:</option> or <option>d:</option> is specified,
+          the rate applies per source IP address or per destination IP address
+          respectively. The <replaceable>name</replaceable> may be chosen by
+          the user and specifies a hash table to be used to count matching
+          connections. If not give, the name <emphasis
+          role="bold">shorewall</emphasis> is assumed. Where more than one
+          POLICY or rule specifies the same name, the connections counts for
+          the policies are aggregated and the individual rates apply to the
+          aggregated count. Beginning with Shorewall 5.2.1, the <emphasis
+          role="bold">s</emphasis> or <emphasis role="bold">d</emphasis> may
+          be followed by a slash ("/") and an integer
+          <replaceable>vlsm</replaceable>. When a
+          <replaceable>vlsm</replaceable> is specified, all source or
+          destination addresses encountered will be grouped according to the
+          given prefix length and the so-created subnet will be subject to the
+          rate limit.</para>
+
+          <para>Beginning with Shorewall 4.6.5, two<replaceable>
+          limit</replaceable>s may be specified, separated by a comma. In this
+          case, the first limit (<replaceable>name1</replaceable>,
+          <replaceable>rate1</replaceable>, burst1) specifies the per-source
+          IP limit and the second limit specifies the per-destination IP
+          limit.</para>
+
+          <para>Example: <emphasis
+          role="bold">client:10/sec:20,:60/sec:100</emphasis></para>
+
+          <para>Beginning with Shorewall 5.2.1, the table name, if any, may be
+          followed by two integers separated by commas and enclosed in
+          parentheses. The first integer
+          (<replaceable>ht-buckets</replaceable>) specifies the number of
+          buckets in the generated hash table. The second integer
+          (<replaceable>ht-max</replaceable>) specifies the maximum number of
+          entries in the hash table.</para>
+
+          <para>Example: <emphasis
+          role="bold">s:client(1024,65536):10/sec</emphasis></para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">CONNLIMIT</emphasis> -
+        <emphasis>limit</emphasis>[:<emphasis>mask</emphasis>]</term>
+
+        <listitem>
+          <para>May be used to limit the number of simultaneous connections
+          from each individual host to <replaceable>limit</replaceable>
+          connections. While the limit is only checked on connections to which
+          this policy could apply, the number of current connections is
+          calculated over all current connections from the SOURCE host. By
+          default, the limit is applied to each host individually but can be
+          made to apply to networks of hosts by specifying a
+          <replaceable>mask</replaceable>. The <replaceable>mask</replaceable>
+          specifies the width of a VLSM mask to be applied to the source
+          address; the number of current connections is then taken over all
+          hosts in the subnet
+          <replaceable>source-address</replaceable>/<replaceable>mask</replaceable>.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Example</title>
+
+    <orderedlist numeration="loweralpha">
+      <listitem>
+        <para>All connections from the local network to the internet are
+        allowed</para>
+      </listitem>
+
+      <listitem>
+        <para>All connections from the internet are ignored but logged at
+        syslog level KERNEL.INFO.</para>
+      </listitem>
+
+      <listitem>
+        <para>All other connection requests are rejected and logged at level
+        KERNEL.INFO.</para>
+      </listitem>
+    </orderedlist>
+
+    <programlisting>        #SOURCE         DEST            POLICY          LOG           BURST:LIMIT
+        #                                               LEVEL
+        loc             net             ACCEPT
+        net             all             DROP            info
+        #
+        # THE FOLLOWING POLICY MUST BE LAST
+        #
+        all             all             REJECT          info</programlisting>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall/policy</para>
+
+    <para>/etc/shorewall6/policy</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para><ulink
+    url="../configuration_file_basics.htm#Pairs">https://shorewall.org/configuration_file_basics.htm#Pairs</ulink></para>
+
+    <para>shorewall(8)</para>
+  </refsect1>
+</refentry>

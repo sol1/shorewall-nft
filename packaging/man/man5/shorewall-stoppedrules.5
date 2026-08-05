@@ -1,0 +1,160 @@
+'\" t
+.\"     Title: shorewall-stoppedrules
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Configuration Files
+.\"    Source: Configuration Files
+.\"  Language: English
+.\"
+.TH "SHOREWALL\-STOPPEDRU" "5" "08/05/2026" "Configuration Files" "Configuration Files"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+stoppedrules \- The Shorewall file that governs what traffic flows through the firewall while it is in the \*(Aqstopped\*(Aq state\&.
+.SH "SYNOPSIS"
+.HP \w'\fB/etc/shorewall[6]/stoppedrules\fR\ 'u
+\fB/etc/shorewall[6]/stoppedrules\fR
+.SH "DESCRIPTION"
+.PP
+This file is used to define the hosts that are accessible when the firewall is stopped or is being stopped\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBWarning\fR
+.ps -1
+.br
+.PP
+Changes to this file do not take effect until after the next
+\fBshorewall start\fR,
+\fBshorewall reload\fR,
+\fBshorewall restart\fR, or
+\fBshorewall compile\fR
+command\&.
+.sp .5v
+.RE
+.PP
+The columns in the file are as follows (where the column name is followed by a different name in parentheses, the different name is used in the alternate specification syntax)\&.
+.PP
+\fBACTION\fR \- \fBACCEPT|NOTRACK|DROP\fR
+.RS 4
+Determines the disposition of the packet\&.
+.sp
+\fBACCEPT\fR
+means that the packet will be accepted\&.
+.sp
+\fBNOTRACK\fR
+indicates that no conntrack entry should be created for the packet\&.
+\fBNOTRACK\fR
+does not imply
+\fBACCEPT\fR\&.
+.sp
+\fBDROP\fR
+was added in Shorewall 4\&.6\&.0 and causes the packet to be dropped in the raw table\*(Aqs PREROUTING chain\&.
+.RE
+.PP
+\fBSOURCE\fR \- [\fB\-\fR|[$FW|\fIinterface\fR]|[{$FW|interface}[\fI:address\fR[,\fIaddress\fR]\&.\&.\&.]]|[\fIaddress\fR[,\fIaddress\fR]\&.\&.\&.]
+.RS 4
+\fB$FW\fR
+matches packets originating on the firewall itself, while
+\fIinterface\fR
+specifies packets arriving on the named interface\&.
+.sp
+This column may also include a comma\-separated list of IP/subnet addresses\&. If your kernel and iptables include iprange match support, IP address ranges are also allowed\&. Ipsets and exclusion are also supported\&. When
+\fB$FW\fR
+or interface are specified, the list must be preceded by a colon (":")\&.
+.sp
+If left empty or supplied as "\-", 0\&.0\&.0\&.0/0 is assumed\&.
+.RE
+.PP
+\fBDEST\fR \- [\fB\-\fR|[$FW|\fIinterface\fR]|[{$FW|interface}[\fI:address\fR[,\fIaddress\fR]\&.\&.\&.]]|[\fIaddress\fR[,\fIaddress\fR]\&.\&.\&.]
+.RS 4
+\fB$FW\fR
+matches packets addressed the firewall itself, while
+\fIinterface\fR
+specifies packets arriving on the named interface\&. Neither may be specified if the target is
+\fBNOTRACK\fR
+or
+\fBDROP\fR\&.
+.sp
+This column may also include a comma\-separated list of IP/subnet addresses\&. If your kernel and iptables include iprange match support, IP address ranges are also allowed\&. Ipsets and exclusion are also supported\&. When
+\fB$FW\fR
+or interface are specified, the list must be preceded by a colon (":")\&.
+.sp
+If left empty or supplied as "\-", 0\&.0\&.0\&.0/0 is assumed\&.
+.RE
+.PP
+\fBPROTO (Optional)\fR \(en \fIprotocol\-name\-or\-number\fR[,\&.\&.\&.]
+.RS 4
+Protocol\&.
+.sp
+Beginning with Shorewall 4\&.5\&.12, this column can accept a comma\-separated list of protocols\&.
+.RE
+.PP
+\fBDPORT\fR \(en \fIservice\-name/port\-number\-list\fR
+.RS 4
+Optional\&. A comma\-separated list of port numbers and/or service names from
+/etc/services\&. May also include port ranges of the form
+\fIlow\-port\fR:\fIhigh\-port\fR
+if your kernel and iptables include port range support\&.
+.sp
+This column was formerly labelled DEST PORT(S)\&.
+.RE
+.PP
+\fBSPORT\fR \(en \fIservice\-name/port\-number\-list\fR
+.RS 4
+Optional\&. A comma\-separated list of port numbers and/or service names from
+/etc/services\&. May also include port ranges of the form
+\fIlow\-port\fR:\fIhigh\-port\fR
+if your kernel and iptables include port range support\&.
+.sp
+Beginning with Shorewall 4\&.5\&.15, you may place \*(Aq=\*(Aq in this column, provided that the DPORT column is non\-empty\&. This causes the rule to match when either the source port or the destination port in a packet matches one of the ports specified in DEST PORTS(S)\&. Use of \*(Aq=\*(Aq requires multi\-port match in your iptables and kernel\&.
+.sp
+This column was formerly labelled SOURCE PORT(S)\&.
+.RE
+.SH "FILES"
+.PP
+/etc/shorewall/stoppedrules
+.PP
+/etc/shorewall6/stoppedrules
+.SH "SEE ALSO"
+.PP
+\m[blue]\fBhttps://shorewall\&.org/starting_and_stopping_shorewall\&.htm\fR\m[]\&\s-2\u[1]\d\s+2
+.PP
+\m[blue]\fBhttps://shorewall\&.org/configuration_file_basics\&.htm#Pairs\fR\m[]\&\s-2\u[2]\d\s+2
+.PP
+shorewall(8)
+.SH "NOTES"
+.IP " 1." 4
+https://shorewall.org/starting_and_stopping_shorewall.htm
+.RS 4
+\%[set $man.base.url.for.relative.links]/../starting_and_stopping_shorewall.htm
+.RE
+.IP " 2." 4
+https://shorewall.org/configuration_file_basics.htm#Pairs
+.RS 4
+\%[set $man.base.url.for.relative.links]/../configuration_file_basics.htm#Pairs
+.RE

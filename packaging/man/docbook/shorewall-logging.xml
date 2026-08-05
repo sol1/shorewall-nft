@@ -1,0 +1,385 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-logging</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>logging</refname>
+
+    <refpurpose>Shorewall logging</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command><replaceable>action</replaceable>:<replaceable>level</replaceable></command>
+    </cmdsynopsis>
+
+    <cmdsynopsis>
+      <command>NFLOG(<replaceable>nflog-parameters</replaceable>)</command>
+    </cmdsynopsis>
+
+    <cmdsynopsis>
+      <command>ULOG(<replaceable>ulog-parameters</replaceable>)</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>The disposition of packets entering a Shorewall firewall is
+    determined by one of a number of Shorewall facilities. Only some of these
+    facilities permit logging.</para>
+
+    <orderedlist>
+      <listitem>
+        <para>The packet is part of an established connection. While the
+        packet can be logged using LOG rules in the ESTABLISHED section of
+        <ulink
+        url="manpages/shorewall-rules.html">/etc/shorewall/rules</ulink>, that
+        is not recommended because of the large amount of information that may
+        be logged.</para>
+      </listitem>
+
+      <listitem>
+        <para>The packet represents a connection request that is related to an
+        established connection (such as a <ulink url="FTP.html">data
+        connection associated with an FTP control connection</ulink>). These
+        packets may be logged using LOG rules in the RELATED section of <ulink
+        url="manpages/shorewall-rules.html">shorewall-rules(5)</ulink>.</para>
+      </listitem>
+
+      <listitem>
+        <para>The packet is rejected because of an option in <ulink
+        url="manpages/shorewall.conf.html">shorewall.conf</ulink>(5) or <ulink
+        url="manpages/shorewall-interfaces.html">shorewall-interfaces(5)</ulink>.
+        These packets can be logged by setting the appropriate logging-related
+        option in <ulink
+        url="manpages/shorewall.conf.html">/etc/shorewall/shorewall.conf</ulink>.</para>
+      </listitem>
+
+      <listitem>
+        <para>The packet matches a rule in <ulink
+        url="manpages/shorewall-rules.html">shorewall-rules</ulink>(5). By
+        including a syslog level (see below) in the ACTION column of a rule
+        (e.g., <quote>ACCEPT<emphasis role="bold">:info</emphasis> net $FW tcp
+        22</quote>), the connection attempt will be logged at that
+        level.</para>
+      </listitem>
+
+      <listitem>
+        <para>The packet doesn't match a rule so it is handled by a policy
+        defined in <ulink
+        url="manpages/shorewall-policy.html">shorewall-policy(5)</ulink>.
+        These may be logged by specifying a syslog level in the LOG LEVEL
+        column of the policy's entry (e.g., <quote>loc net ACCEPT <emphasis
+        role="bold">info</emphasis></quote>).</para>
+      </listitem>
+    </orderedlist>
+  </refsect1>
+
+  <refsect1>
+    <title>Default Logging</title>
+
+    <para>By default, Shorewall directs Netfilter to log using syslog (8).
+    Syslog classifies log messages by a <emphasis>facility</emphasis> and a
+    <emphasis>priority</emphasis> (using the notation
+    <emphasis>facility.priority</emphasis>).</para>
+
+    <para>The facilities defined by syslog are <emphasis>auth, authpriv, cron,
+    daemon, kern, lpr, mail, mark, news, syslog, user, uucp</emphasis> and
+    <emphasis>local0</emphasis> through <emphasis>local7.</emphasis></para>
+
+    <para>Throughout the Shorewall documentation, the term
+    <emphasis>level</emphasis> rather than <emphasis>priority is used,
+    </emphasis>since <emphasis>level</emphasis> is the term used by Netfilter.
+    The syslog documentation uses the term
+    <emphasis>priority</emphasis>.</para>
+  </refsect1>
+
+  <refsect1>
+    <title>Syslog Levels</title>
+
+    <para>Syslog levels are a method of describing to syslog (8) the
+    importance of a message. A number of Shorewall parameters have a syslog
+    level as their value.</para>
+
+    <para>Valid levels are:</para>
+
+    <simplelist>
+      <member>7 - <emphasis role="bold">debug</emphasis> (Debug-level
+      messages)</member>
+
+      <member>6 - <emphasis role="bold">info</emphasis>
+      (Informational)</member>
+
+      <member>5 - <emphasis role="bold">notice</emphasis> (Normal but
+      significant Condition)</member>
+
+      <member>4 - <emphasis role="bold">warning</emphasis> (Warning
+      Condition)</member>
+
+      <member>3 - <emphasis role="bold">err</emphasis> (Error
+      Condition)</member>
+
+      <member>2 - <emphasis role="bold">crit</emphasis> (Critical
+      Conditions)</member>
+
+      <member>1 - <emphasis role="bold">alert</emphasis> (must be handled
+      immediately)</member>
+
+      <member>0 - <emphasis role="bold">emerg</emphasis> (System is
+      unusable)</member>
+    </simplelist>
+
+    <para>For most Shorewall logging, a level of 6 (info) is appropriate.
+    Shorewall log messages are generated by Netfilter and are logged using the
+    <emphasis>kern</emphasis> facility and the level that you specify. If you
+    are unsure of the level to choose, 6 (info) is a safe bet. You may specify
+    levels by name or by number.</para>
+
+    <para>Beginning with Shorewall 4.5.5, the <replaceable>level</replaceable>
+    name or number may be optionally followed by a comma-separated list of one
+    or more<replaceable> log options</replaceable>. The list is enclosed in
+    parentheses. Log options cause additional information to be included in
+    each log message.</para>
+
+    <para>Valid log options are:</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><emphasis role="bold">ip_options</emphasis></term>
+
+        <listitem>
+          <para>Log messages will include the option settings from the IP
+          header.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">macdecode</emphasis></term>
+
+        <listitem>
+          <para>Decode the MAC address and protocol.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">tcp_sequence</emphasis></term>
+
+        <listitem>
+          <para>Include TCP sequence numbers.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">tcp_options</emphasis></term>
+
+        <listitem>
+          <para>Include options from the TCP header.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">uid</emphasis></term>
+
+        <listitem>
+          <para>Include the UID of the sending program; only valid for packets
+          originating on the firewall itself.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+
+    <para>Example: <emphasis
+    role="bold">info(tcp_options,tcp_sequence)</emphasis></para>
+
+    <para>Syslogd writes log messages to files (typically in <filename
+    class="directory">/var/log/</filename>*) based on their facility and
+    level. The mapping of these facility/level pairs to log files is done in
+    /etc/syslog.conf (5). If you make changes to this file, you must restart
+    syslogd before the changes can take effect.</para>
+
+    <para>Syslog may also write to your system console. See <ulink
+    url="FAQ.htm#faq16">Shorewall FAQ 16</ulink> for ways to avoid having
+    Shorewall messages written to the console.</para>
+  </refsect1>
+
+  <refsect1>
+    <title>Configuring a Separate Log for Shorewall Messages (ulogd)</title>
+
+    <para>There are a couple of limitations to syslogd-based logging:</para>
+
+    <orderedlist>
+      <listitem>
+        <para>If you give, for example, kern.info its own log destination then
+        that destination will also receive all kernel messages of levels 5
+        (notice) through 0 (emerg).</para>
+      </listitem>
+
+      <listitem>
+        <para>All kernel.info messages will go to that destination and not
+        just those from Netfilter.</para>
+      </listitem>
+
+      <listitem>
+        <para>Netfilter (Shorewall) messages show up in
+        <command>dmesg</command>.</para>
+      </listitem>
+    </orderedlist>
+
+    <para>If your kernel has NFLOG target support (and most vendor-supplied
+    kernels do), you may also specify a log level of NFLOG (must be all caps).
+    When NFLOG is used, Shorewall will direct Netfilter to log the related
+    messages via the NFLOG target which will send them to a process called
+    <quote>ulogd</quote>. The ulogd program is included in most
+    distributions.</para>
+
+    <note>
+      <para>The NFLOG logging mechanism is <emphasis
+      role="underline">completely separate</emphasis> from syslog. Once you
+      switch to NFLOG, the settings in <filename>/etc/syslog.conf</filename>
+      have absolutely no effect on your Shorewall logging (except for
+      Shorewall status messages which still go to syslog).</para>
+    </note>
+
+    <para>You will need to change all instances of log levels (usually
+    <quote>info</quote>) in your Shorewall configuration files to
+    <quote>NFLOG</quote> - this includes entries in the policy, rules and
+    shorewall.conf files. If you initially installed using Shorewall 5.1.2 or
+    later, you can simply change the setting of LOG_LEVEL in
+    shorewall.conf.</para>
+  </refsect1>
+
+  <refsect1>
+    <title>Understanding the Contents of Shorewall Log Messages</title>
+
+    <para>For general information on the contents of Netfilter log messages,
+    see <ulink
+    url="http://logi.cc/en/2010/07/netfilter-log-format/">http://logi.cc/en/2010/07/netfilter-log-format/</ulink>.</para>
+
+    <para>For Shorewall-specific information, see <ulink
+    url="../FAQ.htm#faq17">FAQ #17</ulink>.</para>
+  </refsect1>
+
+  <refsect1>
+    <title>Customizing the Content of Shorewall Log Messages</title>
+
+    <para>In a Shorewall logging rule, the log level can be followed by a
+    <firstterm>log tag</firstterm> as in "DROP:NFLOG:junk". The generated log
+    message will include "<emphasis>chain-name</emphasis> junk DROP".</para>
+
+    <para>By setting the LOGTAGONLY option to Yes in <ulink
+    url="shorewall.conf.html">shorewall.conf(5)</ulink> or <ulink
+    url="shorewall.conf.html">shorewall6.conf(5)</ulink>, the
+    disposition ('DROP' in the above example) will be omitted. Consider the
+    following rule:</para>
+
+    <programlisting>#ACTION                                    SOURCE          DEST           PROTO
+REJECT(icmp-proto-unreachable):notice:IPv6 loc             net            41      # who's using IPv6 tunneling</programlisting>
+
+    <para>This rule generates the following warning at compile time:</para>
+
+    <simplelist>
+      <member>WARNING: Log Prefix shortened to "Shorewall:IPv6:REJECT(icmp-p "
+      /etc/shorewall/rules (line 212)</member>
+    </simplelist>
+
+    <para>and produces the rather ugly prefix "Shorewall:IPv6:REJECT(icmp-p
+    ".</para>
+
+    <para>Now consider this similar rule:</para>
+
+    <programlisting>#ACTION                                              SOURCE          DEST           PROTO
+REJECT(icmp-proto-unreachable):notice:IPv6,tunneling loc             net            41      # who's using IPv6 tunneling</programlisting>
+
+    <para>With LOGTAGONLY=Yes, no warning is generated and the prefix becomes
+    "Shorewall:IPv6:tunneling:"</para>
+
+    <para>See the <ulink url="shorewall.conf.html">shorewall[6].conf man
+    page</ulink> for further information about how LOGTAGONLY=Yes can be
+    used.</para>
+  </refsect1>
+
+  <refsect1>
+    <title>Log Backends</title>
+
+    <para>Netfilter logging allows configuration of multiple backends. Logging
+    backends provide the The low-level forward of log messages. There are
+    currently three backends:</para>
+
+    <variablelist>
+      <varlistentry>
+        <term>LOG (ipt_LOG and ip6t_LOG).</term>
+
+        <listitem>
+          <para>Normal kernel-based logging to a syslog daemon.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>ULOG (ipt_ULOG)</term>
+
+        <listitem>
+          <para>ULOG logging as described ablve. Only available for
+          IPv4.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>netlink (nfnetlink_log)</term>
+
+        <listitem>
+          <para>The logging backend behind NFLOG, defined above.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+
+    <para>The currently-available and currently-selected IPv4 and IPv6
+    backends are shown in /proc/sys/net/netfilter/nf_log:</para>
+
+    <programlisting>cat /proc/net/netfilter/nf_log
+ 0 NONE (nfnetlink_log)
+ 1 NONE (nfnetlink_log)
+ 2 ipt_ULOG (ipt_ULOG,ipt_LOG,nfnetlink_log)
+ 3 NONE (nfnetlink_log)
+ 4 NONE (nfnetlink_log)
+ 5 NONE (nfnetlink_log)
+ 6 NONE (nfnetlink_log)
+ 7 NONE (nfnetlink_log)
+ 8 NONE (nfnetlink_log)
+ 9 NONE (nfnetlink_log)
+10 ip6t_LOG (ip6t_LOG,nfnetlink_log)
+11 NONE (nfnetlink_log)
+12 NONE (nfnetlink_log)</programlisting>
+
+    <para>The magic numbers (0-12) are Linux address family numbers (AF_INET
+    is 2 and AF_INET6 is 10).</para>
+
+    <para>The name immediately following the number is the currently-selected
+    backend, and the ones in parentheses are the ones that are available. You
+    can change the currently selected backend by echoing it's name into
+    /proc/net/netfilter/nf_log.<replaceable>number</replaceable>.</para>
+
+    <para>Example - change the IPv4 backend to LOG:</para>
+
+    <programlisting>sysctl net.netfilter.nf_log.2=ipt_LOG</programlisting>
+
+    <para>Beginning with Shorewall 4.6.4, you can configure the backend using
+    the LOG_BACKEND option in <ulink
+    url="manpages/shorewall.conf.html">shorewall.conf(5)</ulink> and <ulink
+    url="manpages/shorewall.conf.html">shorewall6.conf(5)</ulink>.</para>
+  </refsect1>
+
+  <refsect1>
+    <title>SEE ALSO</title>
+
+    <para><ulink
+    url="../shorewall_logging.htm">https://shorewall.org/shorewall_logging.html</ulink></para>
+  </refsect1>
+</refentry>

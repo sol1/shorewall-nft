@@ -1,0 +1,397 @@
+'\" t
+.\"     Title: shorewall-policy
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Configuration Files
+.\"    Source: Configuration Files
+.\"  Language: English
+.\"
+.TH "SHOREWALL\-POLICY" "5" "08/05/2026" "Configuration Files" "Configuration Files"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+policy \- Shorewall policy file
+.SH "SYNOPSIS"
+.HP \w'\fB/etc/shorewall[6]/policy\fR\ 'u
+\fB/etc/shorewall[6]/policy\fR
+.SH "DESCRIPTION"
+.PP
+This file defines the high\-level policy for connections between zones defined in
+\m[blue]\fBshorewall\-zones\fR\m[]\&\s-2\u[1]\d\s+2(5)\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+.PP
+The order of entries in this file is important
+.PP
+This file determines what to do with a new connection request if we don\*(Aqt get a match from the
+\m[blue]\fBshorewall\-blrules\fR\m[]\&\s-2\u[2]\d\s+2(5) or
+\m[blue]\fBshorewall\-rules\fR\m[]\&\s-2\u[3]\d\s+2(5) files\&. For each source/destination pair, the file is processed in order until a match is found ("all" will match any source or destination)\&.
+.sp .5v
+.RE
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+.PP
+Intra\-zone policies are pre\-defined
+.PP
+For $FW and for all of the zones defined in
+\m[blue]\fBshorewall\-zones\fR\m[]\&\s-2\u[1]\d\s+2(5), the POLICY for connections from the zone to itself is ACCEPT (with no logging or TCP connection rate limiting) but may be overridden by an entry in this file\&. The overriding entry must be explicit (specifying the zone name in both SOURCE and DEST) or it must use "all+" (Shorewall 4\&.5\&.17 or later)\&.
+.PP
+Similarly, if you have IMPLICIT_CONTINUE=Yes in
+\m[blue]\fBshorewall\&.conf\fR\m[]\&\s-2\u[4]\d\s+2(5), then the implicit policy to/from any sub\-zone is CONTINUE\&. These implicit CONTINUE policies may also be overridden by an explicit entry in this file\&.
+.sp .5v
+.RE
+.PP
+The columns in the file are as follows (where the column name is followed by a different name in parentheses, the different name is used in the alternate specification syntax)\&.
+.PP
+\fBSOURCE\fR \- \fIzone\fR[,\&.\&.\&.[+]]|\fB$FW\fR|\fBall[+][!\fR\fB\fIezone\fR\fR\fB[,\&.\&.\&.]]\fR
+.RS 4
+Source zone\&. Must be the name of a zone defined in
+\m[blue]\fBshorewall\-zones\fR\m[]\&\s-2\u[1]\d\s+2(5), $FW, "all" or "all+"\&.
+.sp
+Support for
+\fBall+\fR
+was added in Shorewall 4\&.5\&.17\&.
+\fBall\fR
+does not override the implicit intra\-zone ACCEPT policy while
+\fBall+\fR
+does\&.
+.sp
+Beginning with Shorewall 5\&.0\&.12, multiple zones may be listed separated by commas\&. As above, if \*(Aq+\*(Aq is specified after two or more zone names, then the policy overrides the implicit intra\-zone ACCEPT policy if the same
+\fIzone\fR
+appears in both the SOURCE and DEST columns\&.
+.sp
+Beginning with Shorewall 5\&.2\&.3, a comma\-separated list of excluded zones preceded by "!" may follow
+\fBall\fR
+or
+\fBall+\&.\fR
+.RE
+.PP
+\fBDEST\fR \- \fIzone\fR[,\&.\&.\&.[+]]|\fB$FW\fR|all[+][!\fIezone\fR[,\&.\&.\&.]]
+.RS 4
+Destination zone\&. Must be the name of a zone defined in
+\m[blue]\fBshorewall\-zones\fR\m[]\&\s-2\u[1]\d\s+2(5), $FW, "all" or "all+"\&. If the DEST is a bport zone, then the SOURCE must be "all", "all+", another bport zone associated with the same bridge, or it must be an ipv4 zone that is associated with only the same bridge\&.
+.sp
+Support for "all+" was added in Shorewall 4\&.5\&.17\&. "all" does not override the implicit intra\-zone ACCEPT policy while "all+" does\&.
+.sp
+Beginning with Shorewall 5\&.0\&.12, multiple zones may be listed separated by commas\&. As above, if \*(Aq+\*(Aq is specified after two or more zone names, then the policy overrides the implicit intra\-zone ACCEPT policy if the same
+\fIzone\fR
+appears in both the SOURCE and DEST columns\&.
+.sp
+Beginning with Shorewall 5\&.2\&.3, a comma\-separated list of excluded zones preceded by "!" may follow
+\fBall\fR
+or
+\fBall+\fR\&.
+.RE
+.PP
+\fBPOLICY\fR \- {\fBACCEPT\fR|\fBDROP\fR|\fBREJECT\fR|\fBBLACKLIST\fR|\fBCONTINUE\fR|\fBQUEUE\fR|\fBNFQUEUE\fR[([\fIqueuenumber\fR1[:\fIqueuenumber2\fR[c]][,bypass]]|bypass)]|\fBNONE\fR}[\fB:\fR{[+]\fIpolicy\-action\fR[:level][,\&.\&.\&.]|\fBNone\fR}]
+.RS 4
+Policy if no match from the rules file is found\&.
+.sp
+If the policy is neither CONTINUE nor NONE then the policy may be followed by ":" and one of the following:
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+The word "None" or "none"\&. This causes any default action defined in
+\m[blue]\fBshorewall\&.conf\fR\m[]\&\s-2\u[4]\d\s+2(5) to be omitted for this policy\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
+The name of an action with optional parameters enclosed in parentheses\&. The action will be invoked before the policy is enforced\&.
+.RE
+.sp
+Actions can have parameters specified\&.
+.sp
+Beginning with Shorewall 4\&.5\&.10, the action name can be followed optionally by a colon and a log level\&. The level will be applied to each rule in the action or body that does not already have a log level\&.
+.sp
+Beginning with Shorewall 5\&.1\&.2, multiple
+\fIaction\fR[:\fIlevel\fR] specification may be listeded, separated by commas\&. The actions are invoked in the order listed\&. Also beginning with Shorewall 5\&.1\&.2, the policy\-action list can be prefixed with a plus sign ("+") indicating that the listed actions are in addition to those listed in the related _DEFAULT setting in
+\m[blue]\fBshorewall\&.conf\fR\m[]\&\s-2\u[4]\d\s+2(5)\&.
+.sp
+Possible policies are:
+.PP
+\fBACCEPT\fR
+.RS 4
+Accept the connection\&.
+.sp
+\fBnftables:\fR
+the zone\-pair chain ends in
+\fBaccept\fR, after the leading
+\fBct state established,related accept\fR
+that every chain carries\&.
+.RE
+.PP
+\fBDROP\fR
+.RS 4
+Ignore the connection request\&.
+.sp
+\fBnftables:\fR
+the chain ends in
+\fBdrop\fR\&. With a log level it is preceded by a
+\fBlog prefix "shorewall:\fR\fB\fIchain\fR\fR\fB:DROP:"\fR
+rule\&.
+.RE
+.PP
+\fBREJECT\fR
+.RS 4
+For TCP, send RST\&. For all other, send an "unreachable" ICMP\&.
+.sp
+\fBnftables:\fR
+the chain jumps to a reject chain that answers TCP with
+\fBreject with tcp reset\fR
+and everything else with an ICMP unreachable (\fBreject\fR)\&.
+.RE
+.PP
+\fBBLACKLIST\fR
+.RS 4
+Added in Shorewall 5\&.1\&.1 and requires that the DYNAMIC_BLACKLIST setting in
+\m[blue]\fBshorewall\&.conf\fR\m[]\&\s-2\u[4]\d\s+2(5) specifies ipset\-based dynamic blacklisting\&. The SOURCE IP address is added to the blacklist ipset and the connection request is ignored\&.
+.RE
+.PP
+\fBQUEUE\fR
+.RS 4
+Queue the request for a user\-space application such as Snort\-inline\&.
+.RE
+.PP
+\fBNFQUEUE\fR
+.RS 4
+Queue the request for a user\-space application using the nfnetlink_queue mechanism\&. If a
+\fIqueuenumber1\fR
+is not given, queue zero (0) is assumed\&. Beginning with Shorewall 4\&.6\&.10, a second queue number (queuenumber2) may be given\&. This specifies a range of queues to use\&. Packets are then balanced across the given queues\&. This is useful for multicore systems: start multiple instances of the userspace program on queues x, x+1, \&.\&. x+n and use "x:x+n"\&. Packets belonging to the same connection are put into the same nfqueue\&. Beginning with Shorewall 5\&.1\&.0, queuenumber2 may be followed by the letter \*(Aqc\*(Aq to indicate that the CPU ID will be used as an index to map packets to the queues\&. The idea is that you can improve performance if there\*(Aqs a queue per CPU\&. Requires the NFQUEUE CPU Fanout capability in your kernel and iptables\&.
+.sp
+Beginning with Shorewall 4\&.6\&.10, the keyword
+\fBbypass\fR
+can be given\&. By default, if no userspace program is listening on an NFQUEUE, then all packets that are to be queued are dropped\&. When this option is used, the NFQUEUE rule behaves like ACCEPT instead\&.
+.RE
+.PP
+\fBCONTINUE\fR
+.RS 4
+Pass the connection request past any other rules that it might also match (where the source or destination zone in those rules is a superset of the SOURCE or DEST in this policy)\&. See
+\m[blue]\fBshorewall\-nesting\fR\m[]\&\s-2\u[5]\d\s+2(5) for additional information\&.
+.sp
+\fBnftables:\fR
+the chain returns without a terminal verdict, so the packet keeps traversing the rules that follow\&.
+.RE
+.PP
+\fBNONE\fR
+.RS 4
+Assume that there will never be any packets from this SOURCE to this DEST\&. Shorewall will not create any infrastructure to handle such packets and you may not have any rules with this SOURCE and DEST in the /etc/shorewall/rules file\&. If such a packet
+\fBis\fR
+received, the result is undefined\&. NONE may not be used if the SOURCE or DEST columns contain the firewall zone ($FW) or "all"\&.
+.RE
+.RE
+.PP
+\fBLOGLEVEL\fR (loglevel) \- [\fIlog\-level\fR|\fBULOG|NFLOG\fR]
+.RS 4
+Optional \- if supplied, each connection handled under the default POLICY is logged at that level\&. If not supplied, no log message is generated\&. See syslog\&.conf(5) for a description of log levels\&.
+.sp
+You may also specify ULOG or NFLOG (must be in upper case)\&. This will log to the ULOG or NFLOG target and will send to a separate log through use of ulogd (\m[blue]\fBhttp://www\&.netfilter\&.org/projects/ulogd/index\&.html\fR\m[])\&.
+.sp
+For a description of logging, see
+\m[blue]\fBshorewall\-logging(5)\fR\m[]\&\s-2\u[6]\d\s+2\&.
+.sp
+If you don\*(Aqt want to log but need to specify the following column, place "\-" here\&.
+.RE
+.PP
+\fBRATE\fR (rate) \- [\-|\fIlimit\fR]
+.RS 4
+where limit is one of:
+.RS 4
+[\fB\-\fR|[{\fBs\fR|\fBd\fR}[/\fIvlsm\fR]:[[\fIname\fR][(ht\-buckets,ht\-max)]:]]]\fIrate\fR\fB/\fR{\fBsec\fR|\fBmin\fR|\fBhour\fR|\fBday\fR}[:\fIburst\fR]
+.RE
+.RS 4
+[\fIname\fR1:]\fIrate1\fR\fB/\fR{\fBsec\fR|\fBmin\fR|\fBhour\fR|\fBday\fR}[:\fIburst1\fR],[\fIname\fR2:]\fIrate2\fR\fB/\fR{\fBsec\fR|\fBmin\fR|\fBhour\fR|\fBday\fR}[:\fIburst2\fR]
+.RE
+If passed, specifies the maximum TCP connection
+\fIrate\fR
+and the size of an acceptable
+\fIburst\fR\&. If not specified, TCP connections are not limited\&. If the
+\fIburst\fR
+parameter is omitted, a value of 5 is assumed\&.
+.sp
+When
+\fBs:\fR
+or
+\fBd:\fR
+is specified, the rate applies per source IP address or per destination IP address respectively\&. The
+\fIname\fR
+may be chosen by the user and specifies a hash table to be used to count matching connections\&. If not give, the name
+\fBshorewall\fR
+is assumed\&. Where more than one POLICY or rule specifies the same name, the connections counts for the policies are aggregated and the individual rates apply to the aggregated count\&. Beginning with Shorewall 5\&.2\&.1, the
+\fBs\fR
+or
+\fBd\fR
+may be followed by a slash ("/") and an integer
+\fIvlsm\fR\&. When a
+\fIvlsm\fR
+is specified, all source or destination addresses encountered will be grouped according to the given prefix length and the so\-created subnet will be subject to the rate limit\&.
+.sp
+Beginning with Shorewall 4\&.6\&.5, two\fI limit\fRs may be specified, separated by a comma\&. In this case, the first limit (\fIname1\fR,
+\fIrate1\fR, burst1) specifies the per\-source IP limit and the second limit specifies the per\-destination IP limit\&.
+.sp
+Example:
+\fBclient:10/sec:20,:60/sec:100\fR
+.sp
+Beginning with Shorewall 5\&.2\&.1, the table name, if any, may be followed by two integers separated by commas and enclosed in parentheses\&. The first integer (\fIht\-buckets\fR) specifies the number of buckets in the generated hash table\&. The second integer (\fIht\-max\fR) specifies the maximum number of entries in the hash table\&.
+.sp
+Example:
+\fBs:client(1024,65536):10/sec\fR
+.RE
+.PP
+\fBCONNLIMIT\fR \- \fIlimit\fR[:\fImask\fR]
+.RS 4
+May be used to limit the number of simultaneous connections from each individual host to
+\fIlimit\fR
+connections\&. While the limit is only checked on connections to which this policy could apply, the number of current connections is calculated over all current connections from the SOURCE host\&. By default, the limit is applied to each host individually but can be made to apply to networks of hosts by specifying a
+\fImask\fR\&. The
+\fImask\fR
+specifies the width of a VLSM mask to be applied to the source address; the number of current connections is then taken over all hosts in the subnet
+\fIsource\-address\fR/\fImask\fR\&.
+.RE
+.SH "EXAMPLE"
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+All connections from the local network to the internet are allowed
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
+All connections from the internet are ignored but logged at syslog level KERNEL\&.INFO\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 3.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  3." 4.2
+.\}
+All other connection requests are rejected and logged at level KERNEL\&.INFO\&.
+.RE
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+        #SOURCE         DEST            POLICY          LOG           BURST:LIMIT
+        #                                               LEVEL
+        loc             net             ACCEPT
+        net             all             DROP            info
+        #
+        # THE FOLLOWING POLICY MUST BE LAST
+        #
+        all             all             REJECT          info
+.fi
+.if n \{\
+.RE
+.\}
+.SH "FILES"
+.PP
+/etc/shorewall/policy
+.PP
+/etc/shorewall6/policy
+.SH "SEE ALSO"
+.PP
+\m[blue]\fBhttps://shorewall\&.org/configuration_file_basics\&.htm#Pairs\fR\m[]\&\s-2\u[7]\d\s+2
+.PP
+shorewall(8)
+.SH "NOTES"
+.IP " 1." 4
+shorewall-zones
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-zones.html
+.RE
+.IP " 2." 4
+shorewall-blrules
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-blrules.html
+.RE
+.IP " 3." 4
+shorewall-rules
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-rules.html
+.RE
+.IP " 4." 4
+shorewall.conf
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall.conf.html
+.RE
+.IP " 5." 4
+shorewall-nesting
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-nesting.html
+.RE
+.IP " 6." 4
+shorewall-logging(5)
+.RS 4
+\%[set $man.base.url.for.relative.links]/../shorewall_logging.html
+.RE
+.IP " 7." 4
+https://shorewall.org/configuration_file_basics.htm#Pairs
+.RS 4
+\%[set $man.base.url.for.relative.links]/../configuration_file_basics.htm#Pairs
+.RE

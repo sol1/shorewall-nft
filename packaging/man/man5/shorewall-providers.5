@@ -1,0 +1,580 @@
+'\" t
+.\"     Title: shorewall-providers
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Configuration Files
+.\"    Source: Configuration Files
+.\"  Language: English
+.\"
+.TH "SHOREWALL\-PROVIDERS" "5" "08/05/2026" "Configuration Files" "Configuration Files"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+providers \- Shorewall Providers file
+.SH "SYNOPSIS"
+.HP \w'\fB/etc/shorewall/providers\fR\ 'u
+\fB/etc/shorewall/providers\fR
+.SH "DESCRIPTION"
+.PP
+This file is used to define additional routing tables\&. You will want to define an additional table if:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+You have connections to more than one ISP or multiple connections to the same ISP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+You run Squid as a transparent proxy on a host other than the firewall\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+You have other requirements for policy routing\&.
+.RE
+.PP
+Each entry in the file defines a single routing table\&.
+.PP
+If you wish to omit a column entry but want to include an entry in the next column, use "\-" for the omitted entry\&.
+.PP
+The columns in the file are as follows\&.
+.PP
+\fBNAME\fR \- \fIname\fR
+.RS 4
+The provider
+\fIname\fR\&. Must be a valid shell variable name\&. The names \*(Aqlocal\*(Aq, \*(Aqmain\*(Aq, \*(Aqdefault\*(Aq and \*(Aqunspec\*(Aq are reserved and may not be used as provider names\&.
+.RE
+.PP
+\fBNUMBER\fR \- \fInumber\fR
+.RS 4
+The provider number \-\- a number between 1 and 15\&. Each provider must be assigned a unique value\&.
+.RE
+.PP
+\fBMARK\fR (Optional) \- \fIvalue\fR
+.RS 4
+A FWMARK
+\fIvalue\fR
+used in your
+\m[blue]\fBshorewall\-mangle(5)\fR\m[]\&\s-2\u[1]\d\s+2
+file to direct packets to this provider\&.
+.sp
+If PROVIDER_OFFSET is non\-zero in
+\m[blue]\fBshorewall\&.conf(5)\fR\m[]\&\s-2\u[2]\d\s+2, then the value must be a multiple of 2^^PROVIDER_OFFSET\&. In all cases, the number of significant bits may not exceed PROVIDER_OFFSET + PROVIDER_BITS\&.
+.RE
+.PP
+\fBDUPLICATE\fR \- \fIrouting\-table\-name\fR
+.RS 4
+The name of an existing table to duplicate to create this routing table\&. May be
+\fBmain\fR
+or the name of a previously listed provider\&. You may select only certain entries from the table to copy by using the COPY column below\&. This column should contain a dash ("\-\*(Aq) when USE_DEFAULT_RT=Yes in
+\m[blue]\fBshorewall\&.conf(5)\fR\m[]\&\s-2\u[2]\d\s+2\&.
+.RE
+.PP
+\fBINTERFACE\fR \- \fIinterface\fR[:\fIaddress\fR]
+.RS 4
+The name of the network interface to the provider\&. Must be listed in
+\m[blue]\fBshorewall\-interfaces(5)\fR\m[]\&\s-2\u[3]\d\s+2\&. In general, that interface should not have the
+\fBproxyarp\fR
+or
+\fBproxyndp\fR
+option specified unless
+\fBloose\fR
+is given in the OPTIONS column of this entry\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+For IPv6, if the interface is an Ethernet device and an IP address is supplied, it should be the upstream router\*(Aqs link\-level address, not its global address\&.
+.sp .5v
+.RE
+Where more than one provider is serviced through a single interface, the
+\fIinterface\fR
+must be followed by a colon and the IP
+\fIaddress\fR
+of the interface that is supplied by the associated provider\&.
+.RE
+.PP
+\fBGATEWAY\fR \- {\fB\-\fR|\fIaddress\fR[,\fImac\fR]|\fBdetect|none\fR}
+.RS 4
+The IP address of the provider\*(Aqs gateway router\&. Beginning with Shorewall 4\&.6\&.2, you may also specify the MAC address of the gateway when there are multiple providers serviced through the same interface\&. When the MAC is not specified, Shorewall will detect the MAC during firewall start or restart\&.
+.sp
+You can enter
+\fBdetect\fR
+here and Shorewall will attempt to detect the gateway automatically\&.
+.sp
+Beginning with Shorewall 5\&.0\&.6, you may also enter
+\fBnone\fR\&. This causes creation of a routing table with no default route in it\&.
+.sp
+For PPP devices, you may omit this column\&.
+.RE
+.PP
+\fBOPTIONS\fR (Optional) \- [\fB\-\fR|\fIoption\fR[\fB,\fR\fIoption\fR]\&.\&.\&.]
+.RS 4
+A comma\-separated list selected from the following\&. The order of the options is not significant but the list may contain no embedded white\-space\&.
+.PP
+autosrc
+.RS 4
+Added in Shorewall 4\&.5\&.17\&. Causes a host route to the provider\*(Aqs gateway router to be added to the provider\*(Aqs routing table\&. This is the default behavior unless overridden by a following
+\fBnoautosrc\fR
+option\&.
+.RE
+.PP
+\fBtrack\fR
+.RS 4
+If specified, inbound connections on this interface are to be tracked so that responses may be routed back out this same interface\&.
+.sp
+You want to specify
+\fBtrack\fR
+if internet hosts will be connecting to local servers through this provider\&.
+.sp
+Beginning with Shorewall 4\&.4\&.3,
+\fBtrack\fR
+defaults to the setting of the TRACK_PROVIDERS option in
+\m[blue]\fBshorewall\&.conf\fR\m[]\&\s-2\u[2]\d\s+2
+(5)\&. If you set TRACK_PROVIDERS=Yes and want to override that setting for an individual provider, then specify
+\fBnotrack\fR
+(see below)\&.
+.RE
+.PP
+\fBbalance[=\fR\fB\fIweight\fR\fR\fB]\fR
+.RS 4
+The providers that have
+\fBbalance\fR
+specified will get outbound traffic load\-balanced among them\&. By default, all interfaces with
+\fBbalance\fR
+specified will have the same weight (1)\&. You can change the weight of an interface by specifying
+\fBbalance=\fR\fIweight\fR
+where
+\fIweight\fR
+is the weight of the route out of this interface\&.
+.sp
+Prior to Shorewall 5\&.1\&.1, when USE_DEFAULT_RT=Yes,
+\fBbalance=1\fR
+is assumed unless the
+\fBfallback\fR,
+\fBloose\fR,
+\fBload\fR
+or
+\fBtproxy\fR
+option is specified\&. Beginning with Shorewall 5\&.1\&.1, when BALANCE_PROVIDERS=Yes,
+\fBbalance=1\fR
+is assumed unless the
+\fBfallback\fR,
+\fBloose\fR,
+\fBload\fR
+or
+\fBtproxy\fR
+option is specified\&.I
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBCaution\fR
+.ps -1
+.br
+In IPV6, the
+\fBbalance\fR
+option does not cause balanced default routes to be created; it rather causes a sequence of default routes with different metrics to be created\&.
+.sp .5v
+.RE
+.RE
+.PP
+\fBloose\fR
+.RS 4
+Shorewall normally adds a routing rule for each IP address on an interface which forces traffic whose source is that IP address to be sent using the routing table for that interface\&. Setting
+\fBloose\fR
+prevents creation of such rules on this interface\&.
+.RE
+.PP
+\fBload=\fR\fB\fIprobability\fR\fR
+.RS 4
+Added in Shorewall 4\&.6\&.0\&. This option provides an alternative method of load balancing based on probabilities\&. Providers to be balanced are given a
+\fIprobability\fR
+(a number 0 > n >= 1) with up to 8 digits to the right of the decimal point\&. Beginning with Shorewall 4\&.6\&.10, a warning is issued if the sum of the probabilities is not 1\&.00000000\&.
+.RE
+.PP
+\fBnoautosrc\fR
+.RS 4
+Added in Shorewall 4\&.5\&.17\&. Prevents the addition of a host route to the provider\*(Aqs gateway router from being added to the provider\*(Aqs routing table\&. This option must be used with caution as it can cause start and restart failures\&.
+.RE
+.PP
+\fBnotrack\fR
+.RS 4
+Added in Shorewall 4\&.4\&.3\&. When specified, turns off
+\fBtrack\fR\&.
+.RE
+.PP
+\fBoptional (deprecated for use with providers that do not share an interface)\fR
+.RS 4
+If the interface named in the INTERFACE column is not up and configured with an IPv4 address then ignore this provider\&. If not specified, the value of the
+\fBoptional\fR
+option for the INTERFACE in
+\m[blue]\fBshorewall\-interfaces(5)\fR\m[]\&\s-2\u[3]\d\s+2
+is assumed\&. Use of that option is preferred to this one, unless an
+\fIaddress\fR
+is provider in the INTERFACE column\&.
+.RE
+.PP
+\fBprimary\fR
+.RS 4
+Added in Shorewall 4\&.6\&.6,
+\fBprimary\fR
+is equivalent to
+\fBbalance=1\fR
+and is preferred when the remaining providers specify
+\fBfallback\fR
+or
+\fBtproxy\fR\&.
+.RE
+.PP
+\fBsrc=\fR\fIsource\-address\fR
+.RS 4
+Specifies the source address to use when routing to this provider and none is known (the local client has bound to the 0 address)\&. May not be specified when an
+\fIaddress\fR
+is given in the INTERFACE column\&. If this option is not used, Shorewall substitutes the primary IP address on the interface named in the INTERFACE column\&.
+.RE
+.PP
+\fBmtu=\fR\fInumber\fR
+.RS 4
+Specifies the MTU when forwarding through this provider\&. If not given, the MTU of the interface named in the INTERFACE column is assumed\&.
+.RE
+.PP
+\fBfallback[=\fR\fB\fIweight\fR\fR\fB]\fR
+.RS 4
+Indicates that a default route through the provider should be added to the default routing table (table 253)\&. If a
+\fIweight\fR
+is given, a balanced route is added with the weight of this provider equal to the specified
+\fIweight\fR\&. If the option is given without a
+\fIweight\fR, a separate default route is added through the provider\*(Aqs gateway; the route has a metric equal to the provider\*(Aqs NUMBER\&.
+.sp
+Prior to Shorewall 4\&.4\&.24, the option is ignored with a warning message if USE_DEFAULT_RT=Yes in
+shorewall\&.conf\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBCaution\fR
+.ps -1
+.br
+In IPV6, specifying the
+\fBfallback\fR
+option on multiple providers does not cause balanced fallback routes to be created; it rather causes a sequence of fallback routes with different metrics to be created\&.
+.sp .5v
+.RE
+.RE
+.PP
+\fBtproxy\fR
+.RS 4
+Added in Shorewall 4\&.5\&.4\&. Used for supporting the TPROXY action in shorewall\-mangle(5)\&. See
+\m[blue]\fBhttps://shorewall\&.org/Shorewall_Squid_Usage\&.html\fR\m[]\&\s-2\u[4]\d\s+2\&. When specified, the MARK, DUPLICATE and GATEWAY columns should be empty, INTERFACE should be set to \*(Aqlo\*(Aq and
+\fBtproxy\fR
+should be the only OPTION\&. Only one
+\fBtproxy\fR
+provider is allowed\&.
+.RE
+.PP
+\fBhostroute\fR
+.RS 4
+Added in Shorewall 4\&.5\&.21\&. This is the default behavior that results in a host route to the defined
+\fBGATEWAY\fR
+being inserted into the main routing table and into the provider\*(Aqs routing table\&.
+\fBhostroute\fR
+is required for older distributions but
+\fBnohostroute\fR
+(below) is appropriate for recent distributions\&.
+\fBhostroute\fR
+may interfere with Zebra\*(Aqs ability to add routes on some distributions such as Debian 7\&. This option defaults to on when BALANCE_PROVIDERS=Yes, in
+\m[blue]\fBshorewall\&.conf(5)\fR\m[]\&\s-2\u[2]\d\s+2\&.
+.RE
+.PP
+\fBnohostroute\fR
+.RS 4
+Added in Shorewall 4\&.5\&.21\&. nohostroute inhibits addition of a host route to the defined
+\fBGATEWAY\fR
+being inserted into the main routing table and into the provider\*(Aqs routing table\&.
+\fBnohostroute\fR
+is not appropriate for older distributions but is appropriate for recent distributions\&.
+\fBnohostroute\fR
+allows Zebra\*(Aqs to correctly add routes on some distributions such as Debian 7\&. This option defaults to off when BALANCE_PROVIDERS=Yes, in
+\m[blue]\fBshorewall\&.conf(5)\fR\m[]\&\s-2\u[2]\d\s+2\&.
+.RE
+.PP
+\fBpersistent\fR
+.RS 4
+Added in Shorewall 5\&.0\&.2 and alters the behavior of the
+\fBdisable\fR
+command:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The provider\*(Aqs routing table still contains the apprioriate default route\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Unless the
+\fBnoautosrc\fR
+option is specified, routing rules are generated to route traffic from the interfaces address(es) out of the provider\*(Aqs routing table\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Persistent routing rules in
+\m[blue]\fBshorewall\-rtrules(5)\fR\m[]\&\s-2\u[5]\d\s+2
+are present\&.
+.RE
+.sp
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+The generated script will attempt to reenable a disabled persistent provider during execution of the
+\fBstart\fR,
+\fBrestart\fR
+and
+\fBreload\fR
+commands\&. When
+\fBpersistent\fR
+is not specified, only the
+\fBenable\fR
+and
+\fBreenable\fR
+commands can reenable the provider\&.
+.sp .5v
+.RE
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+RESTORE_DEFAULT_ROUTE=Yes in shorewall[6]\&.conf is not recommended when the
+\fBpersistent\fR
+option is used, as restoring default routes to the main routing table can prevent link status monitors such as foolsm from correctly detecting non\-working providers\&.
+.sp .5v
+.RE
+.RE
+.RE
+.PP
+\fBCOPY\fR \- [{\fBnone\fR|\fIinterface\fR\fB[,\fR\fIinterface\fR]\&.\&.\&.}]
+.RS 4
+A comma\-separated list of other interfaces on your firewall\&. Wildcards specified using an asterisk ("*") are permitted (e\&.g\&., tun* )\&. Usually used only when DUPLICATE is
+\fBmain\fR\&. Only copy routes through INTERFACE and through interfaces listed here\&. If you only wish to copy routes through INTERFACE, enter
+\fBnone\fR
+in this column\&.
+.sp
+Beginning with Shorewall 4\&.5\&.17, blackhole, unreachable and prohibit routes are no longer copied by default but may be copied by including
+\fBblackhole\fR,\fBunreachable\fR
+and
+\fBprohibit\fR
+respectively in the COPY list\&.
+.RE
+.SH "EXAMPLES"
+.PP
+IPv4 Example 1:
+.RS 4
+You run squid in your DMZ on IP address 192\&.168\&.2\&.99\&. Your DMZ interface is eth2
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+        #NAME   NUMBER  MARK DUPLICATE  INTERFACE GATEWAY       OPTIONS
+        Squid   1       1    \-          eth2      192\&.168\&.2\&.99  \-
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+IPv4 Example 2:
+.RS 4
+eth0 connects to ISP 1\&. The IP address of eth0 is 206\&.124\&.146\&.176 and the ISP\*(Aqs gateway router has IP address 206\&.124\&.146\&.254\&.
+.sp
+eth1 connects to ISP 2\&. The IP address of eth1 is 130\&.252\&.99\&.27 and the ISP\*(Aqs gateway router has IP address 130\&.252\&.99\&.254\&.
+.sp
+eth2 connects to a local network\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+        #NAME NUMBER MARK DUPLICATE INTERFACE GATEWAY          OPTIONS            COPY
+        ISP1  1       1    main      eth0      206\&.124\&.146\&.254 track,balance      eth2
+        ISP2  2       2    main      eth1      130\&.252\&.99\&.254  track,balance      eth2
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+IPv6 Example 1:
+.RS 4
+You run squid in your DMZ on IP address 2002:ce7c:92b4:1::2\&. Your DMZ interface is eth2
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+        #NAME   NUMBER  MARK DUPLICATE  INTERFACE GATEWAY              OPTIONS
+        Squid   1       1    \-          eth2      2002:ce7c:92b4:1::2  \-
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+IPv6 Example 2:
+.RS 4
+eth0 connects to ISP 1\&. The ISP\*(Aqs gateway router has IP address 2001:ce7c:92b4:1::2\&.
+.sp
+eth1 connects to ISP 2\&. The ISP\*(Aqs gateway router has IP address 2001:d64c:83c9:12::8b\&.
+.sp
+eth2 connects to a local network\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+        #NAME NUMBER MARK DUPLICATE INTERFACE GATEWAY               OPTIONS    COPY
+        ISP1  1       1    main      eth0     2001:ce7c:92b4:1::2   track      eth2
+        ISP2  2       2    main      eth1     2001:d64c:83c9:12::8b track      eth2
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.SH "FILES"
+.PP
+/etc/shorewall/providers
+.PP
+/etc/shorewall6/providers
+.SH "SEE ALSO"
+.PP
+\m[blue]\fBhttps://shorewall\&.org/MultiISP\&.html\fR\m[]\&\s-2\u[6]\d\s+2
+.PP
+\m[blue]\fBhttps://shorewall\&.org/configuration_file_basics\&.htm#Pairs\fR\m[]\&\s-2\u[7]\d\s+2
+.PP
+shorewall(8)
+.SH "NOTES"
+.IP " 1." 4
+shorewall-mangle(5)
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-mangle.html
+.RE
+.IP " 2." 4
+shorewall.conf(5)
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall.conf.html
+.RE
+.IP " 3." 4
+shorewall-interfaces(5)
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-interfaces.html
+.RE
+.IP " 4." 4
+https://shorewall.org/Shorewall_Squid_Usage.html
+.RS 4
+\%[set $man.base.url.for.relative.links]/../Shorewall_Squid_Usage.html
+.RE
+.IP " 5." 4
+shorewall-rtrules(5)
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-rtrules.html
+.RE
+.IP " 6." 4
+https://shorewall.org/MultiISP.html
+.RS 4
+\%[set $man.base.url.for.relative.links]/../MultiISP.html
+.RE
+.IP " 7." 4
+https://shorewall.org/configuration_file_basics.htm#Pairs
+.RS 4
+\%[set $man.base.url.for.relative.links]/../configuration_file_basics.htm#Pairs
+.RE

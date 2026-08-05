@@ -1,0 +1,422 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-secmarks</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>secmarks</refname>
+
+    <refpurpose>Shorewall file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/etc/shorewall[6]/secmarks</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <important>
+      <para>Unlike rules in the <ulink
+      url="shorewall-rules.html">shorewall-rules</ulink>(5) file,
+      evaluation of rules in this file will continue after a match. So the
+      final secmark for each packet will be the one assigned by the LAST rule
+      that matches.</para>
+    </important>
+
+    <para>The secmarks file is used to associate an SELinux context with
+    packets. It was added in Shorewall version 4.4.13.</para>
+
+    <para>The columns in the file are as follows (where the column name is
+    followed by a different name in parentheses, the different name is used in
+    the alternate specification syntax).</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><emphasis role="bold">SECMARK -
+        {SAVE|RESTORE|<replaceable>context</replaceable>|?COMMENT
+        <replaceable>comment</replaceable>}</emphasis></term>
+
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term><emphasis role="bold">SAVE</emphasis></term>
+
+              <listitem>
+                <para>If an SELinux context is associated with the packet, the
+                context is saved in the connection. Normally, the remaining
+                columns should be left blank.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">RESTORE</emphasis></term>
+
+              <listitem>
+                <para>If an SELinux context is not currently associated with
+                the packet, then the saved context (if any) is associated with
+                the packet. Normally, the remaining columns should be left
+                blank.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><replaceable role="bold">context</replaceable></term>
+
+              <listitem>
+                <para>An SELinux context.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>?COMMENT</term>
+
+              <listitem>
+                <para>The remainder of the line is treated as a comment which
+                is attached to subsequent rules until another ?COMMENT line is
+                found or until the end of the file is reached. To stop adding
+                comments to rules, use a line with only the word
+                ?COMMENT.</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">CHAIN -
+        {P|I|F|O|T}[:{N|I|U|IU|NI|NU|NIU|NUI:E|ER}]</emphasis></term>
+
+        <listitem>
+          <para>This column determines the CHAIN where the SELinux context is
+          to be applied:</para>
+
+          <simplelist>
+            <member>P - PREROUTING</member>
+
+            <member>I - INPUT</member>
+
+            <member>F - FORWARD</member>
+
+            <member>O - OUTPUT</member>
+
+            <member>T - POSTROUTING</member>
+          </simplelist>
+
+          <para>It may be optionally followed by a colon and an indication of
+          the Netfilter connection state(s) at which the context is to be
+          applied:</para>
+
+          <simplelist>
+            <member>:N - NEW connection</member>
+
+            <member>:I - INVALID connection</member>
+
+            <member>:NI - NEW or INVALID connection</member>
+
+            <member>:E - ESTABLISHED connection</member>
+
+            <member>:ER - ESTABLISHED or RELATED connection</member>
+          </simplelist>
+
+          <para>Beginning with Shorewall 4.5.10, the following additional
+          options are available</para>
+
+          <simplelist>
+            <member>:U - UNTRACKED connection</member>
+
+            <member>:IU - INVALID or UNTRACKED connection</member>
+
+            <member>:NU - NEW or UNTRACKED connection</member>
+
+            <member>:NIU - NEW, INVALID or UNTRACKED connection.</member>
+          </simplelist>
+
+          <para>This column was formerly labelled CHAIN:STATE.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+
+    <variablelist>
+      <varlistentry>
+        <term><emphasis role="bold">SOURCE</emphasis> - {<emphasis
+        role="bold">-</emphasis><emphasis>interface</emphasis>|[<emphasis>interface</emphasis>:]<emphasis>address-or-range</emphasis>[<emphasis
+        role="bold">,</emphasis><emphasis>address-or-range</emphasis>]...}[<emphasis>exclusion</emphasis>]</term>
+
+        <listitem>
+          <para>May be:</para>
+
+          <orderedlist>
+            <listitem>
+              <para>An interface name - matches traffic entering the firewall
+              on the specified interface. May not be used in classify rules or
+              in rules using the T in the CHAIN column.</para>
+            </listitem>
+
+            <listitem>
+              <para>A comma-separated list of host or network IP addresses or
+              MAC addresses.</para>
+            </listitem>
+
+            <listitem>
+              <para>An interface name followed by a colon (":") followed by a
+              comma-separated list of host or network IP addresses or MAC
+              addresses.</para>
+            </listitem>
+          </orderedlist>
+
+          <para>MAC addresses must be prefixed with "~" and use "-" as a
+          separator.</para>
+
+          <para>Example: ~00-A0-C9-15-39-78</para>
+
+          <para>You may exclude certain hosts from the set already defined
+          through use of an <emphasis>exclusion</emphasis> (see <ulink
+          url="shorewall-exclusion.html">shorewall-exclusion</ulink>(5)).</para>
+
+          <para>Addresses may be specified using an ipset name preceded by
+          '+'.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">DEST</emphasis> - {<emphasis
+        role="bold">-</emphasis>|{<emphasis>interface</emphasis>|[<emphasis>interface</emphasis>:]<emphasis>address-or-range</emphasis>[<emphasis
+        role="bold">,</emphasis><emphasis>address-or-range</emphasis>]...}[<emphasis>exclusion</emphasis>]</term>
+
+        <listitem>
+          <para>May be:</para>
+
+          <orderedlist>
+            <listitem>
+              <para>An interface name. May not be used in the PREROUTING or
+              INPUT chains. The interface name may be optionally followed by a
+              colon (":") and an IP address list.</para>
+            </listitem>
+
+            <listitem>
+              <para>A comma-separated list of host or network IP addresses.
+              The list may include ip address ranges if your kernel and
+              iptables include iprange support.</para>
+            </listitem>
+          </orderedlist>
+
+          <para>You may exclude certain hosts from the set already defined
+          through use of an <emphasis>exclusion</emphasis> (see <ulink
+          url="shorewall-exclusion.html">shorewall-exclusion</ulink>(5)).</para>
+
+          <para>Addresses may be specified using an ipset name preceded by
+          '+'.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">PROTO</emphasis> - {<emphasis
+        role="bold">-</emphasis>|<emphasis
+        role="bold">tcp:syn</emphasis>|<emphasis
+        role="bold">ipp2p</emphasis>|<emphasis
+        role="bold">ipp2p:udp</emphasis>|<emphasis
+        role="bold">ipp2p:all</emphasis>|<emphasis>protocol-number</emphasis>|<emphasis>protocol-name</emphasis>|<emphasis
+        role="bold">all}[,...]</emphasis></term>
+
+        <listitem>
+          <para>See <ulink
+          url="shorewall-rules.html">shorewall-rules(5)</ulink> for
+          details.</para>
+
+          <para>Beginning with Shorewall 4.5.12, this column can accept a
+          comma-separated list of protocols.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">DPORT</emphasis> - [<emphasis
+        role="bold">-</emphasis>|<emphasis>port-name-number-or-range</emphasis>[<emphasis
+        role="bold">,</emphasis><emphasis>port-name-number-or-range</emphasis>]...]</term>
+
+        <listitem>
+          <para>Optional destination Ports. A comma-separated list of Port
+          names (from services(5)), <emphasis>port number</emphasis>s or
+          <emphasis>port range</emphasis>s; if the protocol is <emphasis
+          role="bold">icmp</emphasis>, this column is interpreted as the
+          destination icmp-type(s). ICMP types may be specified as a numeric
+          type, a numeric type and code separated by a slash (e.g., 3/4), or a
+          typename. See <ulink
+          url="../configuration_file_basics.htm#ICMP">https://shorewall.org/configuration_file_basics.htm#ICMP</ulink>.</para>
+
+          <para>If the protocol is <emphasis role="bold">ipp2p</emphasis>,
+          this column is interpreted as an ipp2p option without the leading
+          "--" (example <emphasis role="bold">bit</emphasis> for bit-torrent).
+          If no PORT is given, <emphasis role="bold">ipp2p</emphasis> is
+          assumed.</para>
+
+          <para>This column is ignored if PROTOCOL = all but must be entered
+          if any of the following field is supplied. In that case, it is
+          suggested that this field contain "-"</para>
+
+          <para>This column was formerly labelled DEST PORT(S).</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">SPORT</emphasis> - [<emphasis
+        role="bold">-</emphasis>|<emphasis>port-name-number-or-range</emphasis>[<emphasis
+        role="bold">,</emphasis><emphasis>port-name-number-or-range</emphasis>]...]</term>
+
+        <listitem>
+          <para>Optional source port(s). If omitted, any source port is
+          acceptable. Specified as a comma-separated list of port names, port
+          numbers or port ranges.</para>
+
+          <para>This column was formerly labelled SOURCE PORT(S).</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">USER</emphasis> - [<emphasis
+        role="bold">!</emphasis>][<emphasis>user-name-or-number</emphasis>][<emphasis
+        role="bold">:</emphasis><emphasis>group-name-or-number</emphasis>]</term>
+
+        <listitem>
+          <para>This optional column may only be non-empty if the SOURCE is
+          the firewall itself.</para>
+
+          <para>When this column is non-empty, the rule applies only if the
+          program generating the output is running under the effective
+          <emphasis>user</emphasis> and/or <emphasis>group</emphasis>
+          specified (or is NOT running under that id if "!" is given).</para>
+
+          <para>Examples:</para>
+
+          <variablelist>
+            <varlistentry>
+              <term>joe</term>
+
+              <listitem>
+                <para>program must be run by joe</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>:kids</term>
+
+              <listitem>
+                <para>program must be run by a member of the 'kids'
+                group</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>!:kids</term>
+
+              <listitem>
+                <para>program must not be run by a member of the 'kids'
+                group</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">MARK</emphasis> - [<emphasis
+        role="bold">!</emphasis>]<emphasis>value</emphasis>[/<emphasis>mask</emphasis>][<emphasis
+        role="bold">:C</emphasis>]</term>
+
+        <listitem>
+          <para>Defines a test on the existing packet or connection mark. The
+          rule will match only if the test returns true.</para>
+
+          <para>If you don't want to define a test but need to specify
+          anything in the following columns, place a "-" in this field.</para>
+
+          <variablelist>
+            <varlistentry>
+              <term>!</term>
+
+              <listitem>
+                <para>Inverts the test (not equal)</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis>value</emphasis></term>
+
+              <listitem>
+                <para>Value of the packet or connection mark.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis>mask</emphasis></term>
+
+              <listitem>
+                <para>A mask to be applied to the mark before testing.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">:C</emphasis></term>
+
+              <listitem>
+                <para>Designates a connection mark. If omitted, the packet
+                mark's value is tested.</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>EXAMPLE</title>
+
+    <para>Mark the first incoming packet of a connection on the loopback
+    interface and destined for address 127.0.0.1 and tcp port 3306 with
+    context system_u:object_r:mysqld_t:s0 and save that context in the
+    conntrack table. On subsequent input packets in the connection, set the
+    context from the conntrack table.</para>
+
+    <para><filename>/etc/shorewall/interfaces</filename>:</para>
+
+    <programlisting>#ZONE      INTERFACE      BROADCAST       OPTIONS
+-          lo             -               ignore</programlisting>
+
+    <para><filename>/etc/shorewall/secmarks</filename>:</para>
+
+    <programlisting>#SECMARK                              CHAIN      SOURCE  DEST       PROTO   DPORT      SPORT       USER      MARK       
+system_u:object_r:mysqld_packet_t:s0  I:N        lo      127.0.0.1  tcp     3306
+SAVE                                  I:N        lo      127.0.0.1  tcp     3306
+RESTORE                               I:ER</programlisting>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall/secmarks</para>
+
+    <para>/etc/shorewall6/secmarks</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para><ulink
+    url="http://james-morris.livejournal.com/11010.html">http://james-morris.livejournal.com/11010.html</ulink></para>
+
+    <para><ulink
+    url="../configuration_file_basics.htm#Pairs">https://shorewall.org/configuration_file_basics.htm#Pairs</ulink></para>
+
+    <para>shorewall(8)</para>
+  </refsect1>
+</refentry>

@@ -1,27 +1,41 @@
 # Man pages
 
-`shorewall.8` is the command reference for shorewall-nft, shipped by the
-installer and the packages. It is written for this implementation.
+`shorewall.8` is the command reference for shorewall-nft, written for this
+implementation and edited by hand.
 
 ## Config-file man pages
 
-The 42 shorewall-*(5) pages (shorewall-zones, shorewall-rules and the
-rest) describe the configuration file formats. Because shorewall-nft
-reads the identical files, those pages apply as written for the
-supported files. They are adopted from upstream at package build time
-rather than forked here, so they do not drift from the format they
-document:
+The 42 `shorewall-*(5)` pages describe the configuration file formats.
+shorewall-nft reads the identical files, so the pages read like upstream's,
+with shorewall-nft notes added where a setting maps to a specific piece of
+nftables output.
 
-1. Take the upstream DocBook manpage sources (GPLv2, the same license).
-2. Prepend a short banner naming the shorewall-nft support state, from
-   docs/coverage.md: supported, deprecated, or not supported.
-3. Convert to man format and install under $MANDIR/man5.
+The source is upstream Shorewall's own DocBook, vendored under `docbook/`
+(GPLv2, the same license). Keeping the DocBook, rather than hand-writing the
+pages, means the wording and structure stay identical to upstream, and a
+future upstream sync is a diff on the XML.
 
-Keeping them generated from upstream, banner aside, means an admin's
-`man shorewall-rules` stays correct and does not become a second copy we
-have to maintain by hand. The per-file support state lives in
-docs/coverage.md, which the banner points to, so there is one source of
-truth for what works.
+The generated roff pages live under `man5/` and are what the installer ships.
+Regenerate them after editing anything under `docbook/`:
 
-Until the build step lands, `man shorewall` and docs/coverage.md cover
-the same ground.
+    packaging/man/regenerate.py
+
+It needs `python3-lxml` and the docbook-xsl manpages stylesheet (the
+`docbook-xsl` package). It applies the stylesheet through lxml, so no external
+command is required, and it names each page after its source file, so
+`man shorewall-rules` works.
+
+## The nftables notes
+
+The one change from upstream is added content, never removed content. Where a
+setting or keyword produces a specific construct in the nftables ruleset, a
+short paragraph in the same voice records it, led by a bold `nftables:`. For
+example, in `shorewall-policy` the ACCEPT policy note reads:
+
+> nftables: the zone-pair chain ends in accept, after the leading ct state
+> established,related accept that every chain carries.
+
+Keep the notes factual and current with what the compiler emits. Confirm the
+output by compiling a small configuration and reading the ruleset, not from
+memory. `shorewall-policy` is the worked example; the other pages are being
+annotated the same way.

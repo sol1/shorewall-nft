@@ -1,0 +1,199 @@
+'\" t
+.\"     Title: shorewall-rtrules
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Configuration Files
+.\"    Source: Configuration Files
+.\"  Language: English
+.\"
+.TH "SHOREWALL\-RTRULES" "5" "08/05/2026" "Configuration Files" "Configuration Files"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+rtrules \- Shorewall Routing Rules file
+.SH "SYNOPSIS"
+.HP \w'\fB/etc/shorewall[6]/rtrules\fR\ 'u
+\fB/etc/shorewall[6]/rtrules\fR
+.SH "DESCRIPTION"
+.PP
+Entries in this file cause traffic to be routed to one of the providers listed in
+\m[blue]\fBshorewall\-providers\fR\m[]\&\s-2\u[1]\d\s+2(5)\&.
+.PP
+The columns in the file are as follows\&.
+.PP
+\fBSOURCE\fR (Optional) \- {\fB\-\fR|[&]\fIinterface\fR|\fIaddress\fR|\fIinterface\fR:\fIaddress\fR}
+.RS 4
+An ip
+\fIaddress\fR
+(network or host) that matches the source IP address in a packet\&. May also be specified as an
+\fIinterface\fR
+name optionally followed by ":" and an address\&. If the device
+\fBlo\fR
+is specified, the packet must originate from the firewall itself\&.
+.sp
+Beginning with Shorewall 4\&.5\&.0, you may specify &\fIinterface\fR
+in this column to indicate that the source is the primary IP address of the named interface\&.
+.sp
+Beginning with Shorewall 4\&.6\&.8, you may specify a comma\-separated list of addresses in this column\&.
+.RE
+.PP
+\fBDEST\fR (Optional) \- {\fB\-\fR|\fIaddress\fR}
+.RS 4
+An ip address (network or host) that matches the destination IP address in a packet\&.
+.sp
+If you choose to omit either
+\fBSOURCE\fR
+or
+\fBDEST\fR, place "\-" in that column\&. Note that you may not omit both
+\fBSOURCE\fR
+and
+\fBDEST\fR\&.
+.sp
+Beginning with Shorewall 4\&.6\&.8, you may specify a comma\-separated list of addresses in this column\&.
+.RE
+.PP
+\fBPROVIDER\fR \- {\fIprovider\-name\fR|\fIprovider\-number\fR|\fBmain\fR}
+.RS 4
+The provider to route the traffic through\&. May be expressed either as the provider name or the provider number\&. May also be
+\fBmain\fR
+or 254 for the main routing table\&. This can be used in combination with VPN tunnels, see example 2 below\&.
+.RE
+.PP
+\fBPRIORITY\fR \- \fIpriority\fR\fB[!]\fR
+.RS 4
+The rule\*(Aqs numeric
+\fIpriority\fR
+which determines the order in which the rules are processed\&. Rules with equal priority are applied in the order in which they appear in the file\&.
+.PP
+1000\-1999
+.RS 4
+Before Shorewall\-generated \*(AqMARK\*(Aq rules
+.RE
+.PP
+11000\-11999
+.RS 4
+After \*(AqMARK\*(Aq rules but before Shorewall\-generated rules for ISP interfaces\&.
+.RE
+.PP
+26000\-26999
+.RS 4
+After ISP interface rules but before \*(Aqdefault\*(Aq rule\&.
+.RE
+.sp
+Beginning with Shorewall 5\&.0\&.2, the priority may be followed optionally by an exclaimation mark ("!")\&. This causes the rule to remain in place if the interface is disabled\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBCaution\fR
+.ps -1
+.br
+Be careful when using rules of the same PRIORITY as some unexpected behavior can occur when multiple rules have the same SOURCE\&. For example, in the following rules, the second rule overwrites the first unless the priority in the second is changed to 19001 or higher:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+10\&.10\&.0\&.0/24    192\&.168\&.5\&.6 provider1 19000
+10\&.10\&.0\&.0/24    \-           provider2 19000
+.fi
+.if n \{\
+.RE
+.\}
+.sp .5v
+.RE
+.RE
+.PP
+\fBMARK \- {\-|\fR\fB\fImark\fR\fR\fB[/\fR\fB\fImask\fR\fR\fB]}\fR
+.RS 4
+Optional \-\- added in Shorewall 4\&.4\&.25\&. For this rule to be applied to a packet, the packet\*(Aqs mark value must match the
+\fImark\fR
+when logically anded with the
+\fImask\fR\&. If a
+\fImask\fR
+is not supplied, Shorewall supplies a suitable provider mask\&.
+.RE
+.SH "EXAMPLES"
+.PP
+Example 1:
+.RS 4
+You want all traffic coming in on eth1 to be routed to the ISP1 provider\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+        #SOURCE                 DEST            PROVIDER        PRIORITY      MASK
+        eth1                    \-               ISP1            1000
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+IPv4 Example 2:
+.RS 4
+You use OpenVPN (routed setup /tunX) in combination with multiple providers\&. In this case you have to set up a rule to ensure that the OpenVPN traffic is routed back through the tunX interface(s) rather than through any of the providers\&. 10\&.8\&.0\&.0/24 is the subnet chosen in your OpenVPN configuration (server 10\&.8\&.0\&.0 255\&.255\&.255\&.0)\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+         #SOURCE                 DEST            PROVIDER        PRIORITY     MASK
+         \-                       10\&.8\&.0\&.0/24     main            1000
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.SH "FILES"
+.PP
+/etc/shorewall/rtrules
+.PP
+/etc/shorewall6/rtrules
+.SH "SEE ALSO"
+.PP
+\m[blue]\fBhttps://shorewall\&.org/MultiISP\&.html\fR\m[]\&\s-2\u[2]\d\s+2
+.PP
+\m[blue]\fBhttps://shorewall\&.org/configuration_file_basics\&.htm#Pairs\fR\m[]\&\s-2\u[3]\d\s+2
+.PP
+shorewall(8)
+.SH "NOTES"
+.IP " 1." 4
+shorewall-providers
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-providers.html
+.RE
+.IP " 2." 4
+https://shorewall.org/MultiISP.html
+.RS 4
+\%[set $man.base.url.for.relative.links]/../MultiISP.html
+.RE
+.IP " 3." 4
+https://shorewall.org/configuration_file_basics.htm#Pairs
+.RS 4
+\%[set $man.base.url.for.relative.links]/../configuration_file_basics.htm#Pairs
+.RE

@@ -1,0 +1,276 @@
+'\" t
+.\"     Title: shorewall-arprules
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Configuration Files
+.\"    Source: Configuration Files
+.\"  Language: English
+.\"
+.TH "SHOREWALL\-ARPRULES" "5" "08/05/2026" "Configuration Files" "Configuration Files"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+arprules \- Shorewall ARP rules file
+.SH "SYNOPSIS"
+.HP \w'\fB/etc/shorewall/arprules\fR\ 'u
+\fB/etc/shorewall/arprules\fR
+.SH "DESCRIPTION"
+.PP
+IPv4 only\&.
+.PP
+This file was added in Shorewall 4\&.5\&.12 and is used to describe low\-level rules managed by arptables (8)\&. These rules only affect Address Resolution Protocol (ARP), Reverse Address Resolution Protocol (RARP) and Dynamic Reverse Address Resolution Protocol (DRARP) frames\&.
+.PP
+The columns in the file are as shown below\&. MAC addresses are specified normally (6 hexadecimal numbers separated by colons)\&.
+.PP
+\fBACTION\fR
+.RS 4
+Describes the action to take when a frame matches the criteria in the other columns\&. Possible values are:
+.PP
+\fBACCEPT\fR
+.RS 4
+This is the default action if no rules matches a frame; it lets the frame go through\&.
+.RE
+.PP
+\fBDROP\fR
+.RS 4
+Causes the frame to be dropped\&.
+.RE
+.PP
+\fBSNAT:\fR\fIip\-address\fR
+.RS 4
+Modifies the source IP address to the specified
+\fIip\-address\fR\&.
+.RE
+.PP
+\fBDNAT:\fR\fIip\-address\fR
+.RS 4
+Modifies the destination IP address to the specified
+\fIip\-address\fR\&.
+.RE
+.PP
+\fBSMAT:\fR\fImac\-address\fR
+.RS 4
+Modifies the source MAC address to the specified
+\fImac\-address\fR\&.
+.RE
+.PP
+\fBDMAT:\fR\fImac\-address\fR
+.RS 4
+Modifies the destination MAC address to the specified
+\fImac\-address\fR\&.
+.RE
+.PP
+\fBSNATC:\fR\fIip\-address\fR
+.RS 4
+Like SNAT except that the frame is then passed to the next rule\&.
+.RE
+.PP
+\fBDNATC:\fR\fIip\-address\fR
+.RS 4
+Like DNAT except that the frame is then passed to the next rule\&.
+.RE
+.PP
+\fBSMATC:\fR\fImac\-address\fR
+.RS 4
+Like SMAT except that the frame is then passed to the next rule\&.
+.RE
+.PP
+\fBDMATC:\fR\fImac\-address\fR
+.RS 4
+Like DMAT except that the frame is then passed to the next rule\&.
+.RE
+.RE
+.PP
+\fBSOURCE\fR \- \fB[\fR\fB\fIinterface\fR\fR\fB[:[!]\fR\fB\fIipaddress\fR\fR\fB[/ip\fR\fB\fImask\fR\fR\fB][:[!]\fR\fB\fImacaddress\fR\fR\fB[/\fR\fB\fImacmask\fR\fR\fB]]]]\fR
+.RS 4
+Where
+.PP
+\fIinterface\fR
+.RS 4
+Is an interface defined in shorewall\-interfaces(5)\&.
+.RE
+.PP
+\fIipaddress\fR
+.RS 4
+is an IPv4 address\&. DNS names are not allowed\&.
+.RE
+.PP
+\fIipmask\fR
+.RS 4
+specifies a mask to be applied to
+\fIipaddress\fR\&.
+.RE
+.PP
+\fImacaddress\fR
+.RS 4
+The source MAC address\&.
+.RE
+.PP
+\fImacmask\fR
+.RS 4
+Mask for MAC address; must be specified as 6 hexadecimal numbers separated by colons\&.
+.RE
+.sp
+When \*(Aq!\*(Aq is specified, the test is inverted\&.
+.sp
+If not specified, matches only frames originating on the firewall itself\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBCaution\fR
+.ps -1
+.br
+Either SOURCE or DEST must be specified\&.
+.sp .5v
+.RE
+.RE
+.PP
+\fBDEST\fR \- \fB[\fR\fB\fIinterface\fR\fR\fB[:[!]\fR\fB\fIipaddress\fR\fR\fB[/ip\fR\fB\fImask\fR\fR\fB][:[!]\fR\fB\fImacaddress\fR\fR\fB[/\fR\fB\fImacmask\fR\fR\fB]]]]\fR
+.RS 4
+Where
+.PP
+\fIinterface\fR
+.RS 4
+Is an interface defined in shorewall\-interfaces(5)\&.
+.RE
+.PP
+\fIipaddress\fR
+.RS 4
+is an IPv4 address\&. DNS Names are not allowed\&.
+.RE
+.PP
+\fIipmask\fR
+.RS 4
+specifies a mask to be applied to frame addresses\&.
+.RE
+.PP
+\fImacaddress\fR
+.RS 4
+The destination MAC address\&.
+.RE
+.PP
+\fImacmask\fR
+.RS 4
+Mask for MAC address; must be specified as 6 hexadecimal numbers separated by colons\&.
+.RE
+.sp
+When \*(Aq!\*(Aq is specified, the test is inverted and the rule matches frames which do not match the specified address/mask\&.
+.sp
+If not specified, matches only frames originating on the firewall itself\&.
+.sp
+If both SOURCE and DEST are specified, then both interfaces must be bridge ports on the same bridge\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBCaution\fR
+.ps -1
+.br
+Either SOURCE or DEST must be specified\&.
+.sp .5v
+.RE
+.RE
+.PP
+OPCODE \- [[!]\fIopcode\fR]
+.RS 4
+Optional\&. Describes the type of frame\&. Possible
+\fIopcode\fR
+values are:
+.PP
+1
+.RS 4
+ARP Request
+.RE
+.PP
+2
+.RS 4
+ARP Reply
+.RE
+.PP
+3
+.RS 4
+RARP Request
+.RE
+.PP
+4
+.RS 4
+RARP Reply
+.RE
+.PP
+5
+.RS 4
+Dynamic RARP Request
+.RE
+.PP
+6
+.RS 4
+Dynamic RARP Reply
+.RE
+.PP
+7
+.RS 4
+Dynamic RARP Error
+.RE
+.PP
+8
+.RS 4
+InARP Request
+.RE
+.PP
+9
+.RS 4
+ARP NAK
+.RE
+.sp
+When \*(Aq!\*(Aq is specified, the test is inverted and the rule matches frames which do not match the specified
+\fIopcode\fR\&.
+.RE
+.SH "EXAMPLE"
+.PP
+The eth1 interface has both a public IP address and a private address (10\&.1\&.10\&.11/24)\&. When sending ARP requests to 10\&.1\&.10\&.0/24, use the private address as the IP source:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+#ACTION                SOURCE                  DEST                ARP OPCODE
+SNAT:10\&.1\&.10\&.11        \-                       eth1:10\&.1\&.10\&.0/24   1
+.fi
+.if n \{\
+.RE
+.\}
+.SH "FILES"
+.PP
+/etc/shorewall/arprules
+.SH "SEE ALSO"
+.PP
+shorewall(8)

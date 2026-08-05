@@ -1,0 +1,118 @@
+'\" t
+.\"     Title: shorewall-modules
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Configuration Files
+.\"    Source: Configuration Files
+.\"  Language: English
+.\"
+.TH "SHOREWALL\-MODULES" "5" "08/05/2026" "Configuration Files" "Configuration Files"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+modules \- Shorewall file
+.SH "SYNOPSIS"
+.HP \w'\fB/usr/share/shorewall[6]/modules\fR\ 'u
+\fB/usr/share/shorewall[6]/modules\fR
+.HP \w'\fB/usr/share/shorewall[6]/helpers\fR\ 'u
+\fB/usr/share/shorewall[6]/helpers\fR
+.SH "DESCRIPTION"
+.PP
+These files specify which kernel modules Shorewall will load before trying to determine your iptables/kernel\*(Aqs capabilities\&.
+.PP
+The
+modules
+file is used when LOAD_HELPERS_ONLY=No in
+\m[blue]\fBshorewall\&.conf\fR\m[]\&\s-2\u[1]\d\s+2(8); the
+helpers
+file is used when LOAD_HELPERS_ONLY=Yes
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+.PP
+Beginning with Shorewall 5\&.2\&.3, the LOAD_HELPERS_ONLY option has been removed and the behavior is the same as if LOAD_HELPERS_ONLY=Yes was specified\&.
+.sp .5v
+.RE
+.PP
+Each record in the files has the following format:
+.HP \w'\fBloadmodule\fR\ 'u
+\fBloadmodule\fR \fImodulename\fR [\fImoduleoption\fR...]
+.PP
+The
+\fImodulename\fR
+names a kernel module (without suffix)\&. Shorewall will search for modules based on your MODULESDIR setting in
+\m[blue]\fBshorewall\&.conf\fR\m[]\&\s-2\u[1]\d\s+2(8)\&. The
+\fImoduleoption\fRs are passed to modprobe (if installed) or to insmod\&.
+.PP
+The /usr/share/shorewall/modules file contains a large number of modules\&. Users are encouraged to copy the file to /etc/shorewall/modules and modify the copy to load only the modules required or to use LOAD_HELPERS_ONLY=Yes\&..if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+If you build monolithic kernels and have not installed module\-init\-tools, then create an empty /etc/shorewall/modules file; that will prevent Shorewall from trying to load modules at all\&.
+.sp .5v
+.RE
+.SH "EXAMPLE"
+.PP
+loadmodule ip_conntrack_ftp ports=21,221
+.SH "FILES"
+.PP
+/usr/share/shorewall/modules
+.PP
+/usr/share/shorewall/helpers
+.PP
+/etc/shorewall/modules
+.PP
+/etc/shorewall/helpers
+.PP
+/usr/share/shorewall6/modules
+.PP
+/usr/share/shorewall6/helpers
+.PP
+/etc/shorewall6/modules
+.PP
+/etc/shorewall6/helpers
+.SH "SEE ALSO"
+.PP
+shorewall(8)
+.SH "NOTES"
+.IP " 1." 4
+shorewall.conf
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall.conf.html
+.RE

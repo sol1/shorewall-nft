@@ -1,0 +1,825 @@
+'\" t
+.\"     Title: shorewall6-conntrack
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Configuration Files
+.\"    Source: Configuration Files
+.\"  Language: English
+.\"
+.TH "SHOREWALL6\-CONNTRAC" "5" "08/05/2026" "Configuration Files" "Configuration Files"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+conntrack \- shorewall conntrack file
+.SH "SYNOPSIS"
+.HP \w'\fB/etc/shorewall[6]/conntrack\fR\ 'u
+\fB/etc/shorewall[6]/conntrack\fR
+.SH "DESCRIPTION"
+.PP
+The original intent of the
+\fBnotrack\fR
+file was to exempt certain traffic from Netfilter connection tracking\&. Traffic matching entries in the file were not to be tracked\&.
+.PP
+The role of the file was expanded in Shorewall 4\&.4\&.27 to include all rules that can be added in the Netfilter
+\fBraw\fR
+table\&. In 4\&.5\&.7, the file\*(Aqs name was changed to
+\fBconntrack\fR\&.
+.PP
+The file supports three different column layouts: FORMAT 1, FORMAT 2, and FORMAT 3 with FORMAT 1 being the default\&. The three differ as follows:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+in FORMAT 2 and 3, there is an additional leading ACTION column\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+in FORMAT 3, the SOURCE column accepts no zone name; rather the ACTION column allows a SUFFIX that determines the chain(s) that the generated rule will be added to\&.
+.RE
+.PP
+When an entry in the following form is encountered, the format of the following entries are assumed to be of the specified
+\fIformat\fR\&.
+.RS 4
+\fB?FORMAT\fR
+      \fIformat\fR
+.RE
+.PP
+where
+\fIformat\fR
+is either
+\fB1\fR,\fB2\fR
+or
+\fB3\fR\&.
+.PP
+Format 3 was introduced in Shorewall 4\&.5\&.10\&.
+.PP
+Comments may be attached to Netfilter rules generated from entries in this file through the use of ?COMMENT lines\&. These lines begin with ?COMMENT; the remainder of the line is treated as a comment which is attached to subsequent rules until another ?COMMENT line is found or until the end of the file is reached\&. To stop adding comments to rules, use a line containing only ?COMMENT\&.
+.PP
+The columns in the file are as follows (where the column name is followed by a different name in parentheses, the different name is used in the alternate specification syntax)\&.
+.PP
+\fBACTION\fR \- {\fBNOTRACK\fR|\fBCT\fR:\fBhelper\fR:\fIname\fR[(\fIarg\fR=\fIval\fR[,\&.\&.\&.])|\fBCT:ctevents:\fR\fB\fIevent\fR\fR\fB[,\&.\&.\&.]|CT:expevents:new\fR\fB|CT:notrack\fR|DROP|LOG|ULOG(\fIulog\-parameters\fR):NFLOG(\fInflog\-parameters\fR)|IP[6]TABLES(\fItarget\fR)}[\fIlog\-level\fR[:\fIlog\-tag\fR]][:\fIchain\-designator\fR]
+.RS 4
+This column is only present when FORMAT >= 2\&. Values other than NOTRACK or DROP require
+CT Targetsupport in your iptables and kernel\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBNOTRACK\fR
+or
+\fBCT:notrack\fR
+.sp
+Disables connection tracking for this packet\&. If a
+\fIlog\-level\fR
+is specified, the packet will also be logged at that level\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBCT:helper\fR:\fIname\fR
+.sp
+Attach the helper identified by the
+\fIname\fR
+to this connection\&. This is more flexible than loading the conntrack helper with preset ports\&. If a
+\fIlog\-level\fR
+is specified, the packet will also be logged at that level\&. Beginning with Shorewall 4\&.6\&.10, the helper name is optional
+.sp
+At this writing, the available helpers are:
+.PP
+amanda
+.RS 4
+Requires that the amanda netfilter helper is present\&.
+.RE
+.PP
+ftp
+.RS 4
+Requires that the FTP netfilter helper is present\&.
+.RE
+.PP
+irc
+.RS 4
+Requires that the IRC netfilter helper is present\&.
+.RE
+.PP
+netbios\-ns
+.RS 4
+Requires that the netbios_ns (sic) helper is present\&.
+.RE
+.PP
+RAS and Q\&.931
+.RS 4
+These require that the H323 netfilter helper is present\&.
+.RE
+.PP
+pptp
+.RS 4
+Requires that the pptp netfilter helper is present\&.
+.RE
+.PP
+sane
+.RS 4
+Requires that the SANE netfilter helper is present\&.
+.RE
+.PP
+sip
+.RS 4
+Requires that the SIP netfilter helper is present\&.
+.RE
+.PP
+snmp
+.RS 4
+Requires that the SNMP netfilter helper is present\&.
+.RE
+.PP
+tftp
+.RS 4
+Requires that the TFTP netfilter helper is present\&.
+.RE
+.sp
+May be followed by an option list of
+\fIarg\fR=\fIval\fR
+pairs in parentheses:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBctevents\fR=\fIevent\fR[,\&.\&.\&.]
+.sp
+Only generate the specified conntrack events for this connection\&. Possible event types are:
+\fBnew\fR,
+\fBrelated\fR,
+\fBdestroy\fR,
+\fBreply\fR,
+\fBassured\fR,
+\fBprotoinfo\fR,
+\fBhelper\fR,
+\fBmark\fR
+(this is connection mark, not packet mark),
+\fBnatseqinfo\fR, and
+\fBsecmark\fR\&. If more than one
+\fIevent\fR
+is listed, the
+\fIevent\fR
+list must be enclosed in parentheses (e\&.g\&., ctevents=(new,related))\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBexpevents\fR\fB=new\fR
+.sp
+Only generate a
+\fBnew\fR
+expectation events for this connection\&.
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+ctevents:\fIevent\fR[,\&.\&.\&.]
+.sp
+Added in Shorewall 4\&.6\&.10\&. Only generate the specified conntrack events for this connection\&. Possible event types are:
+\fBnew\fR,
+\fBrelated\fR,
+\fBdestroy\fR,
+\fBreply\fR,
+\fBassured\fR,
+\fBprotoinfo\fR,
+\fBhelper\fR,
+\fBmark\fR
+(this is connection mark, not packet mark),
+\fBnatseqinfo\fR, and
+\fBsecmark\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+expevents=new
+.sp
+Added in Shorewall 4\&.6\&.10\&. Only generate
+\fBnew\fR
+expectation events for this connection\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBDROP\fR
+.sp
+Added in Shorewall 4\&.5\&.10\&. Silently discard the packet\&. If a
+\fIlog\-level\fR
+is specified, the packet will also be logged at that level\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBIP6TABLES\fR(\fItarget\fR)
+.sp
+IPv6 only\&.
+.sp
+Added in Shorewall 4\&.6\&.0\&. Allows you to specify any iptables
+\fItarget\fR
+with target options (e\&.g\&., "IP6TABLES(AUDIT \-\-type drop)")\&. If the target is not one recognized by Shorewall, the following error message will be issued:
+.RS 4
+ERROR: Unknown target
+                (\fItarget\fR)
+.RE
+This error message may be eliminated by adding
+\fItarget\fR
+as a builtin action in
+\m[blue]\fBshorewall\-actions\fR\m[]\&\s-2\u[1]\d\s+2(5)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBIPTABLES\fR(\fItarget\fR)
+.sp
+IPv4 only\&.
+.sp
+Added in Shorewall 4\&.6\&.0\&. Allows you to specify any iptables
+\fItarget\fR
+with target options (e\&.g\&., "IPTABLES(AUDIT \-\-type drop)")\&. If the target is not one recognized by Shorewall, the following error message will be issued:
+.RS 4
+ERROR: Unknown target
+                (\fItarget\fR)
+.RE
+This error message may be eliminated by adding
+\fItarget\fR
+as a builtin action in
+\m[blue]\fBshorewall\-actions\fR\m[]\&\s-2\u[1]\d\s+2(5)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBLOG\fR
+.sp
+Added in Shoreawll 4\&.6\&.0\&. Logs the packet using the specified
+\fIlog\-level\fR
+and\fI log\-tag \fR(if any)\&. If no log\-level is specified, then \*(Aqinfo\*(Aq is assumed\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBNFLOG\fR
+.sp
+Added in Shoreawll 4\&.6\&.0\&. Queues the packet to a backend logging daemon using the NFLOG netfilter target with the specified
+\fInflog\-parameters\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBULOG\fR
+.sp
+IPv4 only\&. Added in Shoreawll 4\&.6\&.0\&. Queues the packet to a backend logging daemon using the ULOG netfilter target with the specified
+\fIulog\-parameters\fR\&.
+.RE
+.sp
+When FORMAT = 1, this column is not present and the rule is processed as if NOTRACK had been entered in this column\&.
+.sp
+Beginning with Shorewall 4\&.5\&.10, when FORMAT = 3, this column can end with a colon followed by a
+\fIchain\-designator\fR\&. The
+\fIchain\-designator\fR
+can be one of the following:
+.PP
+P
+.RS 4
+The rule is added to the raw table PREROUTING chain\&. This is the default if no
+\fIchain\-designator\fR
+is present\&.
+.RE
+.PP
+O
+.RS 4
+The rule is added to the raw table OUTPUT chain\&.
+.RE
+.PP
+PO or OP
+.RS 4
+The rule is added to the raw table PREROUTING and OUTPUT chains\&.
+.RE
+.RE
+.PP
+SOURCE (formats 1 and 2) \(en {\fIzone\fR[:\fIinterface\fR][:\fIaddress\-list\fR]}
+.RS 4
+where
+\fIzone\fR
+is the name of a zone,
+\fIinterface\fR
+is an interface to that zone, and
+\fIaddress\-list\fR
+is a comma\-separated list of addresses (may contain exclusion \- see
+\m[blue]\fBshorewall\-exclusion\fR\m[]\&\s-2\u[2]\d\s+2
+(5))\&.
+.sp
+Beginning with Shorewall 4\&.5\&.7,
+\fBall\fR
+can be used as the
+\fIzone\fR
+name to mean
+all zones\&.
+.sp
+Beginning with Shorewall 4\&.5\&.10,
+\fBall\-\fR
+can be used as the
+\fIzone\fR
+name to mean all
+off\-firewall zones\&.
+.RE
+.PP
+SOURCE (format 3 prior to Shorewall 5\&.1\&.0) \(en {\-|\fIinterface\fR[:\fIaddress\-list\fR]|\fIaddress\-list\fR}
+.RS 4
+Where
+\fIinterface\fR
+is an interface to that zone, and
+\fIaddress\-list\fR
+is a comma\-separated list of addresses (may contain exclusion \- see
+\m[blue]\fBshorewall\-exclusion\fR\m[]\&\s-2\u[2]\d\s+2
+(5))\&.
+.RE
+.PP
+\fBSOURCE (format 3 on Shorewall 5\&.1\&.0 and later) \- {\-|[\fR\fB\fIsource\-spec\fR\fR\fB[,\&.\&.\&.]]}\fR
+.RS 4
+where
+\fIsource\-spec\fR
+is one of the following:
+.PP
+\fIinterface\fR
+.RS 4
+Where interface is the logical name of an interface defined in
+\m[blue]\fBshorewall\-interface\fR\m[]\&\s-2\u[3]\d\s+2(5)\&.
+.RE
+.PP
+\fIaddress\fR[,\&.\&.\&.][\fIexclusion\fR]
+.RS 4
+where
+\fIaddress\fR
+may be:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+A host or network IP address\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+A MAC address in Shorewall format (preceded by a tilde ("~") and using dash ("\-") as a separator\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The name of an ipset preceded by a plus sign ("+")\&. See
+\m[blue]\fBshorewall\-ipsets\fR\m[]\&\s-2\u[4]\d\s+2(5)\&.
+.RE
+.sp
+\fIexclusion\fR
+is described in
+\m[blue]\fBshorewall\-exclusion\fR\m[]\&\s-2\u[2]\d\s+2(5)\&.
+.RE
+.PP
+\fIinterface\fR:\fIaddress\fR[,\&.\&.\&.][\fIexclusion\fR]
+.RS 4
+This form combines the preceding two and requires that both the incoming interface and source address match\&.
+.RE
+.PP
+\fIexclusion\fR
+.RS 4
+See
+\m[blue]\fBshorewall\-exclusion\fR\m[]\&\s-2\u[2]\d\s+2
+(5)
+.RE
+.sp
+Beginning with Shorewall 5\&.1\&.0, multiple
+\fIsource\-spec\fRs separated by commas may be specified provided that the following alternative forms are used:
+(\fIaddress\fR[,\&.\&.\&.][\fIexclusion\fR])
+.sp
+\fIinterface\fR:(\fIaddress\fR[,\&.\&.\&.][\fIexclusion\fR])
+.sp
+(\fIexclusion\fR)
+.RE
+.PP
+DEST (Prior to Shorewall 5\&.1\&.0) \(en {\-|\fIinterface\fR[:\fIaddress\-list\fR]|\fIaddress\-list\fR}
+.RS 4
+where
+\fIaddress\-list\fR
+is a comma\-separated list of addresses (may contain exclusion \- see
+\m[blue]\fBshorewall\-exclusion\fR\m[]\&\s-2\u[2]\d\s+2
+(5))\&.
+.RE
+.PP
+\fBDEST (Shorewall 5\&.1\&.0 and later) \- {\-|\fR\fB\fIdest\-spec\fR\fR\fB[,\&.\&.\&.]}\fR
+.RS 4
+where
+\fIdest\-spec\fR
+is one of the following:
+.PP
+\fIinterface\fR
+.RS 4
+Where interface is the logical name of an interface defined in
+\m[blue]\fBshorewall\-interface\fR\m[]\&\s-2\u[3]\d\s+2(5)\&.
+.RE
+.PP
+\fIaddress\fR[,\&.\&.\&.][\fIexclusion\fR]
+.RS 4
+where
+\fIaddress\fR
+may be:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+A host or network IP address\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+A MAC address in Shorewall format (preceded by a tilde ("~") and using dash ("\-") as a separator\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The name of an ipset preceded by a plus sign ("+")\&. See
+\m[blue]\fBshorewall\-ipsets\fR\m[]\&\s-2\u[4]\d\s+2(5)\&.
+.RE
+.sp
+\fIexclusion\fR
+is described in
+\m[blue]\fBshorewall\-exclusion\fR\m[]\&\s-2\u[2]\d\s+2(5)\&.
+.RE
+.PP
+\fIinterface\fR:\fIaddress\fR[,\&.\&.\&.][\fIexclusion\fR]
+.RS 4
+This form combines the preceding two and requires that both the outgoing interface and destination address match\&.
+.RE
+.PP
+\fIexclusion\fR
+.RS 4
+See
+\m[blue]\fBshorewall\-exclusion\fR\m[]\&\s-2\u[2]\d\s+2
+(5)
+.RE
+.sp
+Beginning with Shorewall 5\&.1\&.0, multiple source\-specs separated by commas may be specified provided that the following alternative forms are used:
+(\fIaddress\fR[,\&.\&.\&.][\fIexclusion\fR])
+.sp
+\fIinterface\fR:(\fIaddress\fR[,\&.\&.\&.][\fIexclusion\fR])
+.sp
+(\fIexclusion\fR)
+.RE
+.PP
+PROTO \(en \fIprotocol\-name\-or\-number\fR[,\&.\&.\&.]
+.RS 4
+A protocol name from
+/etc/protocols
+or a protocol number\&. tcp and 6 may be optionally followed by
+\fB:syn \fRto match only the SYN packet (first packet in the three\-way handshake)\&.
+.sp
+Beginning with Shorewall 4\&.5\&.12, this column can accept a comma\-separated list of protocols and either
+\fBproto\fR
+or
+\fBprotos\fR
+is accepted in the alternate input format\&.
+.sp
+Beginning with Shorewall 5\&.1\&.11, when
+\fBtcp\fR
+or
+\fB6\fR
+is specified and the ACTION is
+\fBCT\fR, the compiler will default to
+\fB:syn\fR\&. If you wish the rule to match packets with any valid combination of TCP flags, you may specify
+\fBtcp:all\fR
+or
+\fB6:all\fR\&.
+.RE
+.PP
+DPORT \- port\-number/service\-name\-list
+.RS 4
+A comma\-separated list of port numbers and/or service names from
+/etc/services\&. May also include port ranges of the form
+\fIlow\-port\fR:\fIhigh\-port\fR
+if your kernel and iptables include port range support\&.
+.sp
+This column was formerly labelled DEST PORT(S)\&.
+.RE
+.PP
+SPORT \- port\-number/service\-name\-list
+.RS 4
+A comma\-separated list of port numbers and/or service names from
+/etc/services\&. May also include port ranges of the form
+\fIlow\-port\fR:\fIhigh\-port\fR
+if your kernel and iptables include port range support\&.
+.sp
+Beginning with Shorewall 4\&.5\&.15, you may place \*(Aq=\*(Aq in this column, provided that the DPORT column is non\-empty\&. This causes the rule to match when either the source port or the destination port in a packet matches one of the ports specified in DPORT\&. Use of \*(Aq=\*(Aq requires multi\-port match in your iptables and kernel\&.
+.sp
+This column was formerly labelled SOURCE PORT(S)\&.
+.RE
+.PP
+USER \(en [\fIuser\fR][:\fIgroup\fR]
+.RS 4
+This column was formerly named USER/GROUP and may only be specified if the SOURCE
+\fIzone\fR
+is $FW\&. Specifies the effective user id and or group id of the process sending the traffic\&.
+.RE
+.PP
+\fBSWITCH \- [!]\fR\fB\fIswitch\-name\fR\fR\fB[={0|1}]\fR
+.RS 4
+Added in Shorewall 4\&.5\&.10 and allows enabling and disabling the rule without requiring
+\fBshorewall restart\fR\&.
+.sp
+The rule is enabled if the value stored in
+/proc/net/nf_condition/\fIswitch\-name\fR
+is 1\&. The rule is disabled if that file contains 0 (the default)\&. If \*(Aq!\*(Aq is supplied, the test is inverted such that the rule is enabled if the file contains 0\&.
+.sp
+Within the
+\fIswitch\-name\fR, \*(Aq@0\*(Aq and \*(Aq@{0}\*(Aq are replaced by the name of the chain to which the rule is a added\&. The
+\fIswitch\-name\fR
+(after \*(Aq\&.\&.\&.\*(Aq expansion) must begin with a letter and be composed of letters, decimal digits, underscores or hyphens\&. Switch names must be 30 characters or less in length\&.
+.sp
+Switches are normally
+\fBoff\fR\&. To turn a switch
+\fBon\fR:
+.RS 4
+\fBecho 1 >
+            /proc/net/nf_condition/\fR\fB\fIswitch\-name\fR\fR
+.RE
+To turn it
+\fBoff\fR
+again:
+.RS 4
+\fBecho 0 >
+            /proc/net/nf_condition/\fR\fB\fIswitch\-name\fR\fR
+.RE
+Switch settings are retained over
+\fBshorewall restart\fR\&.
+.sp
+When the
+\fIswitch\-name\fR
+is followed by
+\fB=0\fR
+or
+\fB=1\fR, then the switch is initialized to off or on respectively by the
+\fBstart\fR
+command\&. Other commands do not affect the switch setting\&.
+.RE
+.SH "EXAMPLE"
+.PP
+IPv4 Example 1:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+#ACTION                       SOURCE            DEST               PROTO            DPORT             SPORT               USER
+CT:helper:ftp(expevents=new)  fw                \-                  tcp              21              
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+IPv4 Example 2 (Shorewall 4\&.5\&.10 or later):
+.PP
+Drop traffic to/from all zones to IP address 1\&.2\&.3\&.4
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+?FORMAT 2
+#ACTION                       SOURCE             DEST               PROTO           DPORT             SPORT               USER
+DROP                          all\-:1\&.2\&.3\&.4       \-
+DROP                          all                1\&.2\&.3\&.4
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+or
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+?FORMAT 3
+#ACTION                       SOURCE             DEST               PROTO           DPORT             SPORT               USER
+DROP:P                        1\&.2\&.3\&.4            \-
+DROP:PO                       \-                  1\&.2\&.3\&.4
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+IPv6 Example 1:
+.PP
+Use the FTP helper for TCP port 21 connections from the firewall itself\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+FORMAT 2
+#ACTION                       SOURCE            DEST               PROTO            DPORT             SPORT               USER
+CT:helper:ftp(expevents=new)  fw                \-                  tcp              21              
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+IPv6 Example 2 (Shorewall 4\&.5\&.10 or later):
+.PP
+Drop traffic to/from all zones to IP address 2001:1\&.2\&.3::4
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+FORMAT 2
+#ACTION                       SOURCE             DEST               PROTO            DPORT             SPORT               USER
+DROP                          all\-:2001:1\&.2\&.3::4 \-
+DROP                          all                2001:1\&.2\&.3::4
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+or
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+FORMAT 3
+#ACTION                       SOURCE             DEST               PROTO            DPORT             SPORT               USER
+DROP:P                        2001:1\&.2\&.3::4      \-
+DROP:PO                       \-                  2001:1\&.2\&.3::4
+.fi
+.if n \{\
+.RE
+.\}
+.SH "FILES"
+.PP
+/etc/shorewall/conntrack
+.PP
+/etc/shorewall6/conntrack
+.SH "SEE ALSO"
+.PP
+\m[blue]\fBhttps://shorewall\&.org/configuration_file_basics\&.htm#Pairs\fR\m[]\&\s-2\u[5]\d\s+2
+.PP
+shorewall(8)
+.SH "NOTES"
+.IP " 1." 4
+shorewall-actions
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-actions.html
+.RE
+.IP " 2." 4
+shorewall-exclusion
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-exclusion.html
+.RE
+.IP " 3." 4
+shorewall-interface
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-interfaces.html
+.RE
+.IP " 4." 4
+shorewall-ipsets
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-ipsets.html
+.RE
+.IP " 5." 4
+https://shorewall.org/configuration_file_basics.htm#Pairs
+.RS 4
+\%[set $man.base.url.for.relative.links]/../configuration_file_basics.htm#Pairs
+.RE

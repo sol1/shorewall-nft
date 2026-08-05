@@ -1,0 +1,445 @@
+'\" t
+.\"     Title: shorewall-logging
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Configuration Files
+.\"    Source: Configuration Files
+.\"  Language: English
+.\"
+.TH "SHOREWALL\-LOGGING" "5" "08/05/2026" "Configuration Files" "Configuration Files"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+logging \- Shorewall logging
+.SH "SYNOPSIS"
+.HP \w'\fB\fIaction\fR\fR\fB:\fR\fB\fIlevel\fR\fR\ 'u
+\fB\fIaction\fR\fR\fB:\fR\fB\fIlevel\fR\fR
+.HP \w'\fBNFLOG(\fR\fB\fInflog\-parameters\fR\fR\fB)\fR\ 'u
+\fBNFLOG(\fR\fB\fInflog\-parameters\fR\fR\fB)\fR
+.HP \w'\fBULOG(\fR\fB\fIulog\-parameters\fR\fR\fB)\fR\ 'u
+\fBULOG(\fR\fB\fIulog\-parameters\fR\fR\fB)\fR
+.SH "DESCRIPTION"
+.PP
+The disposition of packets entering a Shorewall firewall is determined by one of a number of Shorewall facilities\&. Only some of these facilities permit logging\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+The packet is part of an established connection\&. While the packet can be logged using LOG rules in the ESTABLISHED section of
+\m[blue]\fB/etc/shorewall/rules\fR\m[]\&\s-2\u[1]\d\s+2, that is not recommended because of the large amount of information that may be logged\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
+The packet represents a connection request that is related to an established connection (such as a
+\m[blue]\fBdata connection associated with an FTP control connection\fR\m[]\&\s-2\u[2]\d\s+2)\&. These packets may be logged using LOG rules in the RELATED section of
+\m[blue]\fBshorewall\-rules(5)\fR\m[]\&\s-2\u[1]\d\s+2\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 3.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  3." 4.2
+.\}
+The packet is rejected because of an option in
+\m[blue]\fBshorewall\&.conf\fR\m[]\&\s-2\u[3]\d\s+2(5) or
+\m[blue]\fBshorewall\-interfaces(5)\fR\m[]\&\s-2\u[4]\d\s+2\&. These packets can be logged by setting the appropriate logging\-related option in
+\m[blue]\fB/etc/shorewall/shorewall\&.conf\fR\m[]\&\s-2\u[3]\d\s+2\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 4.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  4." 4.2
+.\}
+The packet matches a rule in
+\m[blue]\fBshorewall\-rules\fR\m[]\&\s-2\u[1]\d\s+2(5)\&. By including a syslog level (see below) in the ACTION column of a rule (e\&.g\&.,
+\(lqACCEPT\fB:info\fR net $FW tcp 22\(rq), the connection attempt will be logged at that level\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 5.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  5." 4.2
+.\}
+The packet doesn\*(Aqt match a rule so it is handled by a policy defined in
+\m[blue]\fBshorewall\-policy(5)\fR\m[]\&\s-2\u[5]\d\s+2\&. These may be logged by specifying a syslog level in the LOG LEVEL column of the policy\*(Aqs entry (e\&.g\&.,
+\(lqloc net ACCEPT \fBinfo\fR\(rq)\&.
+.RE
+.SH "DEFAULT LOGGING"
+.PP
+By default, Shorewall directs Netfilter to log using syslog (8)\&. Syslog classifies log messages by a
+\fIfacility\fR
+and a
+\fIpriority\fR
+(using the notation
+\fIfacility\&.priority\fR)\&.
+.PP
+The facilities defined by syslog are
+\fIauth, authpriv, cron, daemon, kern, lpr, mail, mark, news, syslog, user, uucp\fR
+and
+\fIlocal0\fR
+through
+\fIlocal7\&.\fR
+.PP
+Throughout the Shorewall documentation, the term
+\fIlevel\fR
+rather than
+\fIpriority is used, \fRsince
+\fIlevel\fR
+is the term used by Netfilter\&. The syslog documentation uses the term
+\fIpriority\fR\&.
+.SH "SYSLOG LEVELS"
+.PP
+Syslog levels are a method of describing to syslog (8) the importance of a message\&. A number of Shorewall parameters have a syslog level as their value\&.
+.PP
+Valid levels are:
+.RS 4
+7 \- \fBdebug\fR (Debug\-level
+      messages)
+.RE
+.RS 4
+6 \- \fBinfo\fR
+      (Informational)
+.RE
+.RS 4
+5 \- \fBnotice\fR (Normal but
+      significant Condition)
+.RE
+.RS 4
+4 \- \fBwarning\fR (Warning
+      Condition)
+.RE
+.RS 4
+3 \- \fBerr\fR (Error
+      Condition)
+.RE
+.RS 4
+2 \- \fBcrit\fR (Critical
+      Conditions)
+.RE
+.RS 4
+1 \- \fBalert\fR (must be handled
+      immediately)
+.RE
+.RS 4
+0 \- \fBemerg\fR (System is
+      unusable)
+.RE
+.PP
+For most Shorewall logging, a level of 6 (info) is appropriate\&. Shorewall log messages are generated by Netfilter and are logged using the
+\fIkern\fR
+facility and the level that you specify\&. If you are unsure of the level to choose, 6 (info) is a safe bet\&. You may specify levels by name or by number\&.
+.PP
+Beginning with Shorewall 4\&.5\&.5, the
+\fIlevel\fR
+name or number may be optionally followed by a comma\-separated list of one or more\fI log options\fR\&. The list is enclosed in parentheses\&. Log options cause additional information to be included in each log message\&.
+.PP
+Valid log options are:
+.PP
+\fBip_options\fR
+.RS 4
+Log messages will include the option settings from the IP header\&.
+.RE
+.PP
+\fBmacdecode\fR
+.RS 4
+Decode the MAC address and protocol\&.
+.RE
+.PP
+\fBtcp_sequence\fR
+.RS 4
+Include TCP sequence numbers\&.
+.RE
+.PP
+\fBtcp_options\fR
+.RS 4
+Include options from the TCP header\&.
+.RE
+.PP
+\fBuid\fR
+.RS 4
+Include the UID of the sending program; only valid for packets originating on the firewall itself\&.
+.RE
+.PP
+Example:
+\fBinfo(tcp_options,tcp_sequence)\fR
+.PP
+Syslogd writes log messages to files (typically in
+/var/log/*) based on their facility and level\&. The mapping of these facility/level pairs to log files is done in /etc/syslog\&.conf (5)\&. If you make changes to this file, you must restart syslogd before the changes can take effect\&.
+.PP
+Syslog may also write to your system console\&. See
+\m[blue]\fBShorewall FAQ 16\fR\m[]\&\s-2\u[6]\d\s+2
+for ways to avoid having Shorewall messages written to the console\&.
+.SH "CONFIGURING A SEPARATE LOG FOR SHOREWALL MESSAGES (ULOGD)"
+.PP
+There are a couple of limitations to syslogd\-based logging:
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+If you give, for example, kern\&.info its own log destination then that destination will also receive all kernel messages of levels 5 (notice) through 0 (emerg)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
+All kernel\&.info messages will go to that destination and not just those from Netfilter\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 3.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  3." 4.2
+.\}
+Netfilter (Shorewall) messages show up in
+\fBdmesg\fR\&.
+.RE
+.PP
+If your kernel has NFLOG target support (and most vendor\-supplied kernels do), you may also specify a log level of NFLOG (must be all caps)\&. When NFLOG is used, Shorewall will direct Netfilter to log the related messages via the NFLOG target which will send them to a process called
+\(lqulogd\(rq\&. The ulogd program is included in most distributions\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+The NFLOG logging mechanism is
+\fIcompletely separate\fR
+from syslog\&. Once you switch to NFLOG, the settings in
+/etc/syslog\&.conf
+have absolutely no effect on your Shorewall logging (except for Shorewall status messages which still go to syslog)\&.
+.sp .5v
+.RE
+.PP
+You will need to change all instances of log levels (usually
+\(lqinfo\(rq) in your Shorewall configuration files to
+\(lqNFLOG\(rq
+\- this includes entries in the policy, rules and shorewall\&.conf files\&. If you initially installed using Shorewall 5\&.1\&.2 or later, you can simply change the setting of LOG_LEVEL in shorewall\&.conf\&.
+.SH "UNDERSTANDING THE CONTENTS OF SHOREWALL LOG MESSAGES"
+.PP
+For general information on the contents of Netfilter log messages, see
+\m[blue]\fBhttp://logi\&.cc/en/2010/07/netfilter\-log\-format/\fR\m[]\&.
+.PP
+For Shorewall\-specific information, see
+\m[blue]\fBFAQ #17\fR\m[]\&\s-2\u[7]\d\s+2\&.
+.SH "CUSTOMIZING THE CONTENT OF SHOREWALL LOG MESSAGES"
+.PP
+In a Shorewall logging rule, the log level can be followed by a
+log tag
+as in "DROP:NFLOG:junk"\&. The generated log message will include "\fIchain\-name\fR
+junk DROP"\&.
+.PP
+By setting the LOGTAGONLY option to Yes in
+\m[blue]\fBshorewall\&.conf(5)\fR\m[]\&\s-2\u[8]\d\s+2
+or
+\m[blue]\fBshorewall6\&.conf(5)\fR\m[]\&\s-2\u[8]\d\s+2, the disposition (\*(AqDROP\*(Aq in the above example) will be omitted\&. Consider the following rule:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+#ACTION                                    SOURCE          DEST           PROTO
+REJECT(icmp\-proto\-unreachable):notice:IPv6 loc             net            41      # who\*(Aqs using IPv6 tunneling
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+This rule generates the following warning at compile time:
+.RS 4
+WARNING: Log Prefix shortened to "Shorewall:IPv6:REJECT(icmp\-p "
+      /etc/shorewall/rules (line 212)
+.RE
+.PP
+and produces the rather ugly prefix "Shorewall:IPv6:REJECT(icmp\-p "\&.
+.PP
+Now consider this similar rule:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+#ACTION                                              SOURCE          DEST           PROTO
+REJECT(icmp\-proto\-unreachable):notice:IPv6,tunneling loc             net            41      # who\*(Aqs using IPv6 tunneling
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+With LOGTAGONLY=Yes, no warning is generated and the prefix becomes "Shorewall:IPv6:tunneling:"
+.PP
+See the
+\m[blue]\fBshorewall[6]\&.conf man page\fR\m[]\&\s-2\u[8]\d\s+2
+for further information about how LOGTAGONLY=Yes can be used\&.
+.SH "LOG BACKENDS"
+.PP
+Netfilter logging allows configuration of multiple backends\&. Logging backends provide the The low\-level forward of log messages\&. There are currently three backends:
+.PP
+LOG (ipt_LOG and ip6t_LOG)\&.
+.RS 4
+Normal kernel\-based logging to a syslog daemon\&.
+.RE
+.PP
+ULOG (ipt_ULOG)
+.RS 4
+ULOG logging as described ablve\&. Only available for IPv4\&.
+.RE
+.PP
+netlink (nfnetlink_log)
+.RS 4
+The logging backend behind NFLOG, defined above\&.
+.RE
+.PP
+The currently\-available and currently\-selected IPv4 and IPv6 backends are shown in /proc/sys/net/netfilter/nf_log:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+cat /proc/net/netfilter/nf_log
+ 0 NONE (nfnetlink_log)
+ 1 NONE (nfnetlink_log)
+ 2 ipt_ULOG (ipt_ULOG,ipt_LOG,nfnetlink_log)
+ 3 NONE (nfnetlink_log)
+ 4 NONE (nfnetlink_log)
+ 5 NONE (nfnetlink_log)
+ 6 NONE (nfnetlink_log)
+ 7 NONE (nfnetlink_log)
+ 8 NONE (nfnetlink_log)
+ 9 NONE (nfnetlink_log)
+10 ip6t_LOG (ip6t_LOG,nfnetlink_log)
+11 NONE (nfnetlink_log)
+12 NONE (nfnetlink_log)
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+The magic numbers (0\-12) are Linux address family numbers (AF_INET is 2 and AF_INET6 is 10)\&.
+.PP
+The name immediately following the number is the currently\-selected backend, and the ones in parentheses are the ones that are available\&. You can change the currently selected backend by echoing it\*(Aqs name into /proc/net/netfilter/nf_log\&.\fInumber\fR\&.
+.PP
+Example \- change the IPv4 backend to LOG:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+sysctl net\&.netfilter\&.nf_log\&.2=ipt_LOG
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Beginning with Shorewall 4\&.6\&.4, you can configure the backend using the LOG_BACKEND option in
+\m[blue]\fBshorewall\&.conf(5)\fR\m[]\&\s-2\u[3]\d\s+2
+and
+\m[blue]\fBshorewall6\&.conf(5)\fR\m[]\&\s-2\u[3]\d\s+2\&.
+.SH "SEE ALSO"
+.PP
+\m[blue]\fBhttps://shorewall\&.org/shorewall_logging\&.html\fR\m[]\&\s-2\u[9]\d\s+2
+.SH "NOTES"
+.IP " 1." 4
+/etc/shorewall/rules
+.RS 4
+\%[set $man.base.url.for.relative.links]/manpages/shorewall-rules.html
+.RE
+.IP " 2." 4
+data connection associated with an FTP control connection
+.RS 4
+\%[set $man.base.url.for.relative.links]/FTP.html
+.RE
+.IP " 3." 4
+shorewall.conf
+.RS 4
+\%[set $man.base.url.for.relative.links]/manpages/shorewall.conf.html
+.RE
+.IP " 4." 4
+shorewall-interfaces(5)
+.RS 4
+\%[set $man.base.url.for.relative.links]/manpages/shorewall-interfaces.html
+.RE
+.IP " 5." 4
+shorewall-policy(5)
+.RS 4
+\%[set $man.base.url.for.relative.links]/manpages/shorewall-policy.html
+.RE
+.IP " 6." 4
+Shorewall FAQ 16
+.RS 4
+\%[set $man.base.url.for.relative.links]/FAQ.htm#faq16
+.RE
+.IP " 7." 4
+FAQ #17
+.RS 4
+\%[set $man.base.url.for.relative.links]/../FAQ.htm#faq17
+.RE
+.IP " 8." 4
+shorewall.conf(5)
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall.conf.html
+.RE
+.IP " 9." 4
+https://shorewall.org/shorewall_logging.html
+.RS 4
+\%[set $man.base.url.for.relative.links]/../shorewall_logging.htm
+.RE

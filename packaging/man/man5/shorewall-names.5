@@ -1,0 +1,491 @@
+'\" t
+.\"     Title: shorewall-names
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Configuration Files
+.\"    Source: Configuration Files
+.\"  Language: English
+.\"
+.TH "SHOREWALL\-NAMES" "5" "08/05/2026" "Configuration Files" "Configuration Files"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+names \- Shorewall object names
+.SH "DESCRIPTION"
+.PP
+When you define an object in Shorewall (\m[blue]\fBZone\fR\m[]\&\s-2\u[1]\d\s+2,
+Logical Interface,
+\m[blue]\fBipsets\fR\m[]\&\s-2\u[2]\d\s+2,
+\m[blue]\fBActions\fR\m[]\&\s-2\u[3]\d\s+2, etc\&., you give it a name\&. Shorewall names start with a letter and consist of letters, digits or underscores ("_")\&. Except for Zone names, Shorewall does not impose a limit on name length\&.
+.PP
+When an ipset is referenced, the name must be preceded by a plus sign ("+")\&.
+.PP
+The last character of an interface may also be a plus sign to indicate a wildcard name\&.
+.PP
+Physical interface names match names shown by \*(Aqip link ls\*(Aq; if the name includes an at sign ("@"), do not include that character or any character that follows\&. For example, "sit1@NONE" is referred to as simply \*(Aqsit1"\&.
+.SH "ZONE AND CHAIN NAMES"
+.PP
+For a pair of zones, Shorewall creates two Netfilter chains; one for connections in each direction\&. The names of these chains are formed by separating the names of the two zones by either "2" or "\-"\&.
+.PP
+Example: Traffic from zone A to zone B would go through chain A2B (think "A to B") or "A\-B"\&.
+.PP
+In Shorewall 4\&.6, the default separator is "\-" but you can override that by setting ZONE_SEPARATOR="2" in
+\m[blue]\fBshorewall\&.conf\fR\m[]\&\s-2\u[4]\d\s+2
+(5)\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+Prior to Shorewall 4\&.6, the default separator was "2"\&.
+.sp .5v
+.RE
+.PP
+Zones themselves have names that begin with a letter and are composed of letters, numerals, and "_"\&. The maximum length of a name is dependent on the setting of LOGFORMAT in
+\m[blue]\fBshorewall\&.conf\fR\m[]\&\s-2\u[4]\d\s+2
+(5)\&. See
+\m[blue]\fBshorewall\-zones\fR\m[]\&\s-2\u[1]\d\s+2
+(5) for details\&.
+.SH "USING DNS NAMES"
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBCaution\fR
+.ps -1
+.br
+.PP
+I personally recommend strongly against using DNS names in Shorewall configuration files\&. If you use DNS names and you are called out of bed at 2:00AM because Shorewall won\*(Aqt start as a result of DNS problems then don\*(Aqt say that you were not forewarned\&.
+.sp .5v
+.RE
+.PP
+Host addresses in Shorewall configuration files may be specified as either IP addresses or DNS Names\&.
+.PP
+DNS names in iptables rules aren\*(Aqt nearly as useful as they first appear\&. When a DNS name appears in a rule, the iptables utility resolves the name to one or more IP addresses and inserts those addresses into the rule\&. So changes in the DNS\->IP address relationship that occur after the firewall has started have absolutely no effect on the firewall\*(Aqs rule set\&.
+.PP
+For some sites, using DNS names is very risky\&. Here\*(Aqs an example:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+teastep@ursa:~$ dig pop\&.gmail\&.com
+
+; <<>> DiG 9\&.4\&.2\-P1 <<>> pop\&.gmail\&.com
+;; global options:  printcmd
+;; Got answer:
+;; \->>HEADER<<\- opcode: QUERY, status: NOERROR, id: 1774
+;; flags: qr rd ra; QUERY: 1, ANSWER: 3, AUTHORITY: 7, ADDITIONAL: 0
+
+;; QUESTION SECTION:
+;pop\&.gmail\&.com\&.               IN A
+
+;; ANSWER SECTION:
+pop\&.gmail\&.com\&.          \fB300\fR   IN CNAME gmail\-pop\&.l\&.google\&.com\&.
+gmail\-pop\&.l\&.google\&.com\&. \fB300\fR   IN A     209\&.85\&.201\&.109
+gmail\-pop\&.l\&.google\&.com\&. \fB300\fR   IN A     209\&.85\&.201\&.111
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Note that the TTL is 300 \-\- 300 seconds is only 5 minutes\&. So five minutes later, the answer may change!
+.PP
+So this rule may work for five minutes then suddently stop working:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+#ACTION        SOURCE               DEST              PROTO             DPORT
+POP(ACCEPT)    loc                  net:pop\&.gmail\&.com
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+There are two options in
+\m[blue]\fBshorewall[6]\&.conf(5)\fR\m[]\&\s-2\u[4]\d\s+2
+that affect the use of DNS names in Shorewall[6] config files:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+DEFER_DNS_RESOLUTION \- When set to No, DNS names are resolved at compile time; when set to Yes, DNS Names are resolved at runtime\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+AUTOMAKE \- When set to Yes,
+\fBstart\fR,
+\fBrestart\fR
+and
+\fBreload\fR
+only result in compilation if one of the files on the CONFIG_PATH has changed since the the last compilation\&.
+.RE
+.PP
+So by setting AUTOMAKE=Yes, and DEFER_DNS_RESOLUTION=No, compilation will only take place at boot time if a change had been make to the config but no
+\fBrestart\fR
+or
+\fBreload\fR
+had taken place\&. This is clearly spelled out in the shorewall\&.conf manpage\&. So with these settings, so long as a \*(Aqreload\*(Aq or \*(Aqrestart\*(Aq takes place after the Shorewall configuration is changes, there should be no DNS\-related problems at boot time\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+.PP
+When DEFER_DNS_RESOLUTION=No and AUTOMAKE=Yes and a DNS change makes it necessary to recompile an existing firewall script, the
+\fB\-c\fR
+option must be used with the
+\fBreload\fR
+or
+\fBrestart\fR
+command to force recompilation\&.
+.sp .5v
+.RE
+.PP
+If your firewall rules include DNS names then, even if DEFER_DNS_RESOLUTION=No and AUTOMAKE=Yes:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+If your
+/etc/resolv\&.confis wrong then your firewall may not start\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+If your
+/etc/nsswitch\&.conf
+is wrong then your firewall may not start\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+If your Name Server(s) is(are) down then your firewall may not start\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+If your startup scripts try to start your firewall before starting your DNS server then your firewall may not start\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Factors totally outside your control (your ISP\*(Aqs router is down for example), can prevent your firewall from starting\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+You must bring up your network interfaces prior to starting your firewall, or the firewall may not start\&.
+.RE
+.PP
+Each DNS name must be fully qualified and include a minimum of two periods (although one may be trailing)\&. This restriction is imposed by Shorewall to insure backward compatibility with existing configuration files\&.
+.PP
+\fBExample\ \&1.\ \&Valid DNS Names\fR
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+mail\&.shorewall\&.net
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+shorewall\&.net\&. (note the trailing period)\&.
+.RE
+.PP
+\fBExample\ \&2.\ \&Invalid DNS Names\fR
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+mail (not fully qualified)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+shorewall\&.net (only one period)
+.RE
+.PP
+DNS names may not be used as:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The server address in a DNAT rule (/etc/shorewall/rules file)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+In the ADDRESS column of an entry in /etc/shorewall/masq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+In the
+/etc/shorewall/nat
+file\&.
+.RE
+.PP
+These restrictions are imposed by Netfilter and not by Shorewall\&.
+.SH "LOGICAL INTERFACE NAMES"
+.PP
+When dealing with a complex configuration, it is often awkward to use physical interface names in the Shorewall configuration\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+You need to remember which interface is which\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+If you move the configuration to another firewall, the interface names might not be the same\&.
+.RE
+.PP
+Beginning with Shorewall 4\&.4\&.4, you can use logical interface names which are mapped to the actual interface using the
+\fBphysical\fR
+option in
+\m[blue]\fBshorewall\-interfaces\fR\m[]\&\s-2\u[5]\d\s+2
+(5)\&.
+.PP
+Here is an example:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+#ZONE  INTERFACE  OPTIONS
+net    \fBCOM_IF \fR    dhcp,blacklist,tcpflags,optional,upnp,routefilter=0,nosmurfs,logmartians=0,\fBphysical=eth0\fR
+net    \fBEXT_IF\fR     dhcp,blacklist,tcpflags,optional,routefilter=0,nosmurfs,logmartians=0,proxyarp=1,\fBphysical=eth2\fR
+loc    \fBINT_IF \fR    dhcp,logmartians=1,routefilter=1,tcpflags,nets=172\&.20\&.1\&.0/24,\fBphysical=eth1\fR
+dmz    \fBVPS_IF \fR    logmartians=1,routefilter=0,routeback,\fBphysical=venet0\fR
+loc    \fBTUN_IF\fR     \fBphysical=tun+\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+In this example, COM_IF is a logical interface name that refers to Ethernet interface
+eth0, EXT_IF is a logical interface name that refers to Ethernet interface
+eth2, and so on\&.
+.PP
+Here are a couple of more files from the same configuration:
+.PP
+\m[blue]\fBshorewall\-masq\fR\m[]\&\s-2\u[6]\d\s+2
+(5):
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+#INTERFACE SOURCE                    ADDRESS
+
+COMMENT Masquerade Local Network
+\fBCOM_IF\fR     0\&.0\&.0\&.0/0
+\fBEXT_IF \fR    !206\&.124\&.146\&.0/24         206\&.124\&.146\&.179:persistent
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+\m[blue]\fBshorewall\-providers\fR\m[]\&\s-2\u[7]\d\s+2
+(5)
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+#NAME   NUMBER   MARK    DUPLICATE  INTERFACE  GATEWAY         OPTIONS               COPY
+Avvanta 1        0x10000 main       \fBEXT_IF \fR    206\&.124\&.146\&.254 loose,fallback        \fBINT_IF,VPS_IF,TUN_IF\fR
+Comcast 2        0x20000 main       \fBCOM_IF\fR     detect          balance               \fBINT_IF,VPS_IF,TUN_IF\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Note in particular that Shorewall translates TUN_IF to
+tun*
+in the COPY column\&.
+.SH "NOTES"
+.IP " 1." 4
+Zone
+.RS 4
+\%[set $man.base.url.for.relative.links]/manpages/shorewall-zones.html
+.RE
+.IP " 2." 4
+ipsets
+.RS 4
+\%[set $man.base.url.for.relative.links]/ipsets.html
+.RE
+.IP " 3." 4
+Actions
+.RS 4
+\%[set $man.base.url.for.relative.links]/Actions.html
+.RE
+.IP " 4." 4
+shorewall.conf
+.RS 4
+\%[set $man.base.url.for.relative.links]/manpages/shorewall.conf.html
+.RE
+.IP " 5." 4
+shorewall-interfaces
+.RS 4
+\%[set $man.base.url.for.relative.links]/manpages/shorewall-interfaces.html
+.RE
+.IP " 6." 4
+shorewall-masq
+.RS 4
+\%[set $man.base.url.for.relative.links]/manpages/shorewall-masq.html
+.RE
+.IP " 7." 4
+shorewall-providers
+.RS 4
+\%[set $man.base.url.for.relative.links]/manpages/shorewall-providers.html
+.RE

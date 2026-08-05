@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-hosts</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>hosts</refname>
+
+    <refpurpose>Shorewall file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/etc/shorewall[6]/hosts</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>This file is used to define zones in terms of subnets and/or
+    individual IP addresses. Most simple setups don't need to (should not)
+    place anything in this file.</para>
+
+    <para>The order of entries in this file is not significant in determining
+    zone composition. Rather, the order that the zones are declared in <ulink
+    url="shorewall-zones.html">shorewall-zones</ulink>(5) determines the order
+    in which the records in this file are interpreted.</para>
+
+    <warning>
+      <para>The only time that you need this file is when you have more than
+      one zone connected through a single interface.</para>
+    </warning>
+
+    <warning>
+      <para>If you have an entry for a zone and interface in <ulink
+      url="shorewall-interfaces.html">shorewall-interfaces</ulink>(5) then do
+      not include any entries in this file for that same (zone, interface)
+      pair.</para>
+    </warning>
+
+    <para>The columns in the file are as follows.</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><emphasis role="bold">ZONE</emphasis> -
+        <emphasis>zone-name</emphasis></term>
+
+        <listitem>
+          <para>The name of a zone declared in <ulink
+          url="shorewall-zones.html">shorewall-zones</ulink>(5). You may not
+          list the firewall zone in this column.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">HOST(S)</emphasis> -
+        <emphasis>interface</emphasis>:{[{<emphasis>address-or-range</emphasis>[<emphasis
+        role="bold">,</emphasis><emphasis>address-or-range</emphasis>]...|<emphasis
+        role="bold">+</emphasis><emphasis>ipset</emphasis>|<emphasis
+        role="bold">dynamic</emphasis>}[<emphasis>exclusion</emphasis>]</term>
+
+        <listitem>
+          <para>The name of an interface defined in the <ulink
+          url="shorewall-interfaces.html">shorewall-interfaces</ulink>(5) file
+          followed by a colon (":") and a comma-separated list whose elements
+          are either:</para>
+
+          <orderedlist numeration="loweralpha">
+            <listitem>
+              <para>The IP <replaceable>address</replaceable> of a
+              host.</para>
+            </listitem>
+
+            <listitem>
+              <para>A network in CIDR format.</para>
+            </listitem>
+
+            <listitem>
+              <para>An IP address range of the form
+              <emphasis>low.address</emphasis>-<emphasis>high.address</emphasis>.
+              Your kernel and iptables must have iprange match support.</para>
+            </listitem>
+
+            <listitem>
+              <para>The name of an <emphasis>ipset</emphasis>.</para>
+            </listitem>
+
+            <listitem>
+              <para>The word <option>dynamic</option> which makes the zone
+              dynamic in that you can use the <command>shorewall add</command>
+              and <command>shorewall delete</command> commands to change to
+              composition of the zone.</para>
+            </listitem>
+          </orderedlist>
+
+          <blockquote>
+            <para>You may also exclude certain hosts through use of an
+            <emphasis>exclusion</emphasis> (see <ulink
+            url="shorewall-exclusion.html">shorewall-exclusion</ulink>(5).</para>
+          </blockquote>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">OPTIONS</emphasis> (Optional) -
+        [<emphasis>option</emphasis>[<emphasis
+        role="bold">,</emphasis><emphasis>option</emphasis>]...]</term>
+
+        <listitem>
+          <para>A comma-separated list of options from the following list. The
+          order in which you list the options is not significant but the list
+          must have no embedded white-space.</para>
+
+          <variablelist>
+            <varlistentry>
+              <term><emphasis role="bold">blacklist</emphasis></term>
+
+              <listitem>
+                <para>Check packets arriving on this port against the <ulink
+                url="shorewall-blacklist.html">shorewall-blacklist</ulink>(5)
+                file.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">broadcast</emphasis></term>
+
+              <listitem>
+                <para>Used when you want to include limited broadcasts
+                (destination IP address 255.255.255.255) from the firewall to
+                this zone. Only necessary when:</para>
+
+                <orderedlist>
+                  <listitem>
+                    <para>The network specified in the HOST(S) column does not
+                    include 255.255.255.255.</para>
+                  </listitem>
+
+                  <listitem>
+                    <para>The zone does not have an entry for this interface
+                    in <ulink
+                    url="shorewall-interfaces.html">shorewall-interfaces</ulink>(5).</para>
+                  </listitem>
+                </orderedlist>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">destonly</emphasis></term>
+
+              <listitem>
+                <para>Normally used with the Multi-cast IP address range
+                (224.0.0.0/4). Specifies that traffic will be sent to the
+                specified net(s) but that no traffic will be received from the
+                net(s).</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">ipsec</emphasis></term>
+
+              <listitem>
+                <para>The zone is accessed via a kernel 2.6 ipsec SA. Note
+                that if the zone named in the ZONE column is specified as an
+                IPSEC zone in the <ulink
+                url="shorewall-zones.html">shorewall-zones</ulink>(5) file
+                then you do NOT need to specify the 'ipsec' option
+                here.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">maclist</emphasis></term>
+
+              <listitem>
+                <para>Connection requests from these hosts are compared
+                against the contents of <ulink
+                url="shorewall-maclist.html">shorewall-maclist</ulink>(5). If
+                this option is specified, the interface must be an Ethernet
+                NIC or equivalent and must be up before Shorewall is
+                started.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">mss</emphasis>=<replaceable>mss</replaceable></term>
+
+              <listitem>
+                <para>Added in Shorewall 4.5.2. When present, causes the TCP
+                mss for new connections to/from the hosts given in the HOST(S)
+                column to be clamped at the specified
+                <replaceable>mss</replaceable>.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">nosmurfs</emphasis></term>
+
+              <listitem>
+                <para>This option only makes sense for ports on a
+                bridge.</para>
+
+                <para>Filter packets for smurfs (packets with a broadcast
+                address as the source).</para>
+
+                <para>Smurfs will be optionally logged based on the setting of
+                SMURF_LOG_LEVEL in <ulink
+                url="shorewall.conf.html">shorewall.conf</ulink>(5). After
+                logging, the packets are dropped.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">routeback</emphasis></term>
+
+              <listitem>
+                <para>Shorewall should set up the infrastructure to pass
+                packets from this/these address(es) back to themselves. This
+                is necessary if hosts in this group use the services of a
+                transparent proxy that is a member of the group or if DNAT is
+                used to send requests originating from this group to a server
+                in the group.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">tcpflags</emphasis></term>
+
+              <listitem>
+                <para>Packets arriving from these hosts are checked for
+                certain illegal combinations of TCP flags. Packets found to
+                have such a combination of flags are handled according to the
+                setting of TCP_FLAGS_DISPOSITION after having been logged
+                according to the setting of TCP_FLAGS_LOG_LEVEL.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>nodbl</term>
+
+              <listitem>
+                <para>This option was added in Shorewall 5.2.9. It causes
+                addresses in the HOSTS column to be exempted from ipset-based
+                dynamic blacklisting
+                (DYNAMIC_BLACKLIST={<option>ipset</option>|<option>ipsec-only</option>)...
+                in <ulink
+                url="shorewall.conf.html">Shorewall.conf</ulink>(5)). It may
+                only be specified if the <replaceable>zone-name</replaceable>
+                listed in the ZONE column is defined as an <option>ip</option>
+                (<option>ip</option>, <option>ip4</option>, or
+                <option>ip6</option>) zone in <ulink
+                url="shorewall-zones.html">shorewall-zones</ulink>(5).</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Examples</title>
+
+    <variablelist>
+      <varlistentry>
+        <term>Example 1</term>
+
+        <listitem>
+          <para>The firewall runs a PPTP server which creates a ppp interface
+          for each remote client. The clients are assigned IP addresses in the
+          network 192.168.3.0/24 and in a zone named 'vpn'.<programlisting>#ZONE       HOST(S)               OPTIONS
+vpn         ppp+:192.168.3.0/24</programlisting></para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall/hosts</para>
+
+    <para>/etc/shorewall6/hosts</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para><ulink
+    url="../configuration_file_basics.htm#Pairs">https://shorewall.org/configuration_file_basics.htm#Pairs</ulink></para>
+
+    <para>shorewall(8)</para>
+  </refsect1>
+</refentry>

@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall6-proxyndp</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>proxyndp</refname>
+
+    <refpurpose>Shorewall6 Proxy NDP file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/etc/shorewall6/proxyndp</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>This file was added in Shorewall 4.4.16 and is used to define Proxy
+    NDP. There is one entry in this file for each IPv6 address to be
+    proxied.</para>
+
+    <para>The columns in the file are as follows.</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><emphasis role="bold">ADDRESS</emphasis> -
+        <emphasis>address</emphasis></term>
+
+        <listitem>
+          <para>IPv6 Address.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">INTERFACE</emphasis> -
+        <emphasis>interface</emphasis> (Optional)</term>
+
+        <listitem>
+          <para>Local interface where system with the ip address in ADDRESS is
+          connected. Only required when the HAVEROUTE column is left empty or
+          is set to <emphasis role="bold">no</emphasis> or <emphasis
+          role="bold">No</emphasis>.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">EXTERNAL</emphasis> -
+        <emphasis>interface</emphasis></term>
+
+        <listitem>
+          <para>External Interface to be used to access this system from the
+          Internet.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">HAVEROUTE</emphasis> - [<emphasis
+        role="bold">-</emphasis>|<emphasis
+        role="bold">Yes</emphasis>|<emphasis role="bold">No</emphasis>]</term>
+
+        <listitem>
+          <para>If there is already a route from the firewall to the host
+          whose address is given, enter <emphasis role="bold">Yes</emphasis>
+          or <emphasis role="bold">yes</emphasis> in this column. Otherwise,
+          enter <emphasis role="bold">no</emphasis> or <emphasis
+          role="bold">No</emphasis> or leave the column empty and Shorewall
+          will add the route for you. If Shorewall6 adds the route, its
+          persistence depends on the value of the<emphasis
+          role="bold">PERSISTENT</emphasis> column contains <emphasis
+          role="bold">Yes</emphasis>; otherwise, <emphasis
+          role="bold">shorewall6 stop</emphasis> or <emphasis
+          role="bold">shorewall clear6</emphasis> will delete the
+          route.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">PERSISTENT</emphasis> - [<emphasis
+        role="bold">-</emphasis>|<emphasis
+        role="bold">Yes</emphasis>|<emphasis role="bold">No</emphasis>]</term>
+
+        <listitem>
+          <para>If HAVEROUTE is <emphasis role="bold">No</emphasis> or
+          <emphasis role="bold">no</emphasis>, then the value of this column
+          determines if the route added by Shorewall persists after a
+          <emphasis role="bold">shorewall6 stop</emphasis> or a <emphasis
+          role="bold">shorewall6 clear</emphasis>. If this column contains
+          <emphasis role="bold">Yes</emphasis> or <emphasis
+          role="bold">yes</emphasis> then the route persists; If the column is
+          empty or contains <emphasis role="bold">No</emphasis> or <emphasis
+          role="bold">no</emphasis> then the route is deleted by
+          <command>shorewall6 stop</command> or <command>shorewall6
+          clear</command>.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Example</title>
+
+    <variablelist>
+      <varlistentry>
+        <term>Example 1:</term>
+
+        <listitem>
+          <para>Host with IPv6 2001:470:b:227::44 is connected to interface
+          eth1 and we want hosts attached via eth0 to be able to access it
+          using that address.</para>
+
+          <programlisting>       #ADDRESS             INTERFACE       EXTERNAL
+       2001:470:b:227::44   eth1            eth0</programlisting>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall6/proxyndp</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para><ulink
+    url="../configuration_file_basics.htm#Pairs">https://shorewall.org/configuration_file_basics.htm#Pairs</ulink></para>
+
+    <para>shorewall6(8), shorewall6-accounting(5), shorewall6-actions(5),
+    shorewall6-blacklist(5), shorewall6-exclusion(5), shorewall6-hosts(5),
+    shorewall6-interfaces(5), shorewall6-maclist(5), shorewall6-nesting(5),
+    shorewall6-netmap(5),shorewall6-params(5), shorewall6-policy(5),
+    shorewall6-providers(5), shorewall6-rtrules(5),
+    shorewall6-routestopped(5), shorewall6-rules(5), shorewall6.conf(5),
+    shorewall6-secmarks(5), shorewall6-tcclasses(5), shorewall6-tcdevices(5),
+    shorewall6-mangle(5), shorewall6-tos(5), shorewall6-tunnels(5),
+    shorewall6-zones(5)</para>
+  </refsect1>
+</refentry>

@@ -1,0 +1,162 @@
+'\" t
+.\"     Title: shorewall-netmap
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Configuration Files
+.\"    Source: Configuration Files
+.\"  Language: English
+.\"
+.TH "SHOREWALL\-NETMAP" "5" "08/05/2026" "Configuration Files" "Configuration Files"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+netmap \- Shorewall NETMAP definition file
+.SH "SYNOPSIS"
+.HP \w'\fB/etc/shorewall[6]/netmap\fR\ 'u
+\fB/etc/shorewall[6]/netmap\fR
+.SH "DESCRIPTION"
+.PP
+This file is used to map addresses in one network to corresponding addresses in a second network\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBWarning\fR
+.ps -1
+.br
+.PP
+To use this file, your kernel and iptables must have NETMAP support included\&.
+.sp .5v
+.RE
+.PP
+The columns in the file are as follows (where the column name is followed by a different name in parentheses, the different name is used in the alternate specification syntax)\&.
+.PP
+\fBTYPE\fR \- \fB{DNAT\fR|\fBSNAT}\fR
+.RS 4
+If DNAT, traffic entering INTERFACE and addressed to NET1 has its destination address rewritten to the corresponding address in NET2\&.
+.sp
+If SNAT, traffic leaving INTERFACE with a source address in NET1 has it\*(Aqs source address rewritten to the corresponding address in NET2\&.
+.RE
+.PP
+\fBNET1\fR \- \fInetwork\-address\fR
+.RS 4
+Network in CIDR format (e\&.g\&., 192\&.168\&.1\&.0/24)\&. Beginning with Shorewall 4\&.4\&.24,
+\m[blue]\fBexclusion\fR\m[]\&\s-2\u[1]\d\s+2
+is supported\&.
+.RE
+.PP
+\fBINTERFACE\fR \- \fIinterface\fR
+.RS 4
+The name of a network interface\&. The interface must be defined in
+\m[blue]\fBshorewall\-interfaces\fR\m[]\&\s-2\u[2]\d\s+2(5)\&. Shorewall allows loose matches to wildcard entries in
+\m[blue]\fBshorewall\-interfaces\fR\m[]\&\s-2\u[2]\d\s+2(5)\&. For example,
+ppp0
+in this file will match a
+\m[blue]\fBshorewall\-interfaces\fR\m[]\&\s-2\u[2]\d\s+2(8) entry that defines
+ppp+\&.
+.RE
+.PP
+\fBNET2\fR \- \fInetwork\-address\fR
+.RS 4
+Network in CIDR format
+.RE
+.PP
+\fBNET3 (Optional)\fR \- \fInetwork\-address\fR
+.RS 4
+Added in Shorewall 4\&.4\&.11\&. If specified, qualifies INTERFACE\&. It specifies a SOURCE network for DNAT rules and a DESTINATION network for SNAT rules\&.
+.RE
+.PP
+\fBPROTO\fR \- \fIprotocol\-number\-or\-name\fR
+.RS 4
+Optional \-\- added in Shorewall 4\&.4\&.23\&.2\&. Only packets specifying this protocol will have their IP header modified\&.
+.RE
+.PP
+\fBDPORT\fR \- \fIport\-number\-or\-name\-list\fR
+.RS 4
+Optional \- added in Shorewall 4\&.4\&.23\&.2\&. Destination Ports\&. A comma\-separated list of Port names (from services(5)),
+\fIport number\fRs or
+\fIport range\fRs; if the protocol is
+\fBicmp\fR, this column is interpreted as the destination icmp\-type(s)\&. ICMP types may be specified as a numeric type, a numeric type and code separated by a slash (e\&.g\&., 3/4), or a typename\&. See
+\m[blue]\fBhttps://shorewall\&.org/configuration_file_basics\&.htm#ICMP\fR\m[]\&\s-2\u[3]\d\s+2\&.
+.sp
+If the protocol is
+\fBipp2p\fR, this column is interpreted as an ipp2p option without the leading "\-\-" (example
+\fBbit\fR
+for bit\-torrent)\&. If no PORT is given,
+\fBipp2p\fR
+is assumed\&.
+.sp
+An entry in this field requires that the PROTO column specify icmp (1), tcp (6), udp (17), sctp (132) or udplite (136)\&. Use \*(Aq\-\*(Aq if any of the following field is supplied\&.
+.sp
+This column was formerly labelled DEST PORT(S)\&.
+.RE
+.PP
+\fBSPORT\fR \- \fIport\-number\-or\-name\-list\fR
+.RS 4
+Optional \-\- added in Shorewall 4\&.4\&.23\&.2\&. Source port(s)\&. If omitted, any source port is acceptable\&. Specified as a comma\-separated list of port names, port numbers or port ranges\&.
+.sp
+An entry in this field requires that the PROTO column specify tcp (6), udp (17), sctp (132) or udplite (136)\&. Use \*(Aq\-\*(Aq if any of the following fields is supplied\&.
+.sp
+This column was formerly labelled SOURCE PORT(S)\&.
+.RE
+.SH "FILES"
+.PP
+/etc/shorewall/netmap
+.PP
+/etc/shorewall6/netmap
+.SH "SEE ALSO"
+.PP
+\m[blue]\fBhttps://shorewall\&.org/netmap\&.html\fR\m[]\&\s-2\u[4]\d\s+2
+.PP
+\m[blue]\fBhttps://shorewall\&.org/configuration_file_basics\&.htm#Pairs\fR\m[]\&\s-2\u[5]\d\s+2
+.PP
+shorewall(8)
+.SH "NOTES"
+.IP " 1." 4
+exclusion
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-exclusion.html
+.RE
+.IP " 2." 4
+shorewall-interfaces
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-interfaces.html
+.RE
+.IP " 3." 4
+https://shorewall.org/configuration_file_basics.htm#ICMP
+.RS 4
+\%[set $man.base.url.for.relative.links]/../configuration_file_basics.htm#ICMP
+.RE
+.IP " 4." 4
+https://shorewall.org/netmap.html
+.RS 4
+\%[set $man.base.url.for.relative.links]/../netmap.html
+.RE
+.IP " 5." 4
+https://shorewall.org/configuration_file_basics.htm#Pairs
+.RS 4
+\%[set $man.base.url.for.relative.links]/../configuration_file_basics.htm#Pairs
+.RE

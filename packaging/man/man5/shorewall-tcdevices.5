@@ -1,0 +1,275 @@
+'\" t
+.\"     Title: shorewall-tcdevices
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Configuration Files
+.\"    Source: Configuration Files
+.\"  Language: English
+.\"
+.TH "SHOREWALL\-TCDEVICES" "5" "08/05/2026" "Configuration Files" "Configuration Files"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+tcdevices \- Shorewall Traffic Shaping Devices file
+.SH "SYNOPSIS"
+.HP \w'\fB/etc/shorewall[6]/tcdevices\fR\ 'u
+\fB/etc/shorewall[6]/tcdevices\fR
+.SH "DESCRIPTION"
+.PP
+Entries in this file define the bandwidth for interfaces on which you want traffic shaping to be enabled\&.
+.PP
+If you do not plan to use traffic shaping for a device, don\*(Aqt put it in here as it limits the throughput of that device to the limits you set here\&.
+.PP
+A note on the
+\fIbandwidth\fR
+definitions used in this file:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+don\*(Aqt use a space between the integer value and the unit: 30kbit is valid while 30 kbit is not\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+you can use one of the following units:
+.PP
+\fBkbps\fR
+.RS 4
+Kilobytes per second\&.
+.RE
+.PP
+\fBmbps\fR
+.RS 4
+Megabytes per second\&.
+.RE
+.PP
+\fBgbps\fR
+.RS 4
+Gigabytes per second\&.
+.RE
+.PP
+\fBkbit\fR
+.RS 4
+Kilobits per second\&.
+.RE
+.PP
+\fBmbit\fR
+.RS 4
+Megabits per second\&.
+.RE
+.PP
+\fBgbit\fR
+.RS 4
+Gigabits per second\&.
+.RE
+.PP
+\fBbps\fR or \fBnumber\fR
+.RS 4
+Bytes per second\&.
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Only whole integers are allowed\&.
+.RE
+.PP
+The columns in the file are as follows (where the column name is followed by a different name in parentheses, the different name is used in the alternate specification syntax)\&.
+.PP
+\fBINTERFACE\fR \- [\fInumber\fR:]\fIinterface\fR
+.RS 4
+Name of
+\fIinterface\fR\&. Each interface may be listed only once in this file\&. You may NOT specify the name of an alias (e\&.g\&., eth0:0) here; see
+\m[blue]\fBhttps://shorewall\&.org/FAQ\&.htm#faq18\fR\m[]\&\s-2\u[1]\d\s+2
+.sp
+You may NOT specify wildcards here, e\&.g\&. if you have multiple ppp interfaces, you need to put them all in here!
+.sp
+If the device doesn\*(Aqt exist, a warning message will be issued during "shorewall [re]start" and "shorewall reload" and traffic shaping configuration will be skipped for that device\&.
+.sp
+Shorewall assigns a sequential
+interface number
+to each interface (the first entry in the file is interface 1, the second is interface 2 and so on) You can explicitly specify the interface number by prefixing the interface name with the number and a colon (":")\&. Example: 1:eth0\&.
+.RE
+.PP
+\fBIN\-BANDWIDTH (in_bandwidth)\fR \- {\-|\fIbandwidth\fR[:\fIburst\fR]|~\fIbandwidth\fR[:\fIinterval\fR:\fIdecay_interval\fR]}
+.RS 4
+The incoming
+\fIbandwidth\fR
+of that interface\&. Please note that you are not able to do traffic shaping on incoming traffic, as the traffic is already received before you could do so\&. But this allows you to define the maximum traffic allowed for this interface in total, if the rate is exceeded, the packets are dropped\&. You want this mainly if you have a DSL or Cable connection to avoid queuing at your providers side\&.
+.sp
+If you don\*(Aqt want any traffic to be dropped, set this to a value to zero in which case Shorewall will not create an ingress qdisc\&.Must be set to zero if the REDIRECTED INTERFACES column is non\-empty\&.
+.sp
+The optional burst option was added in Shorewall 4\&.4\&.18\&. The default
+\fIburst\fR
+is 10kb\&. A larger
+\fIburst\fR
+can help make the
+\fIbandwidth\fR
+more accurate; often for fast lines, the enforced rate is well below the specified
+\fIbandwidth\fR\&.
+.sp
+What is described above creates a rate/burst policing filter\&. Beginning with Shorewall 4\&.4\&.25, a rate\-estimated policing filter may be configured instead\&. Rate\-estimated filters should be used with Ethernet adapters that have Generic Receive Offload enabled by default\&. See
+\m[blue]\fBShorewall FAQ 97a\fR\m[]\&\s-2\u[2]\d\s+2\&.
+.sp
+To create a rate\-estimated filter, precede the bandwidth with a tilde ("~")\&. The optional interval and decay_interval determine how often the rate is estimated and how many samples are retained for estimating\&. Please see
+\m[blue]\fBhttp://ace\-host\&.stuart\&.id\&.au/russell/files/tc/doc/estimators\&.txt\fR\m[]
+for details\&. If not specified, the default
+\fIinterval\fR
+is 250ms and the default
+\fIdecay_interval\fR
+is 4sec\&.
+.RE
+.PP
+\fBOUT\-BANDWIDTH\fR (out_bandwidth) \- \fIbandwidth\fR
+.RS 4
+The outgoing
+\fIbandwidth\fR
+of that interface\&. This is the maximum speed your connection can handle\&. It is also the speed you can refer as "full" if you define the tc classes in
+\m[blue]\fBshorewall\-tcclasses\fR\m[]\&\s-2\u[3]\d\s+2(5)\&. Outgoing traffic above this rate will be dropped\&.
+.RE
+.PP
+\fBOPTIONS\fR \- {\fB\-\fR|\fB{classify\fR|\fBhtb|hfsc\fR|\fBlinklayer\fR={\fBethernet\fR|\fBatm\fR|\fBadsl\fR}|\fBtsize\fR=\fItsize\fR|\fBmtu\fR=\fImtu\fR|\fBmpu\fR=\fImpu\fR|\fBoverhead\fR=\fIoverhead\fR} ,\&.\&.\&.}
+.RS 4
+\fBclassify\fR
+\(em When specified, Shorewall will not generate tc or Netfilter rules to classify traffic based on packet marks\&. You must do all classification using CLASSIFY rules in
+\m[blue]\fBshorewall\-mangle\fR\m[]\&\s-2\u[4]\d\s+2(5)\&.
+.sp
+\fBconnmark\fR
+\-\- Added in Shorewall 5\&.2\&.7\&. May only be specified if the REDIRECTED_INTERFACES column is non\-empty\&. It allows packet marks to be used to classify traffic for these interfaces\&.
+.sp
+\fBhtb\fR
+\- Use the
+Hierarchical Token Bucket
+queuing discipline\&. This is the default\&.
+.sp
+\fBhfsc\fR
+\- Shorewall normally uses the Hierarchical Token Bucket queuing discipline\&. When
+\fBhfsc\fR
+is specified, the
+Hierarchical Fair Service Curves
+discipline is used instead (see tc\-hfsc (7))\&.
+.sp
+\fBlinklayer\fR
+\- Added in Shorewall 4\&.5\&.6\&. Type of link (ethernet, atm, adsl)\&. When specified, causes scheduler packet size manipulation as described in tc\-stab (8)\&. When this option is given, the following options may also be given after it:
+\fBmtu\fR=\fImtu\fR
+\- The device MTU; default 2048 (will be rounded up to a power of two)
+.sp
+\fBmpu\fR=\fImpubytes\fR
+\- Minimum packet size used in calculations\&. Smaller packets will be rounded up to this size
+.sp
+\fBtsize\fR=\fItablesize\fR
+\- Size table entries; default is 512
+.sp
+\fBoverhead\fR=\fIoverheadbytes\fR
+\- Number of overhead bytes per packet\&.
+.RE
+.PP
+\fBREDIRECTED INTERFACES\fR (redirect)\- [\fIinterface\fR[,\fIinterface\fR]\&.\&.\&.]
+.RS 4
+May only be specified if the interface in the INTERFACE column is an Intermediate Frame Block (IFB) device\&. Causes packets that enter each listed interface to be passed through the egress filters defined for this device, thus providing a form of incoming traffic shaping\&. When this column is non\-empty, the
+\fBclassify\fR
+option is assumed unless the
+\fBconnmark\fR
+option is specified\&.
+.RE
+.SH "EXAMPLES"
+.PP
+Example 1:
+.RS 4
+Suppose you are using PPP over Ethernet (DSL) and ppp0 is the interface for this\&. The device has an outgoing bandwidth of 500kbit and an incoming bandwidth of 6000kbit
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+        #INTERFACE   IN\-BANDWIDTH    OUT\-BANDWIDTH         OPTIONS         REDIRECTED
+        #                                                                  INTERFACES
+        1:ppp0         6000kbit        500kbit
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.SH "FILES"
+.PP
+/etc/shorewall/tcdevices
+.PP
+/etc/shorewall6/tcdevices
+.SH "SEE ALSO"
+.PP
+tc\-hfsc (7)
+.PP
+\m[blue]\fBhttps://shorewall\&.org/traffic_shaping\&.htm\fR\m[]\&\s-2\u[5]\d\s+2
+.PP
+\m[blue]\fBhttps://shorewall\&.org/configuration_file_basics\&.htm#Pairs\fR\m[]\&\s-2\u[6]\d\s+2
+.PP
+\m[blue]\fBhttp://ace\-host\&.stuart\&.id\&.au/russell/files/tc/doc/estimators\&.txt\fR\m[]
+.PP
+shorewall(8)
+.SH "NOTES"
+.IP " 1." 4
+https://shorewall.org/FAQ.htm#faq18
+.RS 4
+\%[set $man.base.url.for.relative.links]/../FAQ.htm#faq18
+.RE
+.IP " 2." 4
+Shorewall FAQ 97a
+.RS 4
+\%[set $man.base.url.for.relative.links]/../FAQ.htm#faq97a
+.RE
+.IP " 3." 4
+shorewall-tcclasses
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-tcclasses.html
+.RE
+.IP " 4." 4
+shorewall-mangle
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-mangle.html
+.RE
+.IP " 5." 4
+https://shorewall.org/traffic_shaping.htm
+.RS 4
+\%[set $man.base.url.for.relative.links]/../traffic_shaping.htm
+.RE
+.IP " 6." 4
+https://shorewall.org/configuration_file_basics.htm#Pairs
+.RS 4
+\%[set $man.base.url.for.relative.links]/../configuration_file_basics.htm#Pairs
+.RE

@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-netmap</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>netmap</refname>
+
+    <refpurpose>Shorewall NETMAP definition file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/etc/shorewall[6]/netmap</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>This file is used to map addresses in one network to corresponding
+    addresses in a second network.</para>
+
+    <warning>
+      <para>To use this file, your kernel and iptables must have NETMAP
+      support included.</para>
+    </warning>
+
+    <para>The columns in the file are as follows (where the column name is
+    followed by a different name in parentheses, the different name is used in
+    the alternate specification syntax).</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><emphasis role="bold">TYPE</emphasis> - <emphasis
+        role="bold">{DNAT</emphasis>|<emphasis
+        role="bold">SNAT}</emphasis></term>
+
+        <listitem>
+          <para>If DNAT, traffic entering INTERFACE and addressed to NET1 has
+          its destination address rewritten to the corresponding address in
+          NET2.</para>
+
+          <para>If SNAT, traffic leaving INTERFACE with a source address in
+          NET1 has it's source address rewritten to the corresponding address
+          in NET2.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">NET1</emphasis> -
+        <emphasis>network-address</emphasis></term>
+
+        <listitem>
+          <para>Network in CIDR format (e.g., 192.168.1.0/24). Beginning with
+          Shorewall 4.4.24, <ulink
+          url="shorewall-exclusion.html">exclusion</ulink> is
+          supported.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">INTERFACE</emphasis> -
+        <emphasis>interface</emphasis></term>
+
+        <listitem>
+          <para>The name of a network interface. The interface must be defined
+          in <ulink
+          url="shorewall-interfaces.html">shorewall-interfaces</ulink>(5).
+          Shorewall allows loose matches to wildcard entries in <ulink
+          url="shorewall-interfaces.html">shorewall-interfaces</ulink>(5).
+          For example, <filename class="devicefile">ppp0</filename> in this
+          file will match a <ulink
+          url="shorewall-interfaces.html">shorewall-interfaces</ulink>(8)
+          entry that defines <filename
+          class="devicefile">ppp+</filename>.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">NET2</emphasis> -
+        <emphasis>network-address</emphasis></term>
+
+        <listitem>
+          <para>Network in CIDR format</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">NET3 (Optional)</emphasis> -
+        <emphasis>network-address</emphasis></term>
+
+        <listitem>
+          <para>Added in Shorewall 4.4.11. If specified, qualifies INTERFACE.
+          It specifies a SOURCE network for DNAT rules and a DESTINATION
+          network for SNAT rules.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">PROTO</emphasis> -
+        <emphasis>protocol-number-or-name</emphasis></term>
+
+        <listitem>
+          <para>Optional -- added in Shorewall 4.4.23.2. Only packets
+          specifying this protocol will have their IP header modified.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">DPORT</emphasis> -
+        <emphasis>port-number-or-name-list</emphasis></term>
+
+        <listitem>
+          <para>Optional - added in Shorewall 4.4.23.2. Destination Ports. A
+          comma-separated list of Port names (from services(5)),
+          <emphasis>port number</emphasis>s or <emphasis>port
+          range</emphasis>s; if the protocol is <emphasis
+          role="bold">icmp</emphasis>, this column is interpreted as the
+          destination icmp-type(s). ICMP types may be specified as a numeric
+          type, a numeric type and code separated by a slash (e.g., 3/4), or a
+          typename. See <ulink
+          url="../configuration_file_basics.htm#ICMP">https://shorewall.org/configuration_file_basics.htm#ICMP</ulink>.</para>
+
+          <para>If the protocol is <emphasis role="bold">ipp2p</emphasis>,
+          this column is interpreted as an ipp2p option without the leading
+          "--" (example <emphasis role="bold">bit</emphasis> for bit-torrent).
+          If no PORT is given, <emphasis role="bold">ipp2p</emphasis> is
+          assumed.</para>
+
+          <para>An entry in this field requires that the PROTO column specify
+          icmp (1), tcp (6), udp (17), sctp (132) or udplite (136). Use '-' if
+          any of the following field is supplied.</para>
+
+          <para>This column was formerly labelled DEST PORT(S).</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">SPORT</emphasis> -
+        <emphasis>port-number-or-name-list</emphasis></term>
+
+        <listitem>
+          <para>Optional -- added in Shorewall 4.4.23.2. Source port(s). If
+          omitted, any source port is acceptable. Specified as a
+          comma-separated list of port names, port numbers or port
+          ranges.</para>
+
+          <para>An entry in this field requires that the PROTO column specify
+          tcp (6), udp (17), sctp (132) or udplite (136). Use '-' if any of
+          the following fields is supplied.</para>
+
+          <para>This column was formerly labelled SOURCE PORT(S).</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall/netmap</para>
+
+    <para>/etc/shorewall6/netmap</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para><ulink
+    url="../netmap.html">https://shorewall.org/netmap.html</ulink></para>
+
+    <para><ulink
+    url="../configuration_file_basics.htm#Pairs">https://shorewall.org/configuration_file_basics.htm#Pairs</ulink></para>
+
+    <para>shorewall(8)</para>
+  </refsect1>
+</refentry>

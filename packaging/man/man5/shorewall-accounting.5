@@ -1,0 +1,778 @@
+'\" t
+.\"     Title: shorewall-accounting
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Configuration Files
+.\"    Source: Configuration Files
+.\"  Language: English
+.\"
+.TH "SHOREWALL\-ACCOUNTIN" "5" "08/05/2026" "Configuration Files" "Configuration Files"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+accounting \- Shorewall Accounting file
+.SH "SYNOPSIS"
+.HP \w'\fB/etc/shorewall[6]/accounting\fR\ 'u
+\fB/etc/shorewall[6]/accounting\fR
+.SH "DESCRIPTION"
+.PP
+Accounting rules exist simply to count packets and bytes in categories that you define in this file\&. You may display these rules and their packet and byte counters using the
+\fBshorewall show accounting\fR
+command\&.
+.PP
+Beginning with Shorewall 4\&.4\&.18, the accounting structure can be created with three root chains:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBaccountin\fR: Rules that are valid in the
+\fBINPUT\fR
+chain (may not specify an output interface)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBaccountout\fR: Rules that are valid in the OUTPUT chain (may not specify an input interface or a MAC address)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBaccounting\fR: Other rules\&.
+.RE
+.PP
+The new structure is enabled by sectioning the accounting file in a manner similar to the
+\m[blue]\fBrules file\fR\m[]\&\s-2\u[1]\d\s+2\&. The sections are
+\fBINPUT\fR,
+\fBOUTPUT\fR
+and
+\fBFORWARD\fR
+and must appear in that order (although any of them may be omitted)\&. The first non\-commentary record in the accounting file must be a section header when sectioning is used\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBWarning\fR
+.ps -1
+.br
+.PP
+If sections are not used, the Shorewall rules compiler cannot detect certain violations of netfilter restrictions\&. These violations can result in run\-time errors such as the following:
+.PP
+\fBiptables\-restore v1\&.4\&.13: Can\*(Aqt use \-o with INPUT\fR
+.sp .5v
+.RE
+.PP
+Beginning with Shorewall 4\&.4\&.20, the ACCOUNTING_TABLE setting was added to shorewall\&.conf and shorewall6\&.conf\&. That setting determines the Netfilter table (filter or mangle) where the accounting rules are added\&. When ACCOUNTING_TABLE=mangle is specified, the available sections are
+\fBPREROUTING\fR,
+\fBINPUT\fR,
+\fBOUTPUT\fR,
+\fBFORWARD\fR
+and
+\fBPOSTROUTING\fR\&.
+.PP
+Section headers have the form:
+.PP
+\fB?SECTION\fR
+\fIsection\-name\fR
+.PP
+When sections are enabled:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+A jump to a user\-defined accounting chain must appear before entries that add rules to that chain\&. This eliminates loops and unreferenced chains\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+An output interface may not be specified in the
+\fBPREROUTING\fR
+and
+\fBINPUT\fR
+sections\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+In the
+\fBOUTPUT\fR
+and
+\fBPOSTROUTING\fR
+sections:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+An input interface may not be specified
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Jumps to a chain defined in the
+\fBINPUT\fR
+or
+\fBPREROUTING\fR
+sections that specifies an input interface are prohibited
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+MAC addresses may not be used
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Jump to a chain defined in the
+\fBINPUT\fR
+or
+\fBPREROUTING\fR
+section that specifies a MAC address are prohibited\&.
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The default value of the CHAIN column is:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBaccountin\fR
+in the
+\fBINPUT\fR
+section
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBaccountout\fR
+in the
+\fBOUTPUT\fR
+section
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBaccountfwd\fR
+in the
+\fBFORWARD\fR
+section
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBaccountpre\fR
+in the
+\fBPREROUTING\fR
+section
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBaccountpost\fR
+in the
+\fBPOSTROUTING\fR
+section
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Traffic addressed to the firewall goes through the rules defined in the INPUT section\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Traffic originating on the firewall goes through the rules defined in the OUTPUT section\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Traffic being forwarded through the firewall goes through the rules from the FORWARD sections\&.
+.RE
+.PP
+The columns in the file are as follows (where the column name is followed by a different name in parentheses, the different name is used in the alternate specification syntax):
+.PP
+\fBACTION\fR \- {\fBCOUNT\fR|\fBDONE\fR|\fIchain\fR[:\fB{COUNT\fR|JUMP}]|ACCOUNT(\fItable\fR,\fInetwork\fR)|[?]COMMENT \fIcomment\fR}
+.RS 4
+What to do when a matching packet is found\&.
+.PP
+\fBCOUNT\fR
+.RS 4
+Simply count the match and continue with the next rule
+.RE
+.PP
+\fBDONE\fR
+.RS 4
+Count the match and don\*(Aqt attempt to match any other accounting rules in the chain specified in the
+\fBCHAIN\fR
+column\&.
+.RE
+.PP
+\fIchain\fR[\fB:\fR\fBCOUNT\fR]
+.RS 4
+Where
+\fIchain\fR
+is the name of a chain; shorewall will create the chain automatically if it doesn\*(Aqt already exist\&. If a second chain is mentioned in the CHAIN column, then a jump from this second chain to
+\fIchain\fR
+is created\&. If no chain is named in the CHAIN column, then a jump from the default chain to
+\fIchain\fR
+is created\&. If
+\fB:COUNT\fR
+is included, a counting rule matching this entry will be added to
+\fIchain\fR\&. The
+\fIchain\fR
+may not exceed 29 characters in length and may be composed of letters, digits, dash (\*(Aq\-\*(Aq) and underscore (\*(Aq_\*(Aq)\&.
+.RE
+.PP
+\fIchain\fR:JUMP
+.RS 4
+Like the previous option without the
+\fB:COUNT\fR
+part\&.
+.RE
+.PP
+\fBACCOUNT(\fR\fItable\fR,\fInetwork\fR\fB)\fR
+.RS 4
+This action implements per\-IP accounting and was added in Shorewall 4\&.4\&.17\&. Requires the
+\fIACCOUNT Target\fR
+capability in your iptables and kernel (see the output of
+\fBshorewall show capabilities\fR)\&.
+.PP
+\fItable\fR
+.RS 4
+is the name of an accounting table (you choose the name)\&. All rules specifying the same name will have their per\-IP counters accumulated in the same table\&.
+.RE
+.PP
+\fInetwork\fR
+.RS 4
+is an IPv4
+\fBnetwork\fR
+in CIDR notation (e\&.g\&., 192\&.168\&.1\&.0/24)\&. The network can be as large as a /8 (class A)\&.
+.RE
+.sp
+One nice feature of per\-IP accounting is that the counters survive
+\fBshorewall restart\fR\&. This has a downside, however\&. If you change the network associated with an accounting table, then you must
+\fBshorewall stop; shorewall start\fR
+to have a successful restart (counters will be cleared)\&.
+.sp
+The counters in a
+\fItable\fR
+are printed using the
+\fBiptaccount\fR
+utility\&. For a command synopsis, type:
+.sp
+\fBiptaccount \-\-help\fR
+.sp
+As of February 2011, the ACCOUNT Target capability and the iptaccount utility are only available when
+\m[blue]\fBxtables\-addons\fR\m[]\&\s-2\u[2]\d\s+2
+is installed\&. See
+\m[blue]\fBhttps://shorewall\&.org/Accounting\&.html#perIP\fR\m[]\&\s-2\u[3]\d\s+2
+for additional information\&.
+.RE
+.PP
+\fBINLINE\fR
+.RS 4
+Added in Shorewall 4\&.5\&.16\&. Allows free form iptables matches to be specified following a \*(Aq;\*(Aq\&. In the generated iptables rule(s), the free form matches will follow any matches that are generated by the column contents\&.
+.RE
+.PP
+\fBNFACCT\fR({\fIobject\fR[!]}[,\&.\&.\&.])
+.RS 4
+Added in Shorewall 4\&.5\&.7\&. Provides a form of accounting that survives
+\fBshorewall stop/shorewall\fR
+start and
+\fBshorewall restart\fR\&. Requires the NFaccnt Match capability in your kernel and iptables\&.
+\fIobject\fR
+names an nfacct object (see man nfaccnt(8))\&. Multiple rules can specify the same
+\fIobject\fR; all packets that match any of the rules increment the packet and bytes count of the object\&.
+.sp
+Prior to Shorewall 4\&.5\&.16, only one
+\fIobject\fR
+could be specified\&. Beginning with Shorewall 4\&.5\&.16, an arbitrary number of objects may be given\&.
+.sp
+With Shorewall 4\&.5\&.16 or later, an nfacct
+\fIobject\fR
+in the list may optionally be followed by
+\fB!\fR
+to indicate that the nfacct
+\fIobject\fR
+will be incremented unconditionally for each packet\&. When
+\fB!\fR
+is omitted, the
+\fIobject\fR
+will be incremented only if all of the matches in the rule succeed\&.
+.RE
+.PP
+\fBNFLOG\fR[(nflog\-parameters)] \- Added in Shorewall\-4\&.4\&.20\&.
+.RS 4
+Causes each matching packet to be sent via the currently loaded logging back\-end (usually nfnetlink_log) where it is available to accounting daemons through a netlink socket\&.
+.RE
+.PP
+\fB?COMMENT\fR
+.RS 4
+The remainder of the line is treated as a comment which is attached to subsequent rules until another COMMENT line is found or until the end of the file is reached\&. To stop adding comments to rules, use a line with only the word ?COMMENT\&.
+.RE
+.RE
+.PP
+\fBCHAIN\fR \- {\fB\-\fR|\fIchain\fR}
+.RS 4
+The name of a
+\fIchain\fR\&. If specified as
+\fB\-\fR
+the
+\fBaccounting\fR
+chain is assumed when the file is un\-sectioned\&. When the file is sectioned, the default is one of accountin, accountout, etc\&. depending on the section\&. This is the chain where the accounting rule is added\&. The
+\fIchain\fR
+will be created if it doesn\*(Aqt already exist\&. The
+\fIchain\fR
+may not exceed 29 characters in length\&.
+.RE
+.PP
+\fBSOURCE\fR \- {\fB\-\fR|\fBany\fR|\fBall\fR|\fIinterface\fR|\fIinterface\fR\fB:\fR\fIaddress\fR|\fIaddress\fR}
+.RS 4
+Packet Source\&.
+.sp
+The name of an
+\fIinterface\fR, an
+\fIaddress\fR
+(host or net) or an
+\fIinterface\fR
+name followed by ":" and a host or net
+\fIaddress\fR\&. An ipset name is also accepted as an
+\fIaddress\fR\&.
+.RE
+.PP
+\fBDEST\fR \- {\fB\-\fR|\fBany\fR|\fBall\fR|\fIinterface\fR|\fIinterface\fR\fB:\fR\fIaddress\fR|\fIaddress\fR}
+.RS 4
+This column was formerly named DESTINATION\&.
+.sp
+Packet Destination\&.
+.sp
+Format same as
+\fBSOURCE\fR
+column\&.
+.RE
+.PP
+\fBPROTO\fR \- {\fB\-\fR|\fB{any\fR|\fBall\fR|\fIprotocol\-name\fR|\fIprotocol\-number\fR|\fBipp2p\fR[\fB:\fR{\fBudp\fR|\fBall\fR}]}[,\&.\&.\&.]}
+.RS 4
+This column was formerly named PROTOCOL
+.sp
+A
+\fIprotocol\-name\fR
+(from protocols(5)), a
+\fIprotocol\-number\fR,
+\fBipp2p\fR,
+\fBipp2p:udp\fR
+or
+\fBipp2p:all\fR
+.sp
+Beginning with Shorewall 4\&.5\&.12, this column can accept a comma\-separated list of protocols\&.
+.RE
+.PP
+\fBDPORT\fR \- {\fB\-\fR|\fBany\fR|\fBall\fR|\fIipp2p\-option\fR|\fIport\-name\-or\-number\fR[,\fIport\-name\-or\-number\fR]\&.\&.\&.}
+.RS 4
+Destination Port number\&. Service name from services(5) or
+\fIport number\fR\&. May only be specified if the protocol is TCP (6), UDP (17), DCCP (33), SCTP (132) or UDPLITE (136)\&.
+.sp
+You may place a comma\-separated list of port names or numbers in this column if your kernel and iptables include multi\-port match support\&.
+.sp
+If the PROTOCOL is
+\fBipp2p\fR
+then this column must contain an
+\fIipp2p\-option\fR
+("iptables \-m ipp2p \-\-help") without the leading "\-\-"\&. If no option is given in this column,
+\fBipp2p\fR
+is assumed\&.
+.sp
+This column was formerly named DEST PORT(S)\&.
+.RE
+.PP
+\fBSPORT\fR \- {\fB\-\fR|\fBany\fR|\fBall\fR|\fIport\-name\-or\-number\fR[,\fIport\-name\-or\-number\fR]\&.\&.\&.}
+.RS 4
+Service name from services(5) or
+\fIport number\fR\&. May only be specified if the protocol is TCP (6), UDP (17), DCCP (33), SCTP (132) or UDPLITE (136)\&.
+.sp
+You may place a comma\-separated list of port numbers in this column if your kernel and iptables include multi\-port match support\&.
+.sp
+Beginning with Shorewall 4\&.5\&.15, you may place \*(Aq=\*(Aq in this column, provided that the DEST PORT(S) column is non\-empty\&. This causes the rule to match when either the source port or the destination port in a packet matches one of the ports specified in DPORT\&. Use of \*(Aq=\*(Aq requires multi\-port match in your iptables and kernel\&.
+.sp
+This column was formerly labelled SOURCE PORT(S)\&.
+.RE
+.PP
+\fBUSER\fR \- [\fB!\fR][\fIuser\-name\-or\-number\fR][\fB:\fR\fIgroup\-name\-or\-number\fR][\fB+\fR\fIprogram\-name\fR]
+.RS 4
+This column was formerly named USER/GROUP and may only be non\-empty if the
+\fBCHAIN\fR
+is
+\fBOUTPUT\fR\&.
+.sp
+When this column is non\-empty, the rule applies only if the program generating the output is running under the effective
+\fIuser\fR
+and/or
+\fIgroup\fR
+specified (or is NOT running under that id if "!" is given)\&.
+.sp
+Examples:
+.PP
+joe
+.RS 4
+program must be run by joe
+.RE
+.PP
+:kids
+.RS 4
+program must be run by a member of the \*(Aqkids\*(Aq group
+.RE
+.PP
+!:kids
+.RS 4
+program must not be run by a member of the \*(Aqkids\*(Aq group
+.RE
+.PP
++upnpd
+.RS 4
+#program named upnpd
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+The ability to specify a program name was removed from Netfilter in kernel version 2\&.6\&.14\&.
+.sp .5v
+.RE
+.RE
+.RE
+.PP
+\fBMARK\fR \- [\fB!\fR]\fIvalue\fR[/\fImask\fR][\fB:C\fR]
+.RS 4
+Defines a test on the existing packet or connection mark\&. The rule will match only if the test returns true\&.
+.sp
+If you don\*(Aqt want to define a test but need to specify anything in the following columns, place a "\-" in this field\&.
+.PP
+!
+.RS 4
+Inverts the test (not equal)
+.RE
+.PP
+\fIvalue\fR
+.RS 4
+Value of the packet or connection mark\&.
+.RE
+.PP
+\fImask\fR
+.RS 4
+A mask to be applied to the mark before testing\&.
+.RE
+.PP
+\fB:C\fR
+.RS 4
+Designates a connection mark\&. If omitted, the packet mark\*(Aqs value is tested\&.
+.RE
+.RE
+.PP
+\fBIPSEC \- \fR\fB\fIoption\-list\fR\fR\fB (Optional \- Added in Shorewall 4\&.4\&.13 but broken until 4\&.5\&.4\&.1 )\fR
+.RS 4
+The option\-list consists of a comma\-separated list of options from the following list\&. Only packets that will be encrypted or have been decrypted via an SA that matches these options will have their source address changed\&.
+.PP
+\fBreqid=\fR\fInumber\fR
+.RS 4
+where
+\fInumber\fR
+is specified using setkey(8) using the \*(Aqunique:\fInumber\fR
+option for the SPD level\&.
+.RE
+.PP
+\fBspi=\fR<number>
+.RS 4
+where
+\fInumber\fR
+is the SPI of the SA used to encrypt/decrypt packets\&.
+.RE
+.PP
+\fBproto=\fR\fBah\fR|\fBesp\fR|\fBipcomp\fR
+.RS 4
+IPSEC Encapsulation Protocol
+.RE
+.PP
+\fBmss=\fR\fInumber\fR
+.RS 4
+sets the MSS field in TCP packets
+.RE
+.PP
+\fBmode=\fR\fBtransport\fR|\fBtunnel\fR
+.RS 4
+IPSEC mode
+.RE
+.PP
+\fBtunnel\-src=\fR\fIaddress\fR[/\fImask\fR]
+.RS 4
+only available with mode=tunnel
+.RE
+.PP
+\fBtunnel\-dst=\fR\fIaddress\fR[/\fImask\fR]
+.RS 4
+only available with mode=tunnel
+.RE
+.PP
+\fBstrict\fR
+.RS 4
+Means that packets must match all rules\&.
+.RE
+.PP
+\fBnext\fR
+.RS 4
+Separates rules; can only be used with strict
+.RE
+.PP
+\fByes\fR or \fBipsec\fR
+.RS 4
+When used by itself, causes all traffic that will be encrypted/encapsulated or has been decrypted/un\-encapsulated to match the rule\&.
+.RE
+.PP
+\fBno\fR or \fBnone\fR
+.RS 4
+When used by itself, causes all traffic that will not be encrypted/encapsulated or has been decrypted/un\-encapsulated to match the rule\&.
+.RE
+.PP
+\fBin\fR
+.RS 4
+May only be used in the FORWARD section and must be the first or the only item the list\&. Indicates that matching packets have been decrypted in input\&.
+.RE
+.PP
+\fBout\fR
+.RS 4
+May only be used in the FORWARD section and must be the first or the only item in the list\&. Indicates that matching packets will be encrypted on output\&.
+.RE
+.sp
+If this column is non\-empty and sections are not used, then:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+A chain NAME appearing in the ACTION column must be a chain branched either directly or indirectly from the
+\fBaccipsecin\fR
+or
+\fBaccipsecout\fR
+chain\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The CHAIN column must contain either
+\fBaccipsecin\fR
+or
+\fBaccipsecout\fR
+or a chain branched either directly or indirectly from those chains\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+These rules will NOT appear in the
+\fBaccounting\fR
+chain\&.
+.RE
+.RE
+.PP
+In all of the above columns except
+\fBACTION\fR
+and
+\fBCHAIN\fR, the values
+\fB\-\fR,
+\fBany\fR
+and
+\fBall\fR
+may be used as wildcard\*(Aqgs\&. Omitted trailing columns are also treated as wildcard\*(Aqg\&.
+.SH "FILES"
+.PP
+/etc/shorewall/accounting
+.PP
+/etc/shorewall6/accounting
+.SH "SEE ALSO"
+.PP
+\m[blue]\fBshorewall\-logging(5)\fR\m[]\&\s-2\u[4]\d\s+2
+.PP
+\m[blue]\fBhttps://shorewall\&.org/configuration_file_basics\&.htm#Pairs\fR\m[]\&\s-2\u[5]\d\s+2
+.PP
+shorewall(8)
+.SH "NOTES"
+.IP " 1." 4
+rules file
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-rules.html
+.RE
+.IP " 2." 4
+xtables-addons
+.RS 4
+\%http://xtables-addons.sourceforge.net/
+.RE
+.IP " 3." 4
+https://shorewall.org/Accounting.html#perIP
+.RS 4
+\%[set $man.base.url.for.relative.links]/../Accounting.html#perIP
+.RE
+.IP " 4." 4
+shorewall-logging(5)
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-logging.htm
+.RE
+.IP " 5." 4
+https://shorewall.org/configuration_file_basics.htm#Pairs
+.RS 4
+\%[set $man.base.url.for.relative.links]/../configuration_file_basics.htm#Pairs
+.RE

@@ -1,0 +1,418 @@
+'\" t
+.\"     Title: shorewall-tunnels
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Configuration Files
+.\"    Source: Configuration Files
+.\"  Language: English
+.\"
+.TH "SHOREWALL\-TUNNELS" "5" "08/05/2026" "Configuration Files" "Configuration Files"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+tunnels \- Shorewall VPN definition file
+.SH "SYNOPSIS"
+.HP \w'\fB/etc/shorewall[6]/tunnels\fR\ 'u
+\fB/etc/shorewall[6]/tunnels\fR
+.SH "DESCRIPTION"
+.PP
+The tunnels file is used to define rules for encapsulated (usually encrypted) traffic to pass between the Shorewall system and a remote gateway\&. Traffic flowing through the tunnel is handled using the normal zone/policy/rule mechanism\&. See
+\m[blue]\fBhttps://shorewall\&.org/VPNBasics\&.html\fR\m[]\&\s-2\u[1]\d\s+2
+for details\&.
+.PP
+The columns in the file are as follows\&.
+.PP
+\fBTYPE\fR \- {\fBipsec\fR[\fB:{noah\fR|ah}]|\fBipsecnat\fR|\fBipip\fR|\fBgre\fR|l2tp|\fBpptpclient\fR|\fBpptpserver\fR|?COMMENT|{\fBopenvpn\fR|\fBopenvpnclient\fR|\fBopenvpnserver\fR}[:{\fBtcp\fR|\fBudp\fR}]\fB[\fR:\fIport\fR]|\fBgeneric\fR\fB:\fR\fIprotocol\fR[\fB:\fR\fIport\fR]}
+.RS 4
+Types are as follows:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+        \fB6to4\fR or \fB6in4\fR  \- 6to4 or 6in4 tunnel\&. The \fB6in4\fR synonym was added in 4\&.4\&.24\&.
+        \fBipsec\fR         \- IPv4 IPSEC
+        \fBipsecnat\fR      \- IPv4 IPSEC with NAT Traversal (UDP port 4500 encapsulation)
+        \fBipip\fR          \- IPv4 encapsulated in IPv4 (Protocol 4)
+        \fBgre\fR           \- Generalized Routing Encapsulation (Protocol 47)
+        \fBl2tp\fR          \- Layer 2 Tunneling Protocol (UDP port 1701)
+        \fBpptpclient\fR    \- PPTP Client runs on the firewall
+        \fBpptpserver\fR    \- PPTP Server runs on the firewall
+        \fBopenvpn\fR       \- OpenVPN in point\-to\-point mode
+        \fBopenvpnclient\fR \- OpenVPN client runs on the firewall
+        \fBopenvpnserver\fR \- OpenVPN server runs on the firewall
+        \fBgeneric\fR       \- Other tunnel type
+        \fBtinc\fR          \- TINC (added in Shorewall 4\&.6\&.6)
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+If the type is
+\fBipsec\fR, it may be followed by
+\fB:ah\fR
+to indicate that the Authentication Headers protocol (51) is used by the tunnel (the default is
+\fB:noah\fR
+which means that protocol 51 is not used)\&. NAT traversal is only supported with ESP (protocol 50) so
+\fBipsecnat\fR
+tunnels don\*(Aqt allow the
+\fBah\fR
+option (\fBipsecnat:noah\fR
+may be specified but is redundant)\&.
+.sp
+If type is
+\fBopenvpn\fR,
+\fBopenvpnclient\fR
+or
+\fBopenvpnserver\fR
+it may optionally be followed by ":" and
+\fBtcp\fR
+or
+\fBudp\fR
+to specify the protocol to be used\&. If not specified,
+\fBudp\fR
+is assumed\&.
+.sp
+If type is
+\fBopenvpn\fR,
+\fBopenvpnclient\fR
+or
+\fBopenvpnserver\fR
+it may optionally be followed by ":" and the port number used by the tunnel\&. if no ":" and port number are included, then the default port of 1194 will be used\&. \&. Where both the protocol and port are specified, the protocol must be given first (e\&.g\&., openvpn:tcp:4444)\&.
+.sp
+If type is
+\fBgeneric\fR, it must be followed by ":" and a protocol name (from /etc/protocols) or a protocol number\&. If the protocol is
+\fBtcp\fR
+or
+\fBudp\fR
+(6 or 17), then it may optionally be followed by ":" and a port number\&.
+.sp
+Comments may be attached to Netfilter rules generated from entries in this file through the use of /COMMENT lines\&. These lines begin with ?COMMENT; the remainder of the line is treated as a comment which is attached to subsequent rules until another ?COMMENT line is found or until the end of the file is reached\&. To stop adding comments to rules, use a line containing only ?COMMENT\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+Beginning with Shorewall 4\&.5\&.11, ?COMMENT is a synonym for COMMENT and is preferred\&.
+.sp .5v
+.RE
+.RE
+.PP
+\fBZONE\fR \- \fIzone\fR
+.RS 4
+The
+\fIzone\fR
+of the physical interface through which tunnel traffic passes\&. This is normally your internet zone\&.
+.RE
+.PP
+\fBGATEWAY\fR(S) (gateway or gateways) \- \fIaddress\-or\-range\fR \fB[ , \&.\&.\&. ]\fR
+.RS 4
+The IP address of the remote tunnel gateway\&. If the remote gateway has no fixed address (Road Warrior) then specify the gateway as
+\fB0\&.0\&.0\&.0/0\fR\&. May be specified as a network address and if your kernel and iptables include iprange match support then IP address ranges are also allowed\&.
+.sp
+Beginning with Shorewall 4\&.5\&.3, a list of addresses or ranges may be given\&. Exclusion (\m[blue]\fBshorewall\-exclusion\fR\m[]\&\s-2\u[2]\d\s+2
+(5) ) is not supported\&.
+.RE
+.PP
+\fBGATEWAY ZONES\fR (gateway_zone or gateway_zones) \- [\fIzone\fR[\fB,\fR\fIzone\fR]\&.\&.\&.]
+.RS 4
+Optional\&. If the gateway system specified in the third column is a standalone host then this column should contain a comma\-separated list of the names of the zones that the host might be in\&. This column only applies to IPSEC tunnels where it enables ISAKMP traffic to flow through the tunnel to the remote gateway(s)\&.
+.RE
+.SH "EXAMPLE"
+.PP
+IPv4 Example 1:
+.RS 4
+IPSec tunnel\&.
+.sp
+The remote gateway is 4\&.33\&.99\&.124 and the remote subnet is 192\&.168\&.9\&.0/24\&. The tunnel does not use the AH protocol
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+        #TYPE           ZONE    GATEWAY
+        ipsec:noah      net     4\&.33\&.99\&.124
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+IPv4 Example 2:
+.RS 4
+Road Warrior (LapTop that may connect from anywhere) where the "gw" zone is used to represent the remote LapTop
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+        #TYPE           ZONE    GATEWAY         GATEWAY ZONES
+        ipsec           net     0\&.0\&.0\&.0/0       gw
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+IPv4 Example 3:
+.RS 4
+Host 4\&.33\&.99\&.124 is a standalone system connected via an ipsec tunnel to the firewall system\&. The host is in zone gw\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+        #TYPE           ZONE    GATEWAY         GATEWAY ZONES
+        ipsec           net     4\&.33\&.99\&.124     gw
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+IPv4 Example 4:
+.RS 4
+Road Warriors that may belong to zones vpn1, vpn2 or vpn3\&. The FreeS/Wan _updown script will add the host to the appropriate zone using the
+\fBshorewall add\fR
+command on connect and will remove the host from the zone at disconnect time\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+        #TYPE           ZONE    GATEWAY         GATEWAY ZONES
+        ipsec           net     0\&.0\&.0\&.0/0       vpn1,vpn2,vpn3
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+IPv4 Example 5:
+.RS 4
+You run the Linux PPTP client on your firewall and connect to server 192\&.0\&.2\&.221\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+        #TYPE           ZONE    GATEWAY         GATEWAY ZONES
+        pptpclient      net     192\&.0\&.2\&.221
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+IPv4 Example 6:
+.RS 4
+You run a PPTP server on your firewall\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+        #TYPE           ZONE    GATEWAY         GATEWAY ZONES
+        pptpserver      net     0\&.0\&.0\&.0/0
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+Example 7:
+.RS 4
+OPENVPN tunnel\&. The remote gateway is 4\&.33\&.99\&.124 and openvpn uses port 7777\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+        #TYPE           ZONE    GATEWAY         GATEWAY ZONES
+        openvpn:7777    net     4\&.33\&.99\&.124
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+IPv4 Example 8:
+.RS 4
+You have a tunnel that is not one of the supported types\&. Your tunnel uses UDP port 4444\&. The other end of the tunnel is 4\&.3\&.99\&.124\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+        #TYPE            ZONE    GATEWAY         GATEWAY ZONES
+        generic:udp:4444 net     4\&.3\&.99\&.124
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+IPv4 Example 9:
+.RS 4
+TINC tunnel where the remote gateways are not specified\&. If you wish to specify a list of gateways, you can do so in the GATEWAY column\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+        #TYPE            ZONE    GATEWAY          GATEWAY ZONES
+        tinc             net     0\&.0\&.0\&.0/0
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+IPv6 Example 1:
+.RS 4
+IPSec tunnel\&.
+.sp
+The remote gateway is 2001:cec792b4:1::44\&. The tunnel does not use the AH protocol
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+        #TYPE           ZONE    GATEWAY
+        ipsec:noah      net     2002:cec792b4:1::44
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+IPv6 Example 2:
+.RS 4
+Road Warrior (LapTop that may connect from anywhere) where the "gw" zone is used to represent the remote LapTop
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+        #TYPE           ZONE    GATEWAY                 GATEWAY ZONES
+        ipsec           net     ::/0                    gw
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+IPv6 Example 3:
+.RS 4
+Host 2001:cec792b4:1::44 is a standalone system connected via an ipsec tunnel to the firewall system\&. The host is in zone gw\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+        #TYPE           ZONE    GATEWAY                 GATEWAY ZONES
+        ipsec           net     2001:cec792b4:1::44     gw
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+IPv6 Example 4:
+.RS 4
+OPENVPN tunnel\&. The remote gateway is 2001:cec792b4:1::44 and openvpn uses port 7777\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+        #TYPE           ZONE    GATEWAY                 GATEWAY ZONES
+        openvpn:7777    net     2001:cec792b4:1::44
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+IPv6 Example 8:
+.RS 4
+You have a tunnel that is not one of the supported types\&. Your tunnel uses UDP port 4444\&. The other end of the tunnel is 2001:cec792b4:1::44\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+        #TYPE            ZONE    GATEWAY                GATEWAY ZONES
+        generic:udp:4444 net     2001:cec792b4:1::44
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+IPv6 Example 9:
+.RS 4
+TINC tunnel where the remote gateways are not specified\&. If you wish to specify a list of gateways, you can do so in the GATEWAY column\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+        #TYPE            ZONE    GATEWAY          GATEWAY ZONES
+        tinc             net     ::/0
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.SH "FILES"
+.PP
+/etc/shorewall/tunnels
+.PP
+/etc/shorewall6/tunnels
+.SH "SEE ALSO"
+.PP
+\m[blue]\fBhttps://shorewall\&.org/configuration_file_basics\&.htm#Pairs\fR\m[]\&\s-2\u[3]\d\s+2
+.PP
+shorewall(8)
+.SH "NOTES"
+.IP " 1." 4
+https://shorewall.org/VPNBasics.html
+.RS 4
+\%[set $man.base.url.for.relative.links]/../VPNBasics.html
+.RE
+.IP " 2." 4
+shorewall-exclusion
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-exclusion.html
+.RE
+.IP " 3." 4
+https://shorewall.org/configuration_file_basics.htm#Pairs
+.RS 4
+\%[set $man.base.url.for.relative.links]/../configuration_file_basics.htm#Pairs
+.RE

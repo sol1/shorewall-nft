@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-modules</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>modules</refname>
+
+    <refpurpose>Shorewall file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/usr/share/shorewall[6]/modules</command>
+    </cmdsynopsis>
+
+    <cmdsynopsis>
+      <command>/usr/share/shorewall[6]/helpers</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>These files specify which kernel modules Shorewall will load before
+    trying to determine your iptables/kernel's capabilities.</para>
+
+    <para>The <filename>modules</filename> file is used when
+    LOAD_HELPERS_ONLY=No in <ulink
+    url="shorewall.conf.html">shorewall.conf</ulink>(8); the
+    <filename>helpers</filename> file is used when
+    LOAD_HELPERS_ONLY=Yes</para>
+
+    <important>
+      <para>Beginning with Shorewall 5.2.3, the LOAD_HELPERS_ONLY option has
+      been removed and the behavior is the same as if LOAD_HELPERS_ONLY=Yes
+      was specified.</para>
+    </important>
+
+    <para>Each record in the files has the following format:</para>
+
+    <cmdsynopsis>
+      <command>loadmodule</command>
+
+      <arg choice="plain"><replaceable
+      class="parameter">modulename</replaceable></arg>
+
+      <arg rep="repeat"><replaceable>moduleoption</replaceable></arg>
+    </cmdsynopsis>
+
+    <para>The <replaceable>modulename</replaceable> names a kernel module
+    (without suffix). Shorewall will search for modules based on your
+    MODULESDIR setting in <ulink
+    url="shorewall.conf.html">shorewall.conf</ulink>(8). The
+    <replaceable>moduleoption</replaceable>s are passed to modprobe (if
+    installed) or to insmod.</para>
+
+    <para>The /usr/share/shorewall/modules file contains a large number of
+    modules. Users are encouraged to copy the file to /etc/shorewall/modules
+    and modify the copy to load only the modules required or to use
+    LOAD_HELPERS_ONLY=Yes.<note>
+        <para>If you build monolithic kernels and have not installed
+        module-init-tools, then create an empty /etc/shorewall/modules file;
+        that will prevent Shorewall from trying to load modules at all.</para>
+      </note></para>
+  </refsect1>
+
+  <refsect1>
+    <title>Example</title>
+
+    <para>loadmodule ip_conntrack_ftp ports=21,221</para>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/usr/share/shorewall/modules</para>
+
+    <para>/usr/share/shorewall/helpers</para>
+
+    <para>/etc/shorewall/modules</para>
+
+    <para>/etc/shorewall/helpers</para>
+
+    <para>/usr/share/shorewall6/modules</para>
+
+    <para>/usr/share/shorewall6/helpers</para>
+
+    <para>/etc/shorewall6/modules</para>
+
+    <para>/etc/shorewall6/helpers</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para>shorewall(8)</para>
+  </refsect1>
+</refentry>

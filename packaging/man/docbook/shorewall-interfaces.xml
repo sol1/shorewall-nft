@@ -1,0 +1,1197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-interfaces</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>interfaces</refname>
+
+    <refpurpose>Shorewall interfaces file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/etc/shorewall[6]/interfaces</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>The interfaces file serves to define the firewall's network
+    interfaces to Shorewall. The order of entries in this file is not
+    significant in determining zone composition.</para>
+
+    <para>Beginning with Shorewall 4.5.3, the interfaces file supports two
+    different formats:</para>
+
+    <variablelist>
+      <varlistentry>
+        <term>FORMAT 1 (default - deprecated)</term>
+
+        <listitem>
+          <para>There is a BROADCAST column which can be used to specify the
+          broadcast address associated with the interface.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>FORMAT 2</term>
+
+        <listitem>
+          <para>The BROADCAST column is omitted.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+
+    <para>The format is specified by a line as follows:</para>
+
+    <blockquote>
+      <para><emphasis role="bold">?FORMAT {1|2}</emphasis></para>
+    </blockquote>
+
+    <para>The columns in the file are as follows.</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><emphasis role="bold">ZONE</emphasis> -
+        <emphasis>zone-name</emphasis></term>
+
+        <listitem>
+          <para>Zone for this interface. Must match the name of a zone
+          declared in /etc/shorewall/zones. You may not list the firewall zone
+          in this column.</para>
+
+          <para>If the interface serves multiple zones that will be defined in
+          the <ulink url="shorewall-hosts.html">shorewall-hosts</ulink>(5)
+          file, you should place "-" in this column.</para>
+
+          <para>If there are multiple interfaces to the same zone, you must
+          list them in separate entries.</para>
+
+          <para>Example:</para>
+
+          <blockquote>
+            <programlisting>#ZONE   INTERFACE       BROADCAST
+loc     eth1            -
+loc     eth2            -</programlisting>
+          </blockquote>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">INTERFACE</emphasis> -
+        <emphasis>interface</emphasis><emphasis
+        role="bold">[:</emphasis><emphasis>port</emphasis><emphasis
+        role="bold">]</emphasis></term>
+
+        <listitem>
+          <para>Logical name of interface. Each interface may be listed only
+          once in this file. You may NOT specify the name of a "virtual"
+          interface (e.g., eth0:0) here; see <ulink
+          url="../FAQ.htm#faq18">https://shorewall.org/FAQ.htm#faq18</ulink>.
+          If the <option>physical</option> option is not specified, then the
+          logical name is also the name of the actual interface.</para>
+
+          <para>You may use wildcards here by specifying a prefix followed by
+          the plus sign ("+"). For example, if you want to make an entry that
+          applies to all PPP interfaces, use 'ppp+'; that would match ppp0,
+          ppp1, ppp2, …</para>
+
+          <para>When using Shorewall versions before 4.1.4, care must be
+          exercised when using wildcards where there is another zone that uses
+          a matching specific interface. See <ulink
+          url="shorewall-nesting.html">shorewall-nesting</ulink>(5) for a
+          discussion of this problem.</para>
+
+          <para>Shorewall allows '+' as an interface name, but that usage is
+          deprecated. A better approach is to specify
+          '<option>physical</option>=+' in the OPTIONS column (see
+          below).</para>
+
+          <para>There is no need to define the loopback interface (lo) in this
+          file.</para>
+
+          <para>If a <replaceable>port</replaceable> is given, then the
+          <replaceable>interface</replaceable> must have been defined
+          previously with the <option>bridge</option> option. The OPTIONS
+          column may not contain the following options when a
+          <replaceable>port</replaceable> is given.</para>
+
+          <simplelist>
+            <member>arp_filter</member>
+
+            <member>arp_ignore</member>
+
+            <member>bridge</member>
+
+            <member>log_martians</member>
+
+            <member>mss</member>
+
+            <member>optional</member>
+
+            <member>proxyarp</member>
+
+            <member>required</member>
+
+            <member>routefilter</member>
+
+            <member>sourceroute</member>
+
+            <member>upnp</member>
+
+            <member>wait</member>
+          </simplelist>
+
+          <para>Beginning with Shorewall 4.5.17, if you specify a zone for the
+          'lo' interface, then that zone must be defined as type
+          <option>local</option> in <ulink
+          url="shorewall-zones.html">shorewall6-zones</ulink>(5).</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">BROADCAST</emphasis> (Optional) -
+        {<emphasis role="bold">-</emphasis>|<emphasis
+        role="bold">detect</emphasis>|<emphasis>address</emphasis>[,<emphasis>address</emphasis>]...}</term>
+
+        <listitem>
+          <para>Only available if FORMAT 1.</para>
+
+          <para>If you use the special value <emphasis
+          role="bold">detect</emphasis>, Shorewall will detect the broadcast
+          address(es) for you if your iptables and kernel include Address Type
+          Match support.</para>
+
+          <para>If your iptables and/or kernel lack Address Type Match support
+          then you may list the broadcast address(es) for the network(s) to
+          which the interface belongs. For P-T-P interfaces, this column is
+          left blank. If the interface has multiple addresses on multiple
+          subnets then list the broadcast addresses as a comma-separated
+          list.</para>
+
+          <para>If you don't want to give a value for this column but you want
+          to enter a value in the OPTIONS column, enter <emphasis
+          role="bold">-</emphasis> in this column.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">OPTIONS</emphasis> (Optional) -
+        [<emphasis>option</emphasis>[<emphasis
+        role="bold">,</emphasis><emphasis>option</emphasis>]...]</term>
+
+        <listitem>
+          <para>A comma-separated list of options from the following list. The
+          order in which you list the options is not significant but the list
+          should have no embedded white-space.</para>
+
+          <variablelist>
+            <varlistentry>
+              <term><emphasis
+              role="bold">accept_ra</emphasis>[={0|1|2}]</term>
+
+              <listitem>
+                <para>IPv6 only; added in Shorewall 4.5.16. Values are:</para>
+
+                <variablelist>
+                  <varlistentry>
+                    <term>0</term>
+
+                    <listitem>
+                      <para>Do not accept Router Advertisements.</para>
+                    </listitem>
+                  </varlistentry>
+
+                  <varlistentry>
+                    <term>1</term>
+
+                    <listitem>
+                      <para>Accept Route Advertisements if forwarding is
+                      disabled.</para>
+                    </listitem>
+                  </varlistentry>
+
+                  <varlistentry>
+                    <term>2</term>
+
+                    <listitem>
+                      <para>Overrule forwarding behavior. Accept Route
+                      Advertisements even if forwarding is enabled.</para>
+                    </listitem>
+                  </varlistentry>
+                </variablelist>
+
+                <para>If the option is specified without a value, then the
+                value 1 is assumed.</para>
+
+                <note>
+                  <para>This option does not work with a wild-card <emphasis
+                  role="bold">physical</emphasis> name (e.g., eth0.+).
+                  Beginning with Shorewall 5.1.10, If this option is
+                  specified, a warning is issued and the option is
+                  ignored.</para>
+                </note>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">arp_filter[={0|1}]</emphasis></term>
+
+              <listitem>
+                <para>IPv4 only. If specified, this interface will only
+                respond to ARP who-has requests for IP addresses configured on
+                the interface. If not specified, the interface can respond to
+                ARP who-has requests for IP addresses on any of the firewall's
+                interface. The interface must be up when Shorewall is
+                started.</para>
+
+                <para>Only those interfaces with the
+                <option>arp_filter</option> option will have their setting
+                changed; the value assigned to the setting will be the value
+                specified (if any) or 1 if no value is given.</para>
+
+                <note>
+                  <para>This option does not work with a wild-card <emphasis
+                  role="bold">physical</emphasis> name (e.g., eth0.+).
+                  Beginning with Shorewall 5.1.10, If this option is
+                  specified, a warning is issued and the option is
+                  ignored.</para>
+                </note>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">arp_ignore</emphasis>[=<emphasis>number</emphasis>]</term>
+
+              <listitem>
+                <para>IPv4 only. If specified, this interface will respond to
+                arp requests based on the value of <emphasis>number</emphasis>
+                (defaults to 1).</para>
+
+                <para>1 - reply only if the target IP address is local address
+                configured on the incoming interface</para>
+
+                <para>2 - reply only if the target IP address is local address
+                configured on the incoming interface and the sender's IP
+                address is part from same subnet on this interface's
+                address</para>
+
+                <para>3 - do not reply for local addresses configured with
+                scope host, only resolutions for global and link</para>
+
+                <para>4-7 - reserved</para>
+
+                <para>8 - do not reply for all local addresses</para>
+
+                <note>
+                  <para>This option does not work with a wild-card <emphasis
+                  role="bold">physical</emphasis> name (e.g., eth0.+).
+                  Beginning with Shorewall 5.1.10, If this option is
+                  specified, a warning is issued and the option is
+                  ignored.</para>
+                </note>
+
+                <warning>
+                  <para>Do not specify <emphasis
+                  role="bold">arp_ignore</emphasis> for any interface involved
+                  in <ulink url="../ProxyARP.htm">Proxy ARP</ulink>.</para>
+                </warning>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">blacklist</emphasis></term>
+
+              <listitem>
+                <para>Checks packets arriving on this interface against the
+                <ulink
+                url="shorewall-blacklist.html">shorewall-blacklist</ulink>(5)
+                file.</para>
+
+                <para>Beginning with Shorewall 4.4.13:</para>
+
+                <itemizedlist>
+                  <listitem>
+                    <para>If a <replaceable>zone</replaceable> is given in the
+                    ZONES column, then the behavior is as if <emphasis
+                    role="bold">blacklist</emphasis> had been specified in the
+                    IN_OPTIONS column of <ulink
+                    url="shorewall-zones.html">shorewall-zones</ulink>(5).</para>
+                  </listitem>
+
+                  <listitem>
+                    <para>Otherwise, the option is ignored with a
+                    warning:</para>
+
+                    <blockquote>
+                      <para><emphasis role="bold">WARNING: The 'blacklist'
+                      option is ignored on multi-zone
+                      interfaces</emphasis></para>
+                    </blockquote>
+                  </listitem>
+                </itemizedlist>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">bridge</emphasis></term>
+
+              <listitem>
+                <para>Designates the interface as a bridge. Beginning with
+                Shorewall 4.4.7, setting this option also sets
+                <option>routeback</option>.</para>
+
+                <note>
+                  <para>If you have a bridge that you don't intend to define
+                  bport zones on, then it is best to omit this option and
+                  simply specify <option>routeback</option>.</para>
+                </note>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">dbl={none|src|dst|src-dst}</emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 5.0.10. This option defined whether
+                or not dynamic blacklisting is applied to packets entering the
+                firewall through this interface and whether the source address
+                and/or destination address is to be compared against the
+                ipset-based dynamic blacklist (DYNAMIC_BLACKLIST=ipset... in
+                <ulink url="shorewall.conf.html">shorewall.conf(5)</ulink>).
+                The default is determine by the setting of
+                DYNAMIC_BLACKLIST:</para>
+
+                <variablelist>
+                  <varlistentry>
+                    <term>DYNAMIC_BLACKLIST=No</term>
+
+                    <listitem>
+                      <para>Default is <emphasis role="bold">none</emphasis>
+                      (e.g., no dynamic blacklist checking).</para>
+                    </listitem>
+                  </varlistentry>
+
+                  <varlistentry>
+                    <term>DYNAMIC_BLACKLIST=Yes</term>
+
+                    <listitem>
+                      <para>Default is <emphasis role="bold">src</emphasis>
+                      (e.g., the source IP address is checked).</para>
+                    </listitem>
+                  </varlistentry>
+
+                  <varlistentry>
+                    <term>DYNAMIC_BLACKLIST=ipset[-only]</term>
+
+                    <listitem>
+                      <para>Default is <emphasis
+                      role="bold">src</emphasis>.</para>
+                    </listitem>
+                  </varlistentry>
+
+                  <varlistentry>
+                    <term>DYNAMIC_BLACKLIST=ipset[-only],src-dst...</term>
+
+                    <listitem>
+                      <para>Default is <emphasis
+                      role="bold">src-dst</emphasis> (e.g., the source IP
+                      addresses in checked against the ipset on input and the
+                      destination IP address is checked against the ipset on
+                      packets originating from the firewall and leaving
+                      through this interface).</para>
+                    </listitem>
+                  </varlistentry>
+                </variablelist>
+
+                <para>The normal setting for this option will be <emphasis
+                role="bold">dst</emphasis> or <emphasis
+                role="bold">none</emphasis> for internal interfaces and
+                <emphasis role="bold">src</emphasis> or <emphasis
+                role="bold">src-dst</emphasis> for Internet-facing
+                interfaces.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">destonly</emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 4.5.17. Causes the compiler to omit
+                rules to handle traffic from this interface.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">dhcp</emphasis></term>
+
+              <listitem>
+                <para>Specify this option when any of the following are
+                true:</para>
+
+                <orderedlist spacing="compact">
+                  <listitem>
+                    <para>the interface gets its IP address via DHCP</para>
+                  </listitem>
+
+                  <listitem>
+                    <para>the interface is used by a DHCP server running on
+                    the firewall</para>
+                  </listitem>
+
+                  <listitem>
+                    <para>the interface has a static IP but is on a LAN
+                    segment with lots of DHCP clients.</para>
+                  </listitem>
+
+                  <listitem>
+                    <para>the interface is a <ulink
+                    url="../SimpleBridge.html">simple bridge</ulink> with a
+                    DHCP server on one port and DHCP clients on another
+                    port.</para>
+
+                    <note>
+                      <para>If you use <ulink
+                      url="../bridge-Shorewall-perl.html">Shorewall-perl for
+                      firewall/bridging</ulink>, then you need to include
+                      DHCP-specific rules in <ulink
+                      url="shorewall-rules.html">shorewall-rules</ulink>(5).
+                      DHCP uses UDP ports 67 and 68.</para>
+                    </note>
+                  </listitem>
+                </orderedlist>
+
+                <para>This option allows DHCP datagrams to enter and leave the
+                interface.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">forward</emphasis>[={0|1}]</term>
+
+              <listitem>
+                <para>IPv6 only Sets the
+                /proc/sys/net/ipv6/conf/interface/forwarding option to the
+                specified value. If no value is supplied, then 1 is
+                assumed.</para>
+
+                <note>
+                  <para>This option does not work with a wild-card <emphasis
+                  role="bold">physical</emphasis> name (e.g., eth0.+).
+                  Beginning with Shorewall 5.1.10, If this option is
+                  specified, a warning is issued and the option is
+                  ignored.</para>
+                </note>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">ignore[=1]</emphasis></term>
+
+              <listitem>
+                <para>When specified, causes the generated script to ignore
+                up/down events from Shorewall-init for this device.
+                Additionally, the option exempts the interface from hairpin
+                filtering. When '=1' is omitted, the ZONE column must contain
+                '-' and <option>ignore</option> must be the only
+                OPTION.</para>
+
+                <para>Beginning with Shorewall 4.5.5, may be specified as
+                '<option>ignore=1</option>' which only causes the generated
+                script to ignore up/down events from Shorewall-init; hairpin
+                filtering is still applied. In this case, the above
+                restrictions on the ZONE and OPTIONS columns are
+                lifted.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">loopback</emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 4.6.6. Designates the interface as
+                the loopback interface. This option is assumed if the
+                interface's physical name is 'lo'. Only one interface man have
+                the <option>loopback</option> option specified.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">logmartians[={0|1}]</emphasis></term>
+
+              <listitem>
+                <para>IPv4 only. Turn on kernel martian logging (logging of
+                packets with impossible source addresses. It is strongly
+                suggested that if you set <emphasis
+                role="bold">routefilter</emphasis> on an interface that you
+                also set <emphasis role="bold">logmartians</emphasis>. Even if
+                you do not specify the <option>routefilter</option> option, it
+                is a good idea to specify <option>logmartians</option> because
+                your distribution may have enabled route filtering without you
+                knowing it.</para>
+
+                <para>Only those interfaces with the
+                <option>logmartians</option> option will have their setting
+                changed; the value assigned to the setting will be the value
+                specified (if any) or 1 if no value is given.</para>
+
+                <para>To find out if route filtering is set on a given
+                <replaceable>interface</replaceable>, check the contents of
+                <filename>/proc/sys/net/ipv4/conf/<replaceable>interface</replaceable>/rp_filter</filename>
+                - a non-zero value indicates that route filtering is
+                enabled.</para>
+
+                <para>Example:</para>
+
+                <programlisting>        teastep@lists:~$ <command>cat /proc/sys/net/ipv4/conf/eth0/rp_filter </command>
+        1
+        teastep@lists:~$ </programlisting>
+
+                <para/>
+
+                <note>
+                  <para>This option does not work with a wild-card <emphasis
+                  role="bold">physical</emphasis> name (e.g., eth0.+).
+                  Beginning with Shorewall 5.1.10, If this option is
+                  specified, a warning is issued and the option is
+                  ignored.</para>
+                </note>
+
+                <blockquote>
+                  <para>This option may also be enabled globally in the <ulink
+                  url="shorewall.conf.html">shorewall.conf</ulink>(5)
+                  file.</para>
+                </blockquote>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">maclist</emphasis></term>
+
+              <listitem>
+                <para>Connection requests from this interface are compared
+                against the contents of <ulink
+                url="shorewall-maclist.html">shorewall-maclist</ulink>(5). If
+                this option is specified, the interface must be an Ethernet
+                NIC and must be up before Shorewall is started.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold"><emphasis
+              role="bold">mss</emphasis>=</emphasis><emphasis>number</emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 4.0.3. Causes forwarded TCP SYN
+                packets entering or leaving on this interface to have their
+                MSS field set to the specified
+                <replaceable>number</replaceable>.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">nets=(<emphasis>net</emphasis>[,...])</emphasis></term>
+
+              <listitem>
+                <para>Limit the zone named in the ZONE column to only the
+                listed networks. The parentheses may be omitted if only a
+                single <replaceable>net</replaceable> is given (e.g.,
+                nets=192.168.1.0/24). Limited broadcast to the zone is
+                supported. Beginning with Shorewall 4.4.1, multicast traffic
+                to the zone is also supported.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">nets=dynamic</emphasis></term>
+
+              <listitem>
+                <para>Defines the zone as <firstterm>dynamic</firstterm>.
+                Requires ipset match support in your iptables and kernel. See
+                <ulink
+                url="../Dynamic.html">https://shorewall.org/Dynamic.html</ulink>
+                for further information.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">nodbl</emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 5.0.8. When specified, dynamic
+                blacklisting is disabled on the interface. Beginning with
+                Shorewall 5.0.10, <emphasis role="bold">nodbl</emphasis> is
+                equivalent to <emphasis
+                role="bold">dbl=none</emphasis>.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">nosmurfs</emphasis></term>
+
+              <listitem>
+                <para>IPv4 only. Filter packets for smurfs (packets with a
+                broadcast address as the source).</para>
+
+                <para>Smurfs will be optionally logged based on the setting of
+                SMURF_LOG_LEVEL in <ulink
+                url="shorewall.conf.html">shorewall.conf</ulink>(5). After
+                logging, the packets are dropped.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>omitanycast</term>
+
+              <listitem>
+                <para>IPv6 only. Added in Shorewall 5.2.8.</para>
+
+                <para>Shorewall6 has traditionally generated rules for IPv6
+                <emphasis>anycast</emphasis> addresses. These rules
+                include:</para>
+
+                <orderedlist numeration="loweralpha">
+                  <listitem>
+                    <para>Packets with these destination IP addresses are
+                    dropped by REJECT rules.</para>
+                  </listitem>
+
+                  <listitem>
+                    <para>Packets with these source IP addresses are dropped
+                    by the 'nosmurfs' interface option and by the 'dropSmurfs'
+                    action.</para>
+                  </listitem>
+
+                  <listitem>
+                    <para>Packets with these destination IP addresses are not
+                    logged during policy enforcement.</para>
+                  </listitem>
+
+                  <listitem>
+                    <para>Packets with these destination IP addresses are
+                    processes by the 'Broadcast' action.</para>
+                  </listitem>
+                </orderedlist>
+
+                <para>This can be inhibited for individual interfaces by
+                specifying <emphasis role="bold">noanycast</emphasis> for
+                those interfaces.</para>
+
+                <note>
+                  <para>RFC 2526 describes IPv6 subnet anycast addresses. The
+                  RFC makes a distinction between subnets with "IPv6 address
+                  types required to have 64-bit interface identifiers in
+                  EUI-64 format" and all other subnets. When generating these
+                  anycast addresses, the Shorewall compiler does not make this
+                  distinction and unconditionally assumes that the last 128
+                  addresses in the subnet are reserved as anycast
+                  addresses.</para>
+                </note>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">optional</emphasis></term>
+
+              <listitem>
+                <para>This option indicates that the firewall should be able
+                to start, even if the interface is not usable for handling
+                traffic. It allows use of the <command>enable</command> and
+                <command>disable</command> commands on the interface.</para>
+
+                <para>When <option>optional</option> is specified for an
+                interface, Shorewall will be silent when:</para>
+
+                <itemizedlist>
+                  <listitem>
+                    <para>a <filename
+                    class="directory">/proc/sys/net/ipv[46]/conf/</filename>
+                    entry for the interface cannot be modified (including for
+                    proxy ARP or proxy NDP).</para>
+                  </listitem>
+
+                  <listitem>
+                    <para>The first address of the interface cannot be
+                    obtained.</para>
+                  </listitem>
+
+                  <listitem>
+                    <para>The gateway of the interface can not be obtained
+                    (provider interface).</para>
+                  </listitem>
+
+                  <listitem>
+                    <para>The interface has been disabled using the
+                    <command>disable</command> command.</para>
+                  </listitem>
+                </itemizedlist>
+
+                <para>May not be specified with <emphasis
+                role="bold">required</emphasis>.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">physical</emphasis>=<emphasis
+              role="bold"><emphasis>name</emphasis></emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 4.4.4. When specified, the interface
+                or port name in the INTERFACE column is a logical name that
+                refers to the name given in this option. It is useful when you
+                want to specify the same wildcard port name on two or more
+                bridges. See <ulink
+                url="../bridge-Shorewall-perl.html#Multiple">https://shorewall.org/bridge-Shorewall-perl.html#Multiple</ulink>.</para>
+
+                <para>If the <emphasis>interface</emphasis> name is a wildcard
+                name (ends with '+'), then the physical
+                <emphasis>name</emphasis> must also end in '+'. The physical
+                <replaceable>name</replaceable> may end in '+' (or be exactly
+                '+') when the <replaceable>interface</replaceable> name is not
+                a wildcard name.</para>
+
+                <para>If <option>physical</option> is not specified, then it's
+                value defaults to the <emphasis>interface</emphasis>
+                name.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">proxyarp[={0|1}]</emphasis></term>
+
+              <listitem>
+                <para>IPv4 only. Sets
+                /proc/sys/net/ipv4/conf/<emphasis>interface</emphasis>/proxy_arp.
+                Do NOT use this option if you are employing Proxy ARP through
+                entries in <ulink
+                url="shorewall-proxyarp.html">shorewall-proxyarp</ulink>(5).
+                This option is intended solely for use with Proxy ARP
+                sub-networking as described at: <ulink
+                url="http://tldp.org/HOWTO/Proxy-ARP-Subnet/index.html">http://tldp.org/HOWTO/Proxy-ARP-Subnet/index.html.
+                </ulink></para>
+
+                <note>
+                  <para>This option does not work with a wild-card <emphasis
+                  role="bold">physical</emphasis> name (e.g., eth0.+).
+                  Beginning with Shorewall 5.1.10, If this option is
+                  specified, a warning is issued and the option is
+                  ignored.</para>
+                </note>
+
+                <para>Only those interfaces with the <option>proxyarp</option>
+                option will have their setting changed; the value assigned to
+                the setting will be the value specified (if any) or 1 if no
+                value is given.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">proxyndp</emphasis>[={0|1}]</term>
+
+              <listitem>
+                <para>IPv6 only. Sets
+                /proc/sys/net/ipv6/conf/<emphasis>interface</emphasis>/proxy_ndp.</para>
+
+                <note>
+                  <para>This option does not work with a wild-card <emphasis
+                  role="bold">physical</emphasis> name (e.g., eth0.+).
+                  Beginning with Shorewall 5.1.10, If this option is
+                  specified, a warning is issued and the option is
+                  ignored.</para>
+                </note>
+
+                <para>Only those interfaces with the <option>proxyndp</option>
+                option will have their setting changed; the value assigned to
+                the setting will be the value specified (if any) or 1 if no
+                value is given.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">required</emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 4.4.10. If this option is set, the
+                firewall will fail to start if the interface is not usable.
+                May not be specified together with <emphasis
+                role="bold">optional</emphasis>.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">routeback[={0|1}]</emphasis></term>
+
+              <listitem>
+                <para>If specified, indicates that Shorewall should include
+                rules that allow traffic arriving on this interface to be
+                routed back out that same interface. This option is also
+                required when you have used a wildcard in the INTERFACE column
+                if you want to allow traffic between the interfaces that match
+                the wildcard.</para>
+
+                <para>Beginning with Shorewall 4.4.20, if you specify this
+                option, then you should also specify either
+                <option>sfilter</option> (see below) or
+                <option>routefilter</option> on all interfaces (see
+                below).</para>
+
+                <para>Beginning with Shorewall 4.5.18, you may specify this
+                option to explicitly reset (e.g., <emphasis
+                role="bold">routeback=0</emphasis>). This can be used to
+                override Shorewall's default setting for bridge devices which
+                is <emphasis role="bold">routeback=1</emphasis>.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">routefilter[={0|1|2}]</emphasis></term>
+
+              <listitem>
+                <para>IPv4 only. Turn on kernel route filtering for this
+                interface (anti-spoofing measure).</para>
+
+                <para>Only those interfaces with the
+                <option>routefilter</option> option will have their setting
+                changes; the value assigned to the setting will be the value
+                specified (if any) or 1 if no value is given.</para>
+
+                <para>The value 2 is only available with Shorewall 4.4.5.1 and
+                later when the kernel version is 2.6.31 or later. It specifies
+                a <firstterm>loose</firstterm> form of reverse path
+                filtering.</para>
+
+                <note>
+                  <para>This option does not work with a wild-card <emphasis
+                  role="bold">physical</emphasis> name (e.g., eth0.+).
+                  Beginning with Shorewall 5.1.10, If this option is
+                  specified, a warning is issued and the option is
+                  ignored.</para>
+                </note>
+
+                <para>This option can also be enabled globally via the
+                ROUTE_FILTER option in the <ulink
+                url="shorewall.conf.html">shorewall.conf</ulink>(5)
+                file.</para>
+
+                <important>
+                  <para>If ROUTE_FILTER=Yes in <ulink
+                  url="shorewall.conf.html">shorewall.conf</ulink>(5), or if
+                  your distribution sets net.ipv4.conf.all.rp_filter=1 in
+                  <filename>/etc/sysctl.conf</filename>, then setting
+                  <emphasis role="bold">routefilter</emphasis>=0 in an
+                  <replaceable>interface</replaceable> entry will not disable
+                  route filtering on that
+                  <replaceable>interface</replaceable>! The effective setting
+                  for an <replaceable>interface</replaceable> is the maximum
+                  of the contents of
+                  <filename>/proc/sys/net/ipv4/conf/all/rp_filter</filename>
+                  and the routefilter setting specified in this file
+                  (/proc/sys/net/ipv4/conf/<replaceable>interface</replaceable>/rp_filter).</para>
+                </important>
+
+                <note>
+                  <para>There are certain cases where
+                  <option>routefilter</option> cannot be used on an
+                  interface:</para>
+
+                  <itemizedlist>
+                    <listitem>
+                      <para>If USE_DEFAULT_RT=Yes in <ulink
+                      url="shorewall.conf.html">shorewall.conf</ulink>(5) and
+                      the interface is listed in <ulink
+                      url="shorewall-providers.html">shorewall-providers</ulink>(5).</para>
+                    </listitem>
+
+                    <listitem>
+                      <para>If there is an entry for the interface in <ulink
+                      url="shorewall-providers.html">shorewall-providers</ulink>(5)
+                      that doesn't specify the <option>balance</option>
+                      option.</para>
+                    </listitem>
+
+                    <listitem>
+                      <para>If IPSEC is used to allow a road-warrior to have a
+                      local address, then any interface through which the
+                      road-warrior might connect cannot specify
+                      <option>routefilter</option>.</para>
+                    </listitem>
+                  </itemizedlist>
+                </note>
+
+                <para>Beginning with Shorewall 5.1.1, when
+                <option>routefilter</option> is set to a non-zero value, the
+                <option>logmartians</option> option is also implicitly set. If
+                you actually want route filtering without logging, then you
+                must also specify <option>logmartians=0</option> after
+                <option>routefilter</option>.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">rpfilter</emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 4.5.7. This is an anti-spoofing
+                measure that requires the 'RPFilter Match' capability in your
+                iptables and kernel. It provides a more efficient alternative
+                to the <option>sfilter</option> option below. It performs a
+                function similar to <option>routefilter</option> (see above)
+                but works with Multi-ISP configurations that do not use
+                balanced routes.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">sfilter=(<emphasis>net</emphasis>[,...])</emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 4.4.20. This option provides an
+                anti-spoofing alternative to <option>routefilter</option> on
+                interfaces where that option cannot be used, but where the
+                <option>routeback</option> option is required (on a bridge,
+                for example). On these interfaces, <option>sfilter</option>
+                should list those local networks that are connected to the
+                firewall through other interfaces.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">sourceroute[={0|1}]</emphasis></term>
+
+              <listitem>
+                <para>If this option is not specified for an interface, then
+                source-routed packets will not be accepted from that interface
+                unless it has been explicitly enabled via sysconf. Only set
+                this option to 1 (enable source routing) if you know what you
+                are doing. This might represent a security risk and is usually
+                unneeded.</para>
+
+                <para>Only those interfaces with the
+                <option>sourceroute</option> option will have their setting
+                changed; the value assigned to the setting will be the value
+                specified (if any) or 1 if no value is given.</para>
+
+                <note>
+                  <para>This option does not work with a wild-card <emphasis
+                  role="bold">physical</emphasis> name (e.g., eth0.+).
+                  Beginning with Shorewall 5.1.10, If this option is
+                  specified, a warning is issued and the option is
+                  ignored.</para>
+                </note>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">tcpflags[={0|1}]</emphasis></term>
+
+              <listitem>
+                <para>Packets arriving on this interface are checked for
+                certain illegal combinations of TCP flags. Packets found to
+                have such a combination of flags are handled according to the
+                setting of TCP_FLAGS_DISPOSITION after having been logged
+                according to the setting of TCP_FLAGS_LOG_LEVEL.</para>
+
+                <para>Beginning with Shorewall 4.6.0, tcpflags=1 is the
+                default. To disable this option, specify tcpflags=0.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">unmanaged</emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 4.5.18. Causes all traffic between
+                the firewall and hosts on the interface to be accepted. When
+                this option is given:</para>
+
+                <itemizedlist>
+                  <listitem>
+                    <para>The ZONE column must contain '-'.</para>
+                  </listitem>
+
+                  <listitem>
+                    <para>Only the following other options are allowed with
+                    <emphasis role="bold">unmanaged</emphasis>:</para>
+
+                    <simplelist>
+                      <member><emphasis
+                      role="bold">arp_filter</emphasis></member>
+
+                      <member><emphasis
+                      role="bold">arp_ignore</emphasis></member>
+
+                      <member><emphasis role="bold">ignore</emphasis></member>
+
+                      <member><emphasis
+                      role="bold">routefilter</emphasis></member>
+
+                      <member><emphasis
+                      role="bold">optional</emphasis></member>
+
+                      <member><emphasis
+                      role="bold">physical</emphasis></member>
+
+                      <member><emphasis
+                      role="bold">routefilter</emphasis></member>
+
+                      <member><emphasis
+                      role="bold">proxyarp</emphasis></member>
+
+                      <member><emphasis
+                      role="bold">proxyudp</emphasis></member>
+
+                      <member><emphasis
+                      role="bold">sourceroute</emphasis></member>
+                    </simplelist>
+                  </listitem>
+                </itemizedlist>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">upnp</emphasis></term>
+
+              <listitem>
+                <para>Incoming requests from this interface may be remapped
+                via UPNP (upnpd). See <ulink
+                url="../UPnP.html">https://shorewall.org/UPnP.html</ulink>.
+                Supported in IPv4 and in IPv6 in Shorewall 5.1.4 and
+                later.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">upnpclient</emphasis></term>
+
+              <listitem>
+                <para>This option is intended for laptop users who always run
+                Shorewall on their system yet need to run UPnP-enabled client
+                apps such as Transmission (BitTorrent client). The option
+                causes Shorewall to detect the default gateway through the
+                interface and to accept UDP packets from that gateway. Note
+                that, like all aspects of UPnP, this is a security hole so use
+                this option at your own risk. Supported in IPv4 and in IPv6 in
+                Shorewall 5.1.4 and later.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">wait</emphasis>=<emphasis>seconds</emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 4.4.10. Causes the generated script
+                to wait up to <emphasis>seconds</emphasis> seconds for the
+                interface to become usable before applying the <emphasis
+                role="bold">required</emphasis> or <emphasis
+                role="bold">optional</emphasis> options.</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Example</title>
+
+    <variablelist>
+      <varlistentry>
+        <term>IPv4 Example 1:</term>
+
+        <listitem>
+          <para>Suppose you have eth0 connected to a DSL modem and eth1
+          connected to your local network and that your local subnet is
+          192.168.1.0/24. The interface gets its IP address via DHCP from
+          subnet 206.191.149.192/27. You have a DMZ with subnet 192.168.2.0/24
+          using eth2. Your iptables and/or kernel do not support "Address Type
+          Match" and you prefer to specify broadcast addresses explicitly
+          rather than having Shorewall detect them.</para>
+
+          <para>Your entries for this setup would look like:</para>
+
+          <programlisting>?FORMAT 1
+#ZONE   INTERFACE BROADCAST        OPTIONS
+net     eth0      206.191.149.223  dhcp
+loc     eth1      192.168.1.255
+dmz     eth2      192.168.2.255</programlisting>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>Example 2:</term>
+
+        <listitem>
+          <para>The same configuration without specifying broadcast addresses
+          is:</para>
+
+          <programlisting>?FORMAT 2
+#ZONE   INTERFACE OPTIONS
+net     eth0      dhcp
+loc     eth1      
+dmz     eth2</programlisting>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>Example 3:</term>
+
+        <listitem>
+          <para>You have a simple dial-in system with no Ethernet
+          connections.</para>
+
+          <programlisting>?FORMAT 2
+#ZONE   INTERFACE OPTIONS
+net     ppp0      -</programlisting>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>Example 4 (Shorewall 4.4.9 and later):</term>
+
+        <listitem>
+          <para>You have a bridge with no IP address and you want to allow
+          traffic through the bridge.</para>
+
+          <programlisting>?FORMAT 2
+#ZONE   INTERFACE OPTIONS
+-       br0       bridge</programlisting>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall/interfaces</para>
+
+    <para>/etc/shorewall6/interfaces</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para><ulink
+    url="../configuration_file_basics.htm#Pairs">https://shorewall.org/configuration_file_basics.htm#Pairs</ulink></para>
+
+    <para>shorewall(8)</para>
+  </refsect1>
+</refentry>

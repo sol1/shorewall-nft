@@ -75,7 +75,7 @@ SBINDIR=%{_sbindir} DESTDIR=%{buildroot} packaging/install-lite.sh packaging/sho
 %{_unitdir}/shorewall-geoip-update.service
 %{_unitdir}/shorewall-geoip-update.timer
 %{_mandir}/man8/shorewall*.8*
-%{_mandir}/man5/shorewall*netmap.5*
+%{_mandir}/man5/shorewall*.5*
 # 0750 like shorewall's own state dir: it holds saved rulesets and resolved
 # addresses, which a less-privileged user should not read.
 %attr(0750,root,root) %dir %{_localstatedir}/lib/shorewall-nft

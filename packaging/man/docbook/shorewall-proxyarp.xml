@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-proxyarp</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>proxyarp</refname>
+
+    <refpurpose>Shorewall Proxy ARP file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/etc/shorewall/proxyarp</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>IPv4 only.</para>
+
+    <para>This file is used to define Proxy ARP. There is one entry in this
+    file for each IP address to be proxied.</para>
+
+    <para>The columns in the file are as follows.</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><emphasis role="bold">ADDRESS</emphasis> -
+        <emphasis>address</emphasis></term>
+
+        <listitem>
+          <para>IP Address.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">INTERFACE</emphasis> -
+        <emphasis>interface</emphasis> (Optional as of Shorewall
+        4.4.16)</term>
+
+        <listitem>
+          <para>Local interface where system with the ip address in ADDRESS is
+          connected. This column is only required when HAVEROUTE is set to
+          <emphasis role="bold">No</emphasis> (<emphasis
+          role="bold">no</emphasis>) or is left empty.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">EXTERNAL</emphasis> -
+        <emphasis>interface</emphasis></term>
+
+        <listitem>
+          <para>External Interface to be used to access this system from the
+          Internet.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">HAVEROUTE</emphasis> - [<emphasis
+        role="bold">-</emphasis>|<emphasis
+        role="bold">Yes</emphasis>|<emphasis role="bold">No</emphasis>]</term>
+
+        <listitem>
+          <para>If there is already a route from the firewall to the host
+          whose address is given, enter <emphasis role="bold">Yes</emphasis>
+          or <emphasis role="bold">yes</emphasis> in this column. Otherwise,
+          enter <emphasis role="bold">no</emphasis> or <emphasis
+          role="bold">No</emphasis> or leave the column empty and Shorewall
+          will add the route for you. If Shorewall adds the route, its
+          persistence depends on the value of the<emphasis
+          role="bold">PERSISTENT</emphasis> column contains <emphasis
+          role="bold">Yes</emphasis>; otherwise, <emphasis
+          role="bold">shorewall stop</emphasis> or <emphasis
+          role="bold">shorewall clear</emphasis> will delete the route.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">PERSISTENT</emphasis> - [<emphasis
+        role="bold">-</emphasis>|<emphasis
+        role="bold">Yes</emphasis>|<emphasis role="bold">No</emphasis>]</term>
+
+        <listitem>
+          <para>If HAVEROUTE is <emphasis role="bold">No</emphasis> or
+          <emphasis role="bold">no</emphasis>, then the value of this column
+          determines if the route added by Shorewall persists after a
+          <emphasis role="bold">shorewall stop</emphasis> or a <emphasis
+          role="bold">shorewall clear</emphasis>. If this column contains
+          <emphasis role="bold">Yes</emphasis> or <emphasis
+          role="bold">yes</emphasis> then the route persists; If the column is
+          empty or contains <emphasis role="bold">No</emphasis> or <emphasis
+          role="bold">no</emphasis> then the route is deleted by
+          <command>shorewall stop</command> or <command>shorewall
+          clear</command>.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Example</title>
+
+    <variablelist>
+      <varlistentry>
+        <term>Example 1:</term>
+
+        <listitem>
+          <para>Host with IP 155.186.235.6 is connected to interface eth1 and
+          we want hosts attached via eth0 to be able to access it using that
+          address.</para>
+
+          <programlisting>       #ADDRESS        INTERFACE       EXTERNAL
+       155.186.235.6   eth1            eth0</programlisting>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall/proxyarp</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para><ulink
+    url="../ProxyARP.htm">https://shorewall.org/ProxyARP.htm</ulink></para>
+
+    <para><ulink
+    url="../configuration_file_basics.htm#Pairs">https://shorewall.org/configuration_file_basics.htm#Pairs</ulink></para>
+
+    <para>shorewall(8)</para>
+  </refsect1>
+</refentry>

@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-tcpri</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>tcpri</refname>
+
+    <refpurpose>Shorewall file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/etc/shorewall[6]/tcpri</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>This file is used to specify the priority of traffic for simple
+    traffic shaping (TC_ENABLED=Simple in <ulink
+    url="shorewall.conf.html">shorewall.conf</ulink>(5)). Beginning with
+    Shorewall 5.2.7, the file allows ?FORMAT 2 which inserts a SPORT column
+    immediately to the right of the DPORT column.</para>
+
+    <para>The priority band of each packet is determined by the <emphasis
+    role="bold">last</emphasis> entry that the packet matches. If a packet
+    doesn't match any entry in this file, then its priority will be determined
+    by its TOS field. The default mapping is as follows but can be changed by
+    setting the TC_PRIOMAP option in <ulink
+    url="shorewall.conf.html">shorewall.conf</ulink>(5).</para>
+
+    <programlisting>TOS     Bits  Means                    Linux Priority    BAND
+------------------------------------------------------------
+0x0     0     Normal Service           0 Best Effort     2
+0x2     1     Minimize Monetary Cost   1 Filler          3
+0x4     2     Maximize Reliability     0 Best Effort     2
+0x6     3     mmc+mr                   0 Best Effort     2
+0x8     4     Maximize Throughput      2 Bulk            3
+0xa     5     mmc+mt                   2 Bulk            3
+0xc     6     mr+mt                    2 Bulk            3
+0xe     7     mmc+mr+mt                2 Bulk            3
+0x10    8     Minimize Delay           6 Interactive     1
+0x12    9     mmc+md                   6 Interactive     1
+0x14    10    mr+md                    6 Interactive     1
+0x16    11    mmc+mr+md                6 Interactive     1
+0x18    12    mt+md                    4 Int. Bulk       2
+0x1a    13    mmc+mt+md                4 Int. Bulk       2
+0x1c    14    mr+mt+md                 4 Int. Bulk       2
+0x1e    15    mmc+mr+mt+md             4 Int. Bulk       2</programlisting>
+
+    <para>The columns in the file are as follows.</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><emphasis role="bold">BAND</emphasis> - {<emphasis
+        role="bold">1</emphasis>|<emphasis role="bold">2</emphasis>|<emphasis
+        role="bold">3</emphasis>}</term>
+
+        <listitem>
+          <para>Classifies matching traffic as High Priority (1), Medium
+          Priority (2) or Low Priority (3). For those interfaces listed in
+          <ulink
+          url="shorewall-tcinterfaces.html">shorewall-tcinterfaces</ulink>(5),
+          Priority 2 traffic will be deferred so long and there is Priority 1
+          traffic queued and Priority 3 traffic will be deferred so long as
+          there is Priority 1 or Priority 2 traffic to send.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">PROTO</emphasis> -
+        <replaceable>protocol</replaceable>[,...]</term>
+
+        <listitem>
+          <para>Optional. The name or number of an IPv4
+          <replaceable>protocol</replaceable>.</para>
+
+          <para>Beginning with Shorewall 4.5.12, this column can accept a
+          comma-separated list of protocols.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>DPORT - <replaceable>port</replaceable> [,...]</term>
+
+        <listitem>
+          <para>This column was named PORT prior to Shorewall 5.2.7. Both
+          'port' and 'dport' may be used in the <ulink
+          url="../configuration_file_basics.htm#Pairs">alternate input
+          format</ulink>.</para>
+
+          <para>Optional. May only be given if the the PROTO is TCP (6), UDP
+          (17), DCCP (33), SCTP (132) or UDPLITE (136). A list of one or more
+          port numbers or service names from /etc/services. Port ranges of the
+          form
+          <replaceable>lowport</replaceable>:<replaceable>highport</replaceable>
+          may also be included. In format 1, packets whose source or
+          destination port matches the specified
+          <replaceable>port</replaceable>(s) are assigned to the band given in
+          the BAND column.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>SPORT - <replaceable>port</replaceable> [,...]</term>
+
+        <listitem>
+          <para>Only present in file format 2. Optional. May only be given if
+          the the PROTO is TCP (6), UDP (17), DCCP (33), SCTP (132) or UDPLITE
+          (136). A list of one or more port numbers or service names from
+          /etc/services. Port ranges of the form
+          <replaceable>lowport</replaceable>:<replaceable>highport</replaceable>
+          may also be included. </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>ADDRESS - [<replaceable>address</replaceable>]</term>
+
+        <listitem>
+          <para>Optional. The IP or MAC address that the traffic originated
+          from. MAC addresses must be given in Shorewall format. If this
+          column contains an address, then the PROTO, PORT(S) and INTERFACE
+          column must be empty ("-").</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>INTERFACE - [<replaceable>interface</replaceable>]</term>
+
+        <listitem>
+          <para>Optional. The logical name of an
+          <replaceable>interface</replaceable> that traffic arrives from. If
+          given, the PROTO, PORT(S) and ADDRESS columns must be empty
+          ("-").</para>
+
+          <note>
+            <para>INTERFACE classification of packets occurs before
+            classification by PROTO/PORT(S)/ADDRESS. So it is highly
+            recommended to place entries that specify INTERFACE at the top of
+            the file so that the rule about <emphasis>last entry
+            matches</emphasis> is preserved.</para>
+          </note>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">HELPER</emphasis> -
+        [<replaceable>helper</replaceable>]</term>
+
+        <listitem>
+          <para>Optional. Names a Netfilter protocol helper module such as
+          ftp, sip, amanda, etc. A packet will match if it was accepted by the
+          named helper module. You can also append "-" and a port number to
+          the helper module name (e.g., ftp-21) to specify the port number
+          that the original connection was made on.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall/tcpri</para>
+
+    <para>/etc/shorewall6/tcpri</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para><ulink
+    url="../configuration_file_basics.htm#Pairs">https://shorewall.org/configuration_file_basics.htm#Pairs</ulink></para>
+
+    <para>prio(8), shorewall(8)</para>
+  </refsect1>
+</refentry>

@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-routes</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>routes</refname>
+
+    <refpurpose>Shorewall file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/etc/shorewall[6]/routes</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>This file was added in Shorewall 4.4.15 and is used to define routes
+    to be added to provider routing tables.</para>
+
+    <para>The columns in the file are as follows.</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><emphasis role="bold">PROVIDER</emphasis></term>
+
+        <listitem>
+          <para>The name or number of a provider defined in <ulink
+          url="shorewall-providers.html">shorewall-providers</ulink>
+          (5). Beginning with Shorewall 4.5.14, you may also enter
+          <option>main</option> in this column to add routes to the main
+          routing table.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">DEST</emphasis></term>
+
+        <listitem>
+          <para>Destination host address or network address.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">GATEWAY</emphasis> (Optional)</term>
+
+        <listitem>
+          <para>If specified, gives the IP address of the gateway to the
+          DEST.</para>
+
+          <para>Beginning with Shorewall 4.5.14, you may specify
+          <option>blackhole</option> in this column to create a
+          <firstterm>blackhole</firstterm> route.</para>
+
+          <para>Beginning with Shorewall 4.5.15, you may specify
+          <option>prohibit</option> or <option>unreachable</option> in this
+          column to create a <firstterm>prohibit</firstterm> or
+          <firstterm>unreachable</firstterm> route respectively.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">DEVICE</emphasis> (Optional)</term>
+
+        <listitem>
+          <para>Specifies the device route. If neither DEVICE nor GATEWAY is
+          given, then the INTERFACE specified for the PROVIDER in <ulink
+          url="shorewall-providers.html">shorewall-providers</ulink>
+          (5). This column must be omitted if <option>blackhole</option>,
+          <option>prohibit</option> or <option>unreachable</option> is
+          specified in the GATEWAY column.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">OPTIONS</emphasis> (Optional)</term>
+
+        <listitem>
+          <para>Added in Shorewall 5.0.2.</para>
+
+          <para>Allowed options are:</para>
+
+          <variablelist>
+            <varlistentry>
+              <term><emphasis role="bold">persistent</emphasis></term>
+
+              <listitem>
+                <para>If specified, the route remains in the provider's
+                routing table even when the provider is disabled.</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall/routes</para>
+
+    <para>/etc/shorewall6/routes</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para><ulink
+    url="../configuration_file_basics.htm#Pairs">https://shorewall.org/configuration_file_basics.htm#Pairs</ulink></para>
+
+    <para>shorewall(8)</para>
+  </refsect1>
+</refentry>

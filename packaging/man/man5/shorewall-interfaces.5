@@ -1,0 +1,1255 @@
+'\" t
+.\"     Title: shorewall-interfaces
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Configuration Files
+.\"    Source: Configuration Files
+.\"  Language: English
+.\"
+.TH "SHOREWALL\-INTERFACE" "5" "08/05/2026" "Configuration Files" "Configuration Files"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+interfaces \- Shorewall interfaces file
+.SH "SYNOPSIS"
+.HP \w'\fB/etc/shorewall[6]/interfaces\fR\ 'u
+\fB/etc/shorewall[6]/interfaces\fR
+.SH "DESCRIPTION"
+.PP
+The interfaces file serves to define the firewall\*(Aqs network interfaces to Shorewall\&. The order of entries in this file is not significant in determining zone composition\&.
+.PP
+Beginning with Shorewall 4\&.5\&.3, the interfaces file supports two different formats:
+.PP
+FORMAT 1 (default \- deprecated)
+.RS 4
+There is a BROADCAST column which can be used to specify the broadcast address associated with the interface\&.
+.RE
+.PP
+FORMAT 2
+.RS 4
+The BROADCAST column is omitted\&.
+.RE
+.PP
+The format is specified by a line as follows:
+.PP
+\fB?FORMAT {1|2}\fR
+.PP
+The columns in the file are as follows\&.
+.PP
+\fBZONE\fR \- \fIzone\-name\fR
+.RS 4
+Zone for this interface\&. Must match the name of a zone declared in /etc/shorewall/zones\&. You may not list the firewall zone in this column\&.
+.sp
+If the interface serves multiple zones that will be defined in the
+\m[blue]\fBshorewall\-hosts\fR\m[]\&\s-2\u[1]\d\s+2(5) file, you should place "\-" in this column\&.
+.sp
+If there are multiple interfaces to the same zone, you must list them in separate entries\&.
+.sp
+Example:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+#ZONE   INTERFACE       BROADCAST
+loc     eth1            \-
+loc     eth2            \-
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+\fBINTERFACE\fR \- \fIinterface\fR\fB[:\fR\fIport\fR\fB]\fR
+.RS 4
+Logical name of interface\&. Each interface may be listed only once in this file\&. You may NOT specify the name of a "virtual" interface (e\&.g\&., eth0:0) here; see
+\m[blue]\fBhttps://shorewall\&.org/FAQ\&.htm#faq18\fR\m[]\&\s-2\u[2]\d\s+2\&. If the
+\fBphysical\fR
+option is not specified, then the logical name is also the name of the actual interface\&.
+.sp
+You may use wildcards here by specifying a prefix followed by the plus sign ("+")\&. For example, if you want to make an entry that applies to all PPP interfaces, use \*(Aqppp+\*(Aq; that would match ppp0, ppp1, ppp2, \&...
+.sp
+When using Shorewall versions before 4\&.1\&.4, care must be exercised when using wildcards where there is another zone that uses a matching specific interface\&. See
+\m[blue]\fBshorewall\-nesting\fR\m[]\&\s-2\u[3]\d\s+2(5) for a discussion of this problem\&.
+.sp
+Shorewall allows \*(Aq+\*(Aq as an interface name, but that usage is deprecated\&. A better approach is to specify \*(Aq\fBphysical\fR=+\*(Aq in the OPTIONS column (see below)\&.
+.sp
+There is no need to define the loopback interface (lo) in this file\&.
+.sp
+If a
+\fIport\fR
+is given, then the
+\fIinterface\fR
+must have been defined previously with the
+\fBbridge\fR
+option\&. The OPTIONS column may not contain the following options when a
+\fIport\fR
+is given\&.
+.RS 4
+arp_filter
+.RE
+.RS 4
+arp_ignore
+.RE
+.RS 4
+bridge
+.RE
+.RS 4
+log_martians
+.RE
+.RS 4
+mss
+.RE
+.RS 4
+optional
+.RE
+.RS 4
+proxyarp
+.RE
+.RS 4
+required
+.RE
+.RS 4
+routefilter
+.RE
+.RS 4
+sourceroute
+.RE
+.RS 4
+upnp
+.RE
+.RS 4
+wait
+.RE
+Beginning with Shorewall 4\&.5\&.17, if you specify a zone for the \*(Aqlo\*(Aq interface, then that zone must be defined as type
+\fBlocal\fR
+in
+\m[blue]\fBshorewall6\-zones\fR\m[]\&\s-2\u[4]\d\s+2(5)\&.
+.RE
+.PP
+\fBBROADCAST\fR (Optional) \- {\fB\-\fR|\fBdetect\fR|\fIaddress\fR[,\fIaddress\fR]\&.\&.\&.}
+.RS 4
+Only available if FORMAT 1\&.
+.sp
+If you use the special value
+\fBdetect\fR, Shorewall will detect the broadcast address(es) for you if your iptables and kernel include Address Type Match support\&.
+.sp
+If your iptables and/or kernel lack Address Type Match support then you may list the broadcast address(es) for the network(s) to which the interface belongs\&. For P\-T\-P interfaces, this column is left blank\&. If the interface has multiple addresses on multiple subnets then list the broadcast addresses as a comma\-separated list\&.
+.sp
+If you don\*(Aqt want to give a value for this column but you want to enter a value in the OPTIONS column, enter
+\fB\-\fR
+in this column\&.
+.RE
+.PP
+\fBOPTIONS\fR (Optional) \- [\fIoption\fR[\fB,\fR\fIoption\fR]\&.\&.\&.]
+.RS 4
+A comma\-separated list of options from the following list\&. The order in which you list the options is not significant but the list should have no embedded white\-space\&.
+.PP
+\fBaccept_ra\fR[={0|1|2}]
+.RS 4
+IPv6 only; added in Shorewall 4\&.5\&.16\&. Values are:
+.PP
+0
+.RS 4
+Do not accept Router Advertisements\&.
+.RE
+.PP
+1
+.RS 4
+Accept Route Advertisements if forwarding is disabled\&.
+.RE
+.PP
+2
+.RS 4
+Overrule forwarding behavior\&. Accept Route Advertisements even if forwarding is enabled\&.
+.RE
+.sp
+If the option is specified without a value, then the value 1 is assumed\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+This option does not work with a wild\-card
+\fBphysical\fR
+name (e\&.g\&., eth0\&.+)\&. Beginning with Shorewall 5\&.1\&.10, If this option is specified, a warning is issued and the option is ignored\&.
+.sp .5v
+.RE
+.RE
+.PP
+\fBarp_filter[={0|1}]\fR
+.RS 4
+IPv4 only\&. If specified, this interface will only respond to ARP who\-has requests for IP addresses configured on the interface\&. If not specified, the interface can respond to ARP who\-has requests for IP addresses on any of the firewall\*(Aqs interface\&. The interface must be up when Shorewall is started\&.
+.sp
+Only those interfaces with the
+\fBarp_filter\fR
+option will have their setting changed; the value assigned to the setting will be the value specified (if any) or 1 if no value is given\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+This option does not work with a wild\-card
+\fBphysical\fR
+name (e\&.g\&., eth0\&.+)\&. Beginning with Shorewall 5\&.1\&.10, If this option is specified, a warning is issued and the option is ignored\&.
+.sp .5v
+.RE
+.RE
+.PP
+\fBarp_ignore\fR[=\fInumber\fR]
+.RS 4
+IPv4 only\&. If specified, this interface will respond to arp requests based on the value of
+\fInumber\fR
+(defaults to 1)\&.
+.sp
+1 \- reply only if the target IP address is local address configured on the incoming interface
+.sp
+2 \- reply only if the target IP address is local address configured on the incoming interface and the sender\*(Aqs IP address is part from same subnet on this interface\*(Aqs address
+.sp
+3 \- do not reply for local addresses configured with scope host, only resolutions for global and link
+.sp
+4\-7 \- reserved
+.sp
+8 \- do not reply for all local addresses
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+This option does not work with a wild\-card
+\fBphysical\fR
+name (e\&.g\&., eth0\&.+)\&. Beginning with Shorewall 5\&.1\&.10, If this option is specified, a warning is issued and the option is ignored\&.
+.sp .5v
+.RE
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBWarning\fR
+.ps -1
+.br
+Do not specify
+\fBarp_ignore\fR
+for any interface involved in
+\m[blue]\fBProxy ARP\fR\m[]\&\s-2\u[5]\d\s+2\&.
+.sp .5v
+.RE
+.RE
+.PP
+\fBblacklist\fR
+.RS 4
+Checks packets arriving on this interface against the
+\m[blue]\fBshorewall\-blacklist\fR\m[]\&\s-2\u[6]\d\s+2(5) file\&.
+.sp
+Beginning with Shorewall 4\&.4\&.13:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+If a
+\fIzone\fR
+is given in the ZONES column, then the behavior is as if
+\fBblacklist\fR
+had been specified in the IN_OPTIONS column of
+\m[blue]\fBshorewall\-zones\fR\m[]\&\s-2\u[4]\d\s+2(5)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Otherwise, the option is ignored with a warning:
+\fBWARNING: The \*(Aqblacklist\*(Aq option is ignored on multi\-zone interfaces\fR
+.RE
+.RE
+.PP
+\fBbridge\fR
+.RS 4
+Designates the interface as a bridge\&. Beginning with Shorewall 4\&.4\&.7, setting this option also sets
+\fBrouteback\fR\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+If you have a bridge that you don\*(Aqt intend to define bport zones on, then it is best to omit this option and simply specify
+\fBrouteback\fR\&.
+.sp .5v
+.RE
+.RE
+.PP
+\fBdbl={none|src|dst|src\-dst}\fR
+.RS 4
+Added in Shorewall 5\&.0\&.10\&. This option defined whether or not dynamic blacklisting is applied to packets entering the firewall through this interface and whether the source address and/or destination address is to be compared against the ipset\-based dynamic blacklist (DYNAMIC_BLACKLIST=ipset\&.\&.\&. in
+\m[blue]\fBshorewall\&.conf(5)\fR\m[]\&\s-2\u[7]\d\s+2)\&. The default is determine by the setting of DYNAMIC_BLACKLIST:
+.PP
+DYNAMIC_BLACKLIST=No
+.RS 4
+Default is
+\fBnone\fR
+(e\&.g\&., no dynamic blacklist checking)\&.
+.RE
+.PP
+DYNAMIC_BLACKLIST=Yes
+.RS 4
+Default is
+\fBsrc\fR
+(e\&.g\&., the source IP address is checked)\&.
+.RE
+.PP
+DYNAMIC_BLACKLIST=ipset[\-only]
+.RS 4
+Default is
+\fBsrc\fR\&.
+.RE
+.PP
+DYNAMIC_BLACKLIST=ipset[\-only],src\-dst\&.\&.\&.
+.RS 4
+Default is
+\fBsrc\-dst\fR
+(e\&.g\&., the source IP addresses in checked against the ipset on input and the destination IP address is checked against the ipset on packets originating from the firewall and leaving through this interface)\&.
+.RE
+.sp
+The normal setting for this option will be
+\fBdst\fR
+or
+\fBnone\fR
+for internal interfaces and
+\fBsrc\fR
+or
+\fBsrc\-dst\fR
+for Internet\-facing interfaces\&.
+.RE
+.PP
+\fBdestonly\fR
+.RS 4
+Added in Shorewall 4\&.5\&.17\&. Causes the compiler to omit rules to handle traffic from this interface\&.
+.RE
+.PP
+\fBdhcp\fR
+.RS 4
+Specify this option when any of the following are true:
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+the interface gets its IP address via DHCP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
+the interface is used by a DHCP server running on the firewall
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 3.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  3." 4.2
+.\}
+the interface has a static IP but is on a LAN segment with lots of DHCP clients\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 4.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  4." 4.2
+.\}
+the interface is a
+\m[blue]\fBsimple bridge\fR\m[]\&\s-2\u[8]\d\s+2
+with a DHCP server on one port and DHCP clients on another port\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+If you use
+\m[blue]\fBShorewall\-perl for firewall/bridging\fR\m[]\&\s-2\u[9]\d\s+2, then you need to include DHCP\-specific rules in
+\m[blue]\fBshorewall\-rules\fR\m[]\&\s-2\u[10]\d\s+2(5)\&. DHCP uses UDP ports 67 and 68\&.
+.sp .5v
+.RE
+.RE
+.sp
+This option allows DHCP datagrams to enter and leave the interface\&.
+.RE
+.PP
+\fBforward\fR[={0|1}]
+.RS 4
+IPv6 only Sets the /proc/sys/net/ipv6/conf/interface/forwarding option to the specified value\&. If no value is supplied, then 1 is assumed\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+This option does not work with a wild\-card
+\fBphysical\fR
+name (e\&.g\&., eth0\&.+)\&. Beginning with Shorewall 5\&.1\&.10, If this option is specified, a warning is issued and the option is ignored\&.
+.sp .5v
+.RE
+.RE
+.PP
+\fBignore[=1]\fR
+.RS 4
+When specified, causes the generated script to ignore up/down events from Shorewall\-init for this device\&. Additionally, the option exempts the interface from hairpin filtering\&. When \*(Aq=1\*(Aq is omitted, the ZONE column must contain \*(Aq\-\*(Aq and
+\fBignore\fR
+must be the only OPTION\&.
+.sp
+Beginning with Shorewall 4\&.5\&.5, may be specified as \*(Aq\fBignore=1\fR\*(Aq which only causes the generated script to ignore up/down events from Shorewall\-init; hairpin filtering is still applied\&. In this case, the above restrictions on the ZONE and OPTIONS columns are lifted\&.
+.RE
+.PP
+\fBloopback\fR
+.RS 4
+Added in Shorewall 4\&.6\&.6\&. Designates the interface as the loopback interface\&. This option is assumed if the interface\*(Aqs physical name is \*(Aqlo\*(Aq\&. Only one interface man have the
+\fBloopback\fR
+option specified\&.
+.RE
+.PP
+\fBlogmartians[={0|1}]\fR
+.RS 4
+IPv4 only\&. Turn on kernel martian logging (logging of packets with impossible source addresses\&. It is strongly suggested that if you set
+\fBroutefilter\fR
+on an interface that you also set
+\fBlogmartians\fR\&. Even if you do not specify the
+\fBroutefilter\fR
+option, it is a good idea to specify
+\fBlogmartians\fR
+because your distribution may have enabled route filtering without you knowing it\&.
+.sp
+Only those interfaces with the
+\fBlogmartians\fR
+option will have their setting changed; the value assigned to the setting will be the value specified (if any) or 1 if no value is given\&.
+.sp
+To find out if route filtering is set on a given
+\fIinterface\fR, check the contents of
+/proc/sys/net/ipv4/conf/\fIinterface\fR/rp_filter
+\- a non\-zero value indicates that route filtering is enabled\&.
+.sp
+Example:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+        teastep@lists:~$ \fBcat /proc/sys/net/ipv4/conf/eth0/rp_filter \fR
+        1
+        teastep@lists:~$ 
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+This option does not work with a wild\-card
+\fBphysical\fR
+name (e\&.g\&., eth0\&.+)\&. Beginning with Shorewall 5\&.1\&.10, If this option is specified, a warning is issued and the option is ignored\&.
+.sp .5v
+.RE
+This option may also be enabled globally in the
+\m[blue]\fBshorewall\&.conf\fR\m[]\&\s-2\u[7]\d\s+2(5) file\&.
+.RE
+.PP
+\fBmaclist\fR
+.RS 4
+Connection requests from this interface are compared against the contents of
+\m[blue]\fBshorewall\-maclist\fR\m[]\&\s-2\u[11]\d\s+2(5)\&. If this option is specified, the interface must be an Ethernet NIC and must be up before Shorewall is started\&.
+.RE
+.PP
+\fB\fBmss\fR\fR\fB=\fR\fInumber\fR
+.RS 4
+Added in Shorewall 4\&.0\&.3\&. Causes forwarded TCP SYN packets entering or leaving on this interface to have their MSS field set to the specified
+\fInumber\fR\&.
+.RE
+.PP
+\fBnets=(\fR\fB\fInet\fR\fR\fB[,\&.\&.\&.])\fR
+.RS 4
+Limit the zone named in the ZONE column to only the listed networks\&. The parentheses may be omitted if only a single
+\fInet\fR
+is given (e\&.g\&., nets=192\&.168\&.1\&.0/24)\&. Limited broadcast to the zone is supported\&. Beginning with Shorewall 4\&.4\&.1, multicast traffic to the zone is also supported\&.
+.RE
+.PP
+\fBnets=dynamic\fR
+.RS 4
+Defines the zone as
+dynamic\&. Requires ipset match support in your iptables and kernel\&. See
+\m[blue]\fBhttps://shorewall\&.org/Dynamic\&.html\fR\m[]\&\s-2\u[12]\d\s+2
+for further information\&.
+.RE
+.PP
+\fBnodbl\fR
+.RS 4
+Added in Shorewall 5\&.0\&.8\&. When specified, dynamic blacklisting is disabled on the interface\&. Beginning with Shorewall 5\&.0\&.10,
+\fBnodbl\fR
+is equivalent to
+\fBdbl=none\fR\&.
+.RE
+.PP
+\fBnosmurfs\fR
+.RS 4
+IPv4 only\&. Filter packets for smurfs (packets with a broadcast address as the source)\&.
+.sp
+Smurfs will be optionally logged based on the setting of SMURF_LOG_LEVEL in
+\m[blue]\fBshorewall\&.conf\fR\m[]\&\s-2\u[7]\d\s+2(5)\&. After logging, the packets are dropped\&.
+.RE
+.PP
+omitanycast
+.RS 4
+IPv6 only\&. Added in Shorewall 5\&.2\&.8\&.
+.sp
+Shorewall6 has traditionally generated rules for IPv6
+\fIanycast\fR
+addresses\&. These rules include:
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+Packets with these destination IP addresses are dropped by REJECT rules\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
+Packets with these source IP addresses are dropped by the \*(Aqnosmurfs\*(Aq interface option and by the \*(AqdropSmurfs\*(Aq action\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 3.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  3." 4.2
+.\}
+Packets with these destination IP addresses are not logged during policy enforcement\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 4.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  4." 4.2
+.\}
+Packets with these destination IP addresses are processes by the \*(AqBroadcast\*(Aq action\&.
+.RE
+.sp
+This can be inhibited for individual interfaces by specifying
+\fBnoanycast\fR
+for those interfaces\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+RFC 2526 describes IPv6 subnet anycast addresses\&. The RFC makes a distinction between subnets with "IPv6 address types required to have 64\-bit interface identifiers in EUI\-64 format" and all other subnets\&. When generating these anycast addresses, the Shorewall compiler does not make this distinction and unconditionally assumes that the last 128 addresses in the subnet are reserved as anycast addresses\&.
+.sp .5v
+.RE
+.RE
+.PP
+\fBoptional\fR
+.RS 4
+This option indicates that the firewall should be able to start, even if the interface is not usable for handling traffic\&. It allows use of the
+\fBenable\fR
+and
+\fBdisable\fR
+commands on the interface\&.
+.sp
+When
+\fBoptional\fR
+is specified for an interface, Shorewall will be silent when:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+a
+/proc/sys/net/ipv[46]/conf/
+entry for the interface cannot be modified (including for proxy ARP or proxy NDP)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The first address of the interface cannot be obtained\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The gateway of the interface can not be obtained (provider interface)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The interface has been disabled using the
+\fBdisable\fR
+command\&.
+.RE
+.sp
+May not be specified with
+\fBrequired\fR\&.
+.RE
+.PP
+\fBphysical\fR=\fB\fIname\fR\fR
+.RS 4
+Added in Shorewall 4\&.4\&.4\&. When specified, the interface or port name in the INTERFACE column is a logical name that refers to the name given in this option\&. It is useful when you want to specify the same wildcard port name on two or more bridges\&. See
+\m[blue]\fBhttps://shorewall\&.org/bridge\-Shorewall\-perl\&.html#Multiple\fR\m[]\&\s-2\u[13]\d\s+2\&.
+.sp
+If the
+\fIinterface\fR
+name is a wildcard name (ends with \*(Aq+\*(Aq), then the physical
+\fIname\fR
+must also end in \*(Aq+\*(Aq\&. The physical
+\fIname\fR
+may end in \*(Aq+\*(Aq (or be exactly \*(Aq+\*(Aq) when the
+\fIinterface\fR
+name is not a wildcard name\&.
+.sp
+If
+\fBphysical\fR
+is not specified, then it\*(Aqs value defaults to the
+\fIinterface\fR
+name\&.
+.RE
+.PP
+\fBproxyarp[={0|1}]\fR
+.RS 4
+IPv4 only\&. Sets /proc/sys/net/ipv4/conf/\fIinterface\fR/proxy_arp\&. Do NOT use this option if you are employing Proxy ARP through entries in
+\m[blue]\fBshorewall\-proxyarp\fR\m[]\&\s-2\u[14]\d\s+2(5)\&. This option is intended solely for use with Proxy ARP sub\-networking as described at:
+\m[blue]\fBhttp://tldp\&.org/HOWTO/Proxy\-ARP\-Subnet/index\&.html\&.\fR\m[]\&\s-2\u[15]\d\s+2
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+This option does not work with a wild\-card
+\fBphysical\fR
+name (e\&.g\&., eth0\&.+)\&. Beginning with Shorewall 5\&.1\&.10, If this option is specified, a warning is issued and the option is ignored\&.
+.sp .5v
+.RE
+Only those interfaces with the
+\fBproxyarp\fR
+option will have their setting changed; the value assigned to the setting will be the value specified (if any) or 1 if no value is given\&.
+.RE
+.PP
+\fBproxyndp\fR[={0|1}]
+.RS 4
+IPv6 only\&. Sets /proc/sys/net/ipv6/conf/\fIinterface\fR/proxy_ndp\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+This option does not work with a wild\-card
+\fBphysical\fR
+name (e\&.g\&., eth0\&.+)\&. Beginning with Shorewall 5\&.1\&.10, If this option is specified, a warning is issued and the option is ignored\&.
+.sp .5v
+.RE
+Only those interfaces with the
+\fBproxyndp\fR
+option will have their setting changed; the value assigned to the setting will be the value specified (if any) or 1 if no value is given\&.
+.RE
+.PP
+\fBrequired\fR
+.RS 4
+Added in Shorewall 4\&.4\&.10\&. If this option is set, the firewall will fail to start if the interface is not usable\&. May not be specified together with
+\fBoptional\fR\&.
+.RE
+.PP
+\fBrouteback[={0|1}]\fR
+.RS 4
+If specified, indicates that Shorewall should include rules that allow traffic arriving on this interface to be routed back out that same interface\&. This option is also required when you have used a wildcard in the INTERFACE column if you want to allow traffic between the interfaces that match the wildcard\&.
+.sp
+Beginning with Shorewall 4\&.4\&.20, if you specify this option, then you should also specify either
+\fBsfilter\fR
+(see below) or
+\fBroutefilter\fR
+on all interfaces (see below)\&.
+.sp
+Beginning with Shorewall 4\&.5\&.18, you may specify this option to explicitly reset (e\&.g\&.,
+\fBrouteback=0\fR)\&. This can be used to override Shorewall\*(Aqs default setting for bridge devices which is
+\fBrouteback=1\fR\&.
+.RE
+.PP
+\fBroutefilter[={0|1|2}]\fR
+.RS 4
+IPv4 only\&. Turn on kernel route filtering for this interface (anti\-spoofing measure)\&.
+.sp
+Only those interfaces with the
+\fBroutefilter\fR
+option will have their setting changes; the value assigned to the setting will be the value specified (if any) or 1 if no value is given\&.
+.sp
+The value 2 is only available with Shorewall 4\&.4\&.5\&.1 and later when the kernel version is 2\&.6\&.31 or later\&. It specifies a
+loose
+form of reverse path filtering\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+This option does not work with a wild\-card
+\fBphysical\fR
+name (e\&.g\&., eth0\&.+)\&. Beginning with Shorewall 5\&.1\&.10, If this option is specified, a warning is issued and the option is ignored\&.
+.sp .5v
+.RE
+This option can also be enabled globally via the ROUTE_FILTER option in the
+\m[blue]\fBshorewall\&.conf\fR\m[]\&\s-2\u[7]\d\s+2(5) file\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+If ROUTE_FILTER=Yes in
+\m[blue]\fBshorewall\&.conf\fR\m[]\&\s-2\u[7]\d\s+2(5), or if your distribution sets net\&.ipv4\&.conf\&.all\&.rp_filter=1 in
+/etc/sysctl\&.conf, then setting
+\fBroutefilter\fR=0 in an
+\fIinterface\fR
+entry will not disable route filtering on that
+\fIinterface\fR! The effective setting for an
+\fIinterface\fR
+is the maximum of the contents of
+/proc/sys/net/ipv4/conf/all/rp_filter
+and the routefilter setting specified in this file (/proc/sys/net/ipv4/conf/\fIinterface\fR/rp_filter)\&.
+.sp .5v
+.RE
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+There are certain cases where
+\fBroutefilter\fR
+cannot be used on an interface:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+If USE_DEFAULT_RT=Yes in
+\m[blue]\fBshorewall\&.conf\fR\m[]\&\s-2\u[7]\d\s+2(5) and the interface is listed in
+\m[blue]\fBshorewall\-providers\fR\m[]\&\s-2\u[16]\d\s+2(5)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+If there is an entry for the interface in
+\m[blue]\fBshorewall\-providers\fR\m[]\&\s-2\u[16]\d\s+2(5) that doesn\*(Aqt specify the
+\fBbalance\fR
+option\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+If IPSEC is used to allow a road\-warrior to have a local address, then any interface through which the road\-warrior might connect cannot specify
+\fBroutefilter\fR\&.
+.RE
+.sp .5v
+.RE
+Beginning with Shorewall 5\&.1\&.1, when
+\fBroutefilter\fR
+is set to a non\-zero value, the
+\fBlogmartians\fR
+option is also implicitly set\&. If you actually want route filtering without logging, then you must also specify
+\fBlogmartians=0\fR
+after
+\fBroutefilter\fR\&.
+.RE
+.PP
+\fBrpfilter\fR
+.RS 4
+Added in Shorewall 4\&.5\&.7\&. This is an anti\-spoofing measure that requires the \*(AqRPFilter Match\*(Aq capability in your iptables and kernel\&. It provides a more efficient alternative to the
+\fBsfilter\fR
+option below\&. It performs a function similar to
+\fBroutefilter\fR
+(see above) but works with Multi\-ISP configurations that do not use balanced routes\&.
+.RE
+.PP
+\fBsfilter=(\fR\fB\fInet\fR\fR\fB[,\&.\&.\&.])\fR
+.RS 4
+Added in Shorewall 4\&.4\&.20\&. This option provides an anti\-spoofing alternative to
+\fBroutefilter\fR
+on interfaces where that option cannot be used, but where the
+\fBrouteback\fR
+option is required (on a bridge, for example)\&. On these interfaces,
+\fBsfilter\fR
+should list those local networks that are connected to the firewall through other interfaces\&.
+.RE
+.PP
+\fBsourceroute[={0|1}]\fR
+.RS 4
+If this option is not specified for an interface, then source\-routed packets will not be accepted from that interface unless it has been explicitly enabled via sysconf\&. Only set this option to 1 (enable source routing) if you know what you are doing\&. This might represent a security risk and is usually unneeded\&.
+.sp
+Only those interfaces with the
+\fBsourceroute\fR
+option will have their setting changed; the value assigned to the setting will be the value specified (if any) or 1 if no value is given\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+This option does not work with a wild\-card
+\fBphysical\fR
+name (e\&.g\&., eth0\&.+)\&. Beginning with Shorewall 5\&.1\&.10, If this option is specified, a warning is issued and the option is ignored\&.
+.sp .5v
+.RE
+.RE
+.PP
+\fBtcpflags[={0|1}]\fR
+.RS 4
+Packets arriving on this interface are checked for certain illegal combinations of TCP flags\&. Packets found to have such a combination of flags are handled according to the setting of TCP_FLAGS_DISPOSITION after having been logged according to the setting of TCP_FLAGS_LOG_LEVEL\&.
+.sp
+Beginning with Shorewall 4\&.6\&.0, tcpflags=1 is the default\&. To disable this option, specify tcpflags=0\&.
+.RE
+.PP
+\fBunmanaged\fR
+.RS 4
+Added in Shorewall 4\&.5\&.18\&. Causes all traffic between the firewall and hosts on the interface to be accepted\&. When this option is given:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The ZONE column must contain \*(Aq\-\*(Aq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Only the following other options are allowed with
+\fBunmanaged\fR:
+.RS 4
+\fBarp_filter\fR
+.RE
+.RS 4
+\fBarp_ignore\fR
+.RE
+.RS 4
+\fBignore\fR
+.RE
+.RS 4
+\fBroutefilter\fR
+.RE
+.RS 4
+\fBoptional\fR
+.RE
+.RS 4
+\fBphysical\fR
+.RE
+.RS 4
+\fBroutefilter\fR
+.RE
+.RS 4
+\fBproxyarp\fR
+.RE
+.RS 4
+\fBproxyudp\fR
+.RE
+.RS 4
+\fBsourceroute\fR
+.RE
+.RE
+.RE
+.PP
+\fBupnp\fR
+.RS 4
+Incoming requests from this interface may be remapped via UPNP (upnpd)\&. See
+\m[blue]\fBhttps://shorewall\&.org/UPnP\&.html\fR\m[]\&\s-2\u[17]\d\s+2\&. Supported in IPv4 and in IPv6 in Shorewall 5\&.1\&.4 and later\&.
+.RE
+.PP
+\fBupnpclient\fR
+.RS 4
+This option is intended for laptop users who always run Shorewall on their system yet need to run UPnP\-enabled client apps such as Transmission (BitTorrent client)\&. The option causes Shorewall to detect the default gateway through the interface and to accept UDP packets from that gateway\&. Note that, like all aspects of UPnP, this is a security hole so use this option at your own risk\&. Supported in IPv4 and in IPv6 in Shorewall 5\&.1\&.4 and later\&.
+.RE
+.PP
+\fBwait\fR=\fIseconds\fR
+.RS 4
+Added in Shorewall 4\&.4\&.10\&. Causes the generated script to wait up to
+\fIseconds\fR
+seconds for the interface to become usable before applying the
+\fBrequired\fR
+or
+\fBoptional\fR
+options\&.
+.RE
+.RE
+.SH "EXAMPLE"
+.PP
+IPv4 Example 1:
+.RS 4
+Suppose you have eth0 connected to a DSL modem and eth1 connected to your local network and that your local subnet is 192\&.168\&.1\&.0/24\&. The interface gets its IP address via DHCP from subnet 206\&.191\&.149\&.192/27\&. You have a DMZ with subnet 192\&.168\&.2\&.0/24 using eth2\&. Your iptables and/or kernel do not support "Address Type Match" and you prefer to specify broadcast addresses explicitly rather than having Shorewall detect them\&.
+.sp
+Your entries for this setup would look like:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+?FORMAT 1
+#ZONE   INTERFACE BROADCAST        OPTIONS
+net     eth0      206\&.191\&.149\&.223  dhcp
+loc     eth1      192\&.168\&.1\&.255
+dmz     eth2      192\&.168\&.2\&.255
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+Example 2:
+.RS 4
+The same configuration without specifying broadcast addresses is:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+?FORMAT 2
+#ZONE   INTERFACE OPTIONS
+net     eth0      dhcp
+loc     eth1      
+dmz     eth2
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+Example 3:
+.RS 4
+You have a simple dial\-in system with no Ethernet connections\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+?FORMAT 2
+#ZONE   INTERFACE OPTIONS
+net     ppp0      \-
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+Example 4 (Shorewall 4\&.4\&.9 and later):
+.RS 4
+You have a bridge with no IP address and you want to allow traffic through the bridge\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+?FORMAT 2
+#ZONE   INTERFACE OPTIONS
+\-       br0       bridge
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.SH "FILES"
+.PP
+/etc/shorewall/interfaces
+.PP
+/etc/shorewall6/interfaces
+.SH "SEE ALSO"
+.PP
+\m[blue]\fBhttps://shorewall\&.org/configuration_file_basics\&.htm#Pairs\fR\m[]\&\s-2\u[18]\d\s+2
+.PP
+shorewall(8)
+.SH "NOTES"
+.IP " 1." 4
+shorewall-hosts
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-hosts.html
+.RE
+.IP " 2." 4
+https://shorewall.org/FAQ.htm#faq18
+.RS 4
+\%[set $man.base.url.for.relative.links]/../FAQ.htm#faq18
+.RE
+.IP " 3." 4
+shorewall-nesting
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-nesting.html
+.RE
+.IP " 4." 4
+shorewall6-zones
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-zones.html
+.RE
+.IP " 5." 4
+Proxy ARP
+.RS 4
+\%[set $man.base.url.for.relative.links]/../ProxyARP.htm
+.RE
+.IP " 6." 4
+shorewall-blacklist
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-blacklist.html
+.RE
+.IP " 7." 4
+shorewall.conf(5)
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall.conf.html
+.RE
+.IP " 8." 4
+simple bridge
+.RS 4
+\%[set $man.base.url.for.relative.links]/../SimpleBridge.html
+.RE
+.IP " 9." 4
+Shorewall-perl for firewall/bridging
+.RS 4
+\%[set $man.base.url.for.relative.links]/../bridge-Shorewall-perl.html
+.RE
+.IP "10." 4
+shorewall-rules
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-rules.html
+.RE
+.IP "11." 4
+shorewall-maclist
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-maclist.html
+.RE
+.IP "12." 4
+https://shorewall.org/Dynamic.html
+.RS 4
+\%[set $man.base.url.for.relative.links]/../Dynamic.html
+.RE
+.IP "13." 4
+https://shorewall.org/bridge-Shorewall-perl.html#Multiple
+.RS 4
+\%[set $man.base.url.for.relative.links]/../bridge-Shorewall-perl.html#Multiple
+.RE
+.IP "14." 4
+shorewall-proxyarp
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-proxyarp.html
+.RE
+.IP "15." 4
+http://tldp.org/HOWTO/Proxy-ARP-Subnet/index.html.
+.RS 4
+\%http://tldp.org/HOWTO/Proxy-ARP-Subnet/index.html
+.RE
+.IP "16." 4
+shorewall-providers
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-providers.html
+.RE
+.IP "17." 4
+https://shorewall.org/UPnP.html
+.RS 4
+\%[set $man.base.url.for.relative.links]/../UPnP.html
+.RE
+.IP "18." 4
+https://shorewall.org/configuration_file_basics.htm#Pairs
+.RS 4
+\%[set $man.base.url.for.relative.links]/../configuration_file_basics.htm#Pairs
+.RE

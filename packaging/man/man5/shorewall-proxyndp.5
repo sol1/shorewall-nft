@@ -1,0 +1,129 @@
+'\" t
+.\"     Title: shorewall6-proxyndp
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Configuration Files
+.\"    Source: Configuration Files
+.\"  Language: English
+.\"
+.TH "SHOREWALL6\-PROXYNDP" "5" "08/05/2026" "Configuration Files" "Configuration Files"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+proxyndp \- Shorewall6 Proxy NDP file
+.SH "SYNOPSIS"
+.HP \w'\fB/etc/shorewall6/proxyndp\fR\ 'u
+\fB/etc/shorewall6/proxyndp\fR
+.SH "DESCRIPTION"
+.PP
+This file was added in Shorewall 4\&.4\&.16 and is used to define Proxy NDP\&. There is one entry in this file for each IPv6 address to be proxied\&.
+.PP
+The columns in the file are as follows\&.
+.PP
+\fBADDRESS\fR \- \fIaddress\fR
+.RS 4
+IPv6 Address\&.
+.RE
+.PP
+\fBINTERFACE\fR \- \fIinterface\fR (Optional)
+.RS 4
+Local interface where system with the ip address in ADDRESS is connected\&. Only required when the HAVEROUTE column is left empty or is set to
+\fBno\fR
+or
+\fBNo\fR\&.
+.RE
+.PP
+\fBEXTERNAL\fR \- \fIinterface\fR
+.RS 4
+External Interface to be used to access this system from the Internet\&.
+.RE
+.PP
+\fBHAVEROUTE\fR \- [\fB\-\fR|\fBYes\fR|\fBNo\fR]
+.RS 4
+If there is already a route from the firewall to the host whose address is given, enter
+\fBYes\fR
+or
+\fByes\fR
+in this column\&. Otherwise, enter
+\fBno\fR
+or
+\fBNo\fR
+or leave the column empty and Shorewall will add the route for you\&. If Shorewall6 adds the route, its persistence depends on the value of the\fBPERSISTENT\fR
+column contains
+\fBYes\fR; otherwise,
+\fBshorewall6 stop\fR
+or
+\fBshorewall clear6\fR
+will delete the route\&.
+.RE
+.PP
+\fBPERSISTENT\fR \- [\fB\-\fR|\fBYes\fR|\fBNo\fR]
+.RS 4
+If HAVEROUTE is
+\fBNo\fR
+or
+\fBno\fR, then the value of this column determines if the route added by Shorewall persists after a
+\fBshorewall6 stop\fR
+or a
+\fBshorewall6 clear\fR\&. If this column contains
+\fBYes\fR
+or
+\fByes\fR
+then the route persists; If the column is empty or contains
+\fBNo\fR
+or
+\fBno\fR
+then the route is deleted by
+\fBshorewall6 stop\fR
+or
+\fBshorewall6 clear\fR\&.
+.RE
+.SH "EXAMPLE"
+.PP
+Example 1:
+.RS 4
+Host with IPv6 2001:470:b:227::44 is connected to interface eth1 and we want hosts attached via eth0 to be able to access it using that address\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+       #ADDRESS             INTERFACE       EXTERNAL
+       2001:470:b:227::44   eth1            eth0
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.SH "FILES"
+.PP
+/etc/shorewall6/proxyndp
+.SH "SEE ALSO"
+.PP
+\m[blue]\fBhttps://shorewall\&.org/configuration_file_basics\&.htm#Pairs\fR\m[]\&\s-2\u[1]\d\s+2
+.PP
+shorewall6(8), shorewall6\-accounting(5), shorewall6\-actions(5), shorewall6\-blacklist(5), shorewall6\-exclusion(5), shorewall6\-hosts(5), shorewall6\-interfaces(5), shorewall6\-maclist(5), shorewall6\-nesting(5), shorewall6\-netmap(5),shorewall6\-params(5), shorewall6\-policy(5), shorewall6\-providers(5), shorewall6\-rtrules(5), shorewall6\-routestopped(5), shorewall6\-rules(5), shorewall6\&.conf(5), shorewall6\-secmarks(5), shorewall6\-tcclasses(5), shorewall6\-tcdevices(5), shorewall6\-mangle(5), shorewall6\-tos(5), shorewall6\-tunnels(5), shorewall6\-zones(5)
+.SH "NOTES"
+.IP " 1." 4
+https://shorewall.org/configuration_file_basics.htm#Pairs
+.RS 4
+\%[set $man.base.url.for.relative.links]/../configuration_file_basics.htm#Pairs
+.RE

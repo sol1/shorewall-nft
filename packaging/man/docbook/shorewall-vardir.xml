@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-vardir</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>vardir</refname>
+
+    <refpurpose>Shorewall file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/etc/shorewall[6]/vardir</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>This file does not exist by default. You may create the file if you
+    want to change the directory used by Shorewall to store state information,
+    including compiled firewall scripts. By default, the directory used is
+    <filename>/var/lib/shorewall/</filename> for IPv4 and /var/lib/shorewall6/
+    for IPv6</para>
+
+    <para>The file contains a single variable assignment:</para>
+
+    <para><option>VARDIR=</option><replaceable>directory</replaceable></para>
+
+    <para>where <replaceable>directory</replaceable> is the name of a
+    directory. If you add this file, you should copy the files from
+    <filename>/var/lib/shorewall</filename> to the new directory before
+    performing a <command>shorewall restart</command>.</para>
+  </refsect1>
+
+  <refsect1>
+    <title>Example</title>
+
+    <para>VARDIR=/root/shorewall</para>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall/vardir</para>
+
+    <para>/etc/shorewall6/vardir</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para>shorewall(8)</para>
+  </refsect1>
+</refentry>

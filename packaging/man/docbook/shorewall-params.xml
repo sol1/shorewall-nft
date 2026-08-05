@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-params</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>params</refname>
+
+    <refpurpose>Shorewall parameters file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/etc/shorewall[6]/params</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>Assign any shell variables that you need in this file. The file is
+    always processed by <filename>/bin/sh</filename> so the full range of
+    shell capabilities may be used.</para>
+
+    <para>It is suggested that variable names begin with an upper case letter
+    to distinguish them from variables used internally within the Shorewall
+    programs</para>
+
+    <para>The following variable names must be avoided. Those in <emphasis
+    role="bold">bold font</emphasis> must be avoided in all Shorewall
+    versions; those in regular font must be avoided in versions prior to
+    4.4.8.</para>
+
+    <simplelist>
+      <member><emphasis role="bold">Any option from <ulink
+      url="shorewall.conf.html">shorewall.conf</ulink>
+      (5)</emphasis></member>
+
+      <member><emphasis role="bold">COMMAND</emphasis></member>
+
+      <member><emphasis role="bold">CONFDIR</emphasis></member>
+
+      <member>DEBUG</member>
+
+      <member>ECHO_E</member>
+
+      <member>ECHO_N</member>
+
+      <member>EXPORT</member>
+
+      <member>FAST</member>
+
+      <member>FILEMODE</member>
+
+      <member>HOSTNAME</member>
+
+      <member>IPT_OPTIONS</member>
+
+      <member>NOROUTES</member>
+
+      <member>PREVIEW</member>
+
+      <member>PRODUCT</member>
+
+      <member>PROFILE</member>
+
+      <member>PURGE</member>
+
+      <member>RECOVERING</member>
+
+      <member>RESTOREPATH</member>
+
+      <member>RING_BELL</member>
+
+      <member><emphasis role="bold">SHAREDIR</emphasis></member>
+
+      <member><emphasis role="bold">Any name beginning with SHOREWALL_ or
+      SW_</emphasis></member>
+
+      <member>STOPPING</member>
+
+      <member>TEST</member>
+
+      <member>TIMESTAMP</member>
+
+      <member>USE_VERBOSITY</member>
+
+      <member><emphasis role="bold">VARDIR</emphasis></member>
+
+      <member>VERBOSE</member>
+
+      <member>VERBOSE_OFFSET</member>
+
+      <member>VERSION</member>
+    </simplelist>
+
+    <para>Example params file:</para>
+
+    <programlisting>NET_IF=eth0
+NET_BCAST=130.252.100.255
+NET_OPTIONS=routefilter</programlisting>
+
+    <para>Example <ulink
+    url="shorewall-interfaces.html">shorewall-interfaces</ulink>(5)
+    file.</para>
+
+    <programlisting>ZONE    INTERFACE       BROADCAST       OPTIONS
+net     $NET_IF         $NET_BCAST      $NET_OPTIONS</programlisting>
+
+    <para>This is the same as if the interfaces file had contained:</para>
+
+    <programlisting>ZONE    INTERFACE       BROADCAST       OPTIONS
+net     eth0            130.252.100.255 routefilter</programlisting>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall/params</para>
+
+    <para>/etc/shorewall6/params</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para><ulink
+    url="../configuration_file_basics.htm#Variables">https://shorewall.org/configuration_file_basics.htm#Variables</ulink></para>
+
+    <para>shorewall(8)</para>
+  </refsect1>
+</refentry>

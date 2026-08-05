@@ -1,0 +1,785 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall6-conntrack</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>conntrack</refname>
+
+    <refpurpose>shorewall conntrack file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/etc/shorewall[6]/conntrack</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>The original intent of the <emphasis role="bold">notrack</emphasis>
+    file was to exempt certain traffic from Netfilter connection tracking.
+    Traffic matching entries in the file were not to be tracked.</para>
+
+    <para>The role of the file was expanded in Shorewall 4.4.27 to include all
+    rules that can be added in the Netfilter <emphasis
+    role="bold">raw</emphasis> table. In 4.5.7, the file's name was changed to
+    <emphasis role="bold">conntrack</emphasis>.</para>
+
+    <para>The file supports three different column layouts: FORMAT 1, FORMAT
+    2, and FORMAT 3 with FORMAT 1 being the default. The three differ as
+    follows:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>in FORMAT 2 and 3, there is an additional leading ACTION
+        column.</para>
+      </listitem>
+
+      <listitem>
+        <para>in FORMAT 3, the SOURCE column accepts no zone name; rather the
+        ACTION column allows a SUFFIX that determines the chain(s) that the
+        generated rule will be added to.</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>When an entry in the following form is encountered, the format of
+    the following entries are assumed to be of the specified
+    <replaceable>format</replaceable>.</para>
+
+    <simplelist>
+      <member><emphasis role="bold">?FORMAT</emphasis>
+      <replaceable>format</replaceable></member>
+    </simplelist>
+
+    <para>where <replaceable>format</replaceable> is either <emphasis
+    role="bold">1</emphasis>,<emphasis role="bold">2</emphasis> or <emphasis
+    role="bold">3</emphasis>.</para>
+
+    <para>Format 3 was introduced in Shorewall 4.5.10.</para>
+
+    <para>Comments may be attached to Netfilter rules generated from entries
+    in this file through the use of ?COMMENT lines. These lines begin with
+    ?COMMENT; the remainder of the line is treated as a comment which is
+    attached to subsequent rules until another ?COMMENT line is found or until
+    the end of the file is reached. To stop adding comments to rules, use a
+    line containing only ?COMMENT.</para>
+
+    <para>The columns in the file are as follows (where the column name is
+    followed by a different name in parentheses, the different name is used in
+    the alternate specification syntax).</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><emphasis role="bold">ACTION</emphasis> - {<emphasis
+        role="bold">NOTRACK</emphasis>|<emphasis
+        role="bold">CT</emphasis>:<emphasis
+        role="bold">helper</emphasis>:<replaceable>name</replaceable>[(<replaceable>arg</replaceable>=<replaceable>val</replaceable>[,...])|<emphasis
+        role="bold">CT:ctevents:<replaceable>event</replaceable>[,...]|CT:expevents:new</emphasis><emphasis
+        role="bold">|CT:notrack</emphasis>|DROP|LOG|ULOG(<replaceable>ulog-parameters</replaceable>):NFLOG(<replaceable>nflog-parameters</replaceable>)|IP[6]TABLES(<replaceable>target</replaceable>)}[<replaceable>log-level</replaceable>[:<replaceable>log-tag</replaceable>]][:<replaceable>chain-designator</replaceable>]</term>
+
+        <listitem>
+          <para>This column is only present when FORMAT &gt;= 2. Values other
+          than NOTRACK or DROP require <firstterm>CT Target
+          </firstterm>support in your iptables and kernel.</para>
+
+          <itemizedlist>
+            <listitem>
+              <para><option>NOTRACK</option> or
+              <option>CT:notrack</option></para>
+
+              <para>Disables connection tracking for this packet. If a
+              <replaceable>log-level</replaceable> is specified, the packet
+              will also be logged at that level.</para>
+            </listitem>
+
+            <listitem>
+              <para><option>CT:helper</option>:<replaceable>name</replaceable></para>
+
+              <para>Attach the helper identified by the
+              <replaceable>name</replaceable> to this connection. This is more
+              flexible than loading the conntrack helper with preset ports. If
+              a <replaceable>log-level</replaceable> is specified, the packet
+              will also be logged at that level. Beginning with Shorewall
+              4.6.10, the helper name is optional</para>
+
+              <para>At this writing, the available helpers are:</para>
+
+              <variablelist>
+                <varlistentry>
+                  <term>amanda</term>
+
+                  <listitem>
+                    <para>Requires that the amanda netfilter helper is
+                    present.</para>
+                  </listitem>
+                </varlistentry>
+
+                <varlistentry>
+                  <term>ftp</term>
+
+                  <listitem>
+                    <para>Requires that the FTP netfilter helper is
+                    present.</para>
+                  </listitem>
+                </varlistentry>
+
+                <varlistentry>
+                  <term>irc</term>
+
+                  <listitem>
+                    <para>Requires that the IRC netfilter helper is
+                    present.</para>
+                  </listitem>
+                </varlistentry>
+
+                <varlistentry>
+                  <term>netbios-ns</term>
+
+                  <listitem>
+                    <para>Requires that the netbios_ns (sic) helper is
+                    present.</para>
+                  </listitem>
+                </varlistentry>
+
+                <varlistentry>
+                  <term>RAS and Q.931</term>
+
+                  <listitem>
+                    <para>These require that the H323 netfilter helper is
+                    present.</para>
+                  </listitem>
+                </varlistentry>
+
+                <varlistentry>
+                  <term>pptp</term>
+
+                  <listitem>
+                    <para>Requires that the pptp netfilter helper is
+                    present.</para>
+                  </listitem>
+                </varlistentry>
+
+                <varlistentry>
+                  <term>sane</term>
+
+                  <listitem>
+                    <para>Requires that the SANE netfilter helper is
+                    present.</para>
+                  </listitem>
+                </varlistentry>
+
+                <varlistentry>
+                  <term>sip</term>
+
+                  <listitem>
+                    <para>Requires that the SIP netfilter helper is
+                    present.</para>
+                  </listitem>
+                </varlistentry>
+
+                <varlistentry>
+                  <term>snmp</term>
+
+                  <listitem>
+                    <para>Requires that the SNMP netfilter helper is
+                    present.</para>
+                  </listitem>
+                </varlistentry>
+
+                <varlistentry>
+                  <term>tftp</term>
+
+                  <listitem>
+                    <para>Requires that the TFTP netfilter helper is
+                    present.</para>
+                  </listitem>
+                </varlistentry>
+              </variablelist>
+
+              <para>May be followed by an option list of
+              <replaceable>arg</replaceable>=<replaceable>val</replaceable>
+              pairs in parentheses:</para>
+
+              <itemizedlist>
+                <listitem>
+                  <para><option>ctevents</option>=<replaceable>event</replaceable>[,...]</para>
+
+                  <para>Only generate the specified conntrack events for this
+                  connection. Possible event types are: <emphasis
+                  role="bold">new</emphasis>, <emphasis
+                  role="bold">related</emphasis>, <emphasis
+                  role="bold">destroy</emphasis>, <emphasis
+                  role="bold">reply</emphasis>, <emphasis
+                  role="bold">assured</emphasis>, <emphasis
+                  role="bold">protoinfo</emphasis>, <emphasis
+                  role="bold">helper</emphasis>, <emphasis
+                  role="bold">mark</emphasis> (this is connection mark, not
+                  packet mark), <emphasis role="bold">natseqinfo</emphasis>,
+                  and <emphasis role="bold">secmark</emphasis>. If more than
+                  one <emphasis>event</emphasis> is listed, the
+                  <replaceable>event</replaceable> list must be enclosed in
+                  parentheses (e.g., ctevents=(new,related)).</para>
+                </listitem>
+
+                <listitem>
+                  <para><option>expevents</option><option>=new</option></para>
+
+                  <para>Only generate a <emphasis role="bold">new</emphasis>
+                  expectation events for this connection.</para>
+                </listitem>
+              </itemizedlist>
+            </listitem>
+
+            <listitem>
+              <para>ctevents:<replaceable>event</replaceable>[,...]</para>
+
+              <para>Added in Shorewall 4.6.10. Only generate the specified
+              conntrack events for this connection. Possible event types are:
+              <emphasis role="bold">new</emphasis>, <emphasis
+              role="bold">related</emphasis>, <emphasis
+              role="bold">destroy</emphasis>, <emphasis
+              role="bold">reply</emphasis>, <emphasis
+              role="bold">assured</emphasis>, <emphasis
+              role="bold">protoinfo</emphasis>, <emphasis
+              role="bold">helper</emphasis>, <emphasis
+              role="bold">mark</emphasis> (this is connection mark, not packet
+              mark), <emphasis role="bold">natseqinfo</emphasis>, and
+              <emphasis role="bold">secmark</emphasis>.</para>
+            </listitem>
+
+            <listitem>
+              <para>expevents=new</para>
+
+              <para>Added in Shorewall 4.6.10. Only generate <emphasis
+              role="bold">new</emphasis> expectation events for this
+              connection.</para>
+            </listitem>
+
+            <listitem>
+              <para><option>DROP</option></para>
+
+              <para>Added in Shorewall 4.5.10. Silently discard the packet. If
+              a <replaceable>log-level</replaceable> is specified, the packet
+              will also be logged at that level.</para>
+            </listitem>
+
+            <listitem>
+              <para><option>IP6TABLES</option>(<replaceable>target</replaceable>)</para>
+
+              <para>IPv6 only.</para>
+
+              <para>Added in Shorewall 4.6.0. Allows you to specify any
+              iptables <replaceable>target</replaceable> with target options
+              (e.g., "IP6TABLES(AUDIT --type drop)"). If the target is not one
+              recognized by Shorewall, the following error message will be
+              issued:</para>
+
+              <simplelist>
+                <member>ERROR: Unknown target
+                (<replaceable>target</replaceable>)</member>
+              </simplelist>
+
+              <para>This error message may be eliminated by adding
+              <replaceable>target</replaceable> as a builtin action in <ulink
+              url="shorewall-actions.html">shorewall-actions</ulink>(5).</para>
+            </listitem>
+
+            <listitem>
+              <para><option>IPTABLES</option>(<replaceable>target</replaceable>)</para>
+
+              <para>IPv4 only.</para>
+
+              <para>Added in Shorewall 4.6.0. Allows you to specify any
+              iptables <replaceable>target</replaceable> with target options
+              (e.g., "IPTABLES(AUDIT --type drop)"). If the target is not one
+              recognized by Shorewall, the following error message will be
+              issued:</para>
+
+              <simplelist>
+                <member>ERROR: Unknown target
+                (<replaceable>target</replaceable>)</member>
+              </simplelist>
+
+              <para>This error message may be eliminated by adding
+              <replaceable>target</replaceable> as a builtin action in <ulink
+              url="shorewall-actions.html">shorewall-actions</ulink>(5).</para>
+            </listitem>
+
+            <listitem>
+              <para><option>LOG</option></para>
+
+              <para>Added in Shoreawll 4.6.0. Logs the packet using the
+              specified <replaceable>log-level</replaceable> and<replaceable>
+              log-tag </replaceable>(if any). If no log-level is specified,
+              then 'info' is assumed.</para>
+            </listitem>
+
+            <listitem>
+              <para><option>NFLOG</option></para>
+
+              <para>Added in Shoreawll 4.6.0. Queues the packet to a backend
+              logging daemon using the NFLOG netfilter target with the
+              specified <replaceable>nflog-parameters</replaceable>.</para>
+            </listitem>
+
+            <listitem>
+              <para><option>ULOG</option></para>
+
+              <para>IPv4 only. Added in Shoreawll 4.6.0. Queues the packet to
+              a backend logging daemon using the ULOG netfilter target with
+              the specified <replaceable>ulog-parameters</replaceable>.</para>
+            </listitem>
+          </itemizedlist>
+
+          <para>When FORMAT = 1, this column is not present and the rule is
+          processed as if NOTRACK had been entered in this column.</para>
+
+          <para>Beginning with Shorewall 4.5.10, when FORMAT = 3, this column
+          can end with a colon followed by a
+          <replaceable>chain-designator</replaceable>. The
+          <replaceable>chain-designator</replaceable> can be one of the
+          following:</para>
+
+          <variablelist>
+            <varlistentry>
+              <term>P</term>
+
+              <listitem>
+                <para>The rule is added to the raw table PREROUTING chain.
+                This is the default if no
+                <replaceable>chain-designator</replaceable> is present.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>O</term>
+
+              <listitem>
+                <para>The rule is added to the raw table OUTPUT chain.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>PO or OP</term>
+
+              <listitem>
+                <para>The rule is added to the raw table PREROUTING and OUTPUT
+                chains.</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>SOURCE (formats 1 and 2) ‒
+        {<emphasis>zone</emphasis>[:<emphasis>interface</emphasis>][:<emphasis>address-list</emphasis>]}</term>
+
+        <listitem>
+          <para>where <replaceable>zone</replaceable> is the name of a zone,
+          <replaceable>interface</replaceable> is an interface to that zone,
+          and <replaceable>address-list</replaceable> is a comma-separated
+          list of addresses (may contain exclusion - see <ulink
+          url="shorewall-exclusion.html">shorewall-exclusion</ulink>
+          (5)).</para>
+
+          <para>Beginning with Shorewall 4.5.7, <option>all</option> can be
+          used as the <replaceable>zone</replaceable> name to mean
+          <firstterm>all zones</firstterm>.</para>
+
+          <para>Beginning with Shorewall 4.5.10, <option>all-</option> can be
+          used as the <replaceable>zone</replaceable> name to mean all
+          <firstterm>off-firewall zone</firstterm>s.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>SOURCE (format 3 prior to Shorewall 5.1.0) ‒
+        {-|<emphasis>interface</emphasis>[:<emphasis>address-list</emphasis>]|<replaceable>address-list</replaceable>}</term>
+
+        <listitem>
+          <para>Where <replaceable>interface</replaceable> is an interface to
+          that zone, and <replaceable>address-list</replaceable> is a
+          comma-separated list of addresses (may contain exclusion - see
+          <ulink
+          url="shorewall-exclusion.html">shorewall-exclusion</ulink>
+          (5)).</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">SOURCE (format 3 on Shorewall 5.1.0 and
+        later) -
+        {-|[<replaceable>source-spec</replaceable>[,...]]}</emphasis></term>
+
+        <listitem>
+          <para>where <replaceable>source-spec</replaceable> is one of the
+          following:</para>
+
+          <variablelist>
+            <varlistentry>
+              <term><replaceable>interface</replaceable></term>
+
+              <listitem>
+                <para>Where interface is the logical name of an interface
+                defined in <ulink
+                url="shorewall-interfaces.html">shorewall-interface</ulink>(5).</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><replaceable>address</replaceable>[,...][<replaceable>exclusion</replaceable>]</term>
+
+              <listitem>
+                <para>where <replaceable>address</replaceable> may be:</para>
+
+                <itemizedlist>
+                  <listitem>
+                    <para>A host or network IP address.</para>
+                  </listitem>
+
+                  <listitem>
+                    <para>A MAC address in Shorewall format (preceded by a
+                    tilde ("~") and using dash ("-") as a separator.</para>
+                  </listitem>
+
+                  <listitem>
+                    <para>The name of an ipset preceded by a plus sign ("+").
+                    See <ulink
+                    url="shorewall-ipsets.html">shorewall-ipsets</ulink>(5).</para>
+                  </listitem>
+                </itemizedlist>
+
+                <para><replaceable>exclusion</replaceable> is described in
+                <ulink
+                url="shorewall-exclusion.html">shorewall-exclusion</ulink>(5).</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><replaceable>interface</replaceable>:<replaceable>address</replaceable>[,...][<replaceable>exclusion</replaceable>]</term>
+
+              <listitem>
+                <para>This form combines the preceding two and requires that
+                both the incoming interface and source address match.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><replaceable>exclusion</replaceable></term>
+
+              <listitem>
+                <para>See <ulink
+                url="shorewall-exclusion.html">shorewall-exclusion</ulink>
+                (5)</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+
+          <para>Beginning with Shorewall 5.1.0, multiple
+          <replaceable>source-spec</replaceable>s separated by commas may be
+          specified provided that the following alternative forms are
+          used:</para>
+
+          <blockquote>
+            <para>(<replaceable>address</replaceable>[,...][<replaceable>exclusion</replaceable>])</para>
+
+            <para><replaceable>interface</replaceable>:(<replaceable>address</replaceable>[,...][<replaceable>exclusion</replaceable>])</para>
+
+            <para>(<replaceable>exclusion</replaceable>)</para>
+          </blockquote>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>DEST (Prior to Shorewall 5.1.0) ‒
+        {-|<emphasis>interface</emphasis>[:<emphasis>address-list</emphasis>]|<replaceable>address-list</replaceable>}</term>
+
+        <listitem>
+          <para>where <replaceable>address-list</replaceable> is a
+          comma-separated list of addresses (may contain exclusion - see
+          <ulink
+          url="shorewall-exclusion.html">shorewall-exclusion</ulink>
+          (5)).</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">DEST (Shorewall 5.1.0 and later) -
+        {-|<replaceable>dest-spec</replaceable>[,...]}</emphasis></term>
+
+        <listitem>
+          <para>where <replaceable>dest-spec</replaceable> is one of the
+          following:</para>
+
+          <variablelist>
+            <varlistentry>
+              <term><replaceable>interface</replaceable></term>
+
+              <listitem>
+                <para>Where interface is the logical name of an interface
+                defined in <ulink
+                url="shorewall-interfaces.html">shorewall-interface</ulink>(5).</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><replaceable>address</replaceable>[,...][<replaceable>exclusion</replaceable>]</term>
+
+              <listitem>
+                <para>where <replaceable>address</replaceable> may be:</para>
+
+                <itemizedlist>
+                  <listitem>
+                    <para>A host or network IP address.</para>
+                  </listitem>
+
+                  <listitem>
+                    <para>A MAC address in Shorewall format (preceded by a
+                    tilde ("~") and using dash ("-") as a separator.</para>
+                  </listitem>
+
+                  <listitem>
+                    <para>The name of an ipset preceded by a plus sign ("+").
+                    See <ulink
+                    url="shorewall-ipsets.html">shorewall-ipsets</ulink>(5).</para>
+                  </listitem>
+                </itemizedlist>
+
+                <para><replaceable>exclusion</replaceable> is described in
+                <ulink
+                url="shorewall-exclusion.html">shorewall-exclusion</ulink>(5).</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><replaceable>interface</replaceable>:<replaceable>address</replaceable>[,...][<replaceable>exclusion</replaceable>]</term>
+
+              <listitem>
+                <para>This form combines the preceding two and requires that
+                both the outgoing interface and destination address
+                match.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><replaceable>exclusion</replaceable></term>
+
+              <listitem>
+                <para>See <ulink
+                url="shorewall-exclusion.html">shorewall-exclusion</ulink>
+                (5)</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+
+          <para>Beginning with Shorewall 5.1.0, multiple source-specs
+          separated by commas may be specified provided that the following
+          alternative forms are used:</para>
+
+          <blockquote>
+            <para>(<replaceable>address</replaceable>[,...][<replaceable>exclusion</replaceable>])</para>
+
+            <para><replaceable>interface</replaceable>:(<replaceable>address</replaceable>[,...][<replaceable>exclusion</replaceable>])</para>
+
+            <para>(<replaceable>exclusion</replaceable>)</para>
+          </blockquote>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>PROTO ‒
+        <replaceable>protocol-name-or-number</replaceable>[,...]</term>
+
+        <listitem>
+          <para>A protocol name from <filename>/etc/protocols</filename> or a
+          protocol number. tcp and 6 may be optionally followed by <emphasis
+          role="bold">:syn </emphasis>to match only the SYN packet (first
+          packet in the three-way handshake).</para>
+
+          <para>Beginning with Shorewall 4.5.12, this column can accept a
+          comma-separated list of protocols and either <emphasis
+          role="bold">proto</emphasis> or <emphasis
+          role="bold">protos</emphasis> is accepted in the alternate input
+          format.</para>
+
+          <para>Beginning with Shorewall 5.1.11, when <emphasis
+          role="bold">tcp</emphasis> or <emphasis role="bold">6</emphasis> is
+          specified and the ACTION is <emphasis role="bold">CT</emphasis>, the
+          compiler will default to <emphasis role="bold">:syn</emphasis>. If
+          you wish the rule to match packets with any valid combination of TCP
+          flags, you may specify <emphasis role="bold">tcp:all</emphasis> or
+          <emphasis role="bold">6:all</emphasis>.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>DPORT - port-number/service-name-list</term>
+
+        <listitem>
+          <para>A comma-separated list of port numbers and/or service names
+          from <filename>/etc/services</filename>. May also include port
+          ranges of the form
+          <replaceable>low-port</replaceable>:<replaceable>high-port</replaceable>
+          if your kernel and iptables include port range support.</para>
+
+          <para>This column was formerly labelled DEST PORT(S).</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>SPORT - port-number/service-name-list</term>
+
+        <listitem>
+          <para>A comma-separated list of port numbers and/or service names
+          from <filename>/etc/services</filename>. May also include port
+          ranges of the form
+          <replaceable>low-port</replaceable>:<replaceable>high-port</replaceable>
+          if your kernel and iptables include port range support.</para>
+
+          <para>Beginning with Shorewall 4.5.15, you may place '=' in this
+          column, provided that the DPORT column is non-empty. This causes the
+          rule to match when either the source port or the destination port in
+          a packet matches one of the ports specified in DPORT. Use of '='
+          requires multi-port match in your iptables and kernel.</para>
+
+          <para>This column was formerly labelled SOURCE PORT(S).</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>USER ‒
+        [<replaceable>user</replaceable>][:<replaceable>group</replaceable>]</term>
+
+        <listitem>
+          <para>This column was formerly named USER/GROUP and may only be
+          specified if the SOURCE <replaceable>zone</replaceable> is $FW.
+          Specifies the effective user id and or group id of the process
+          sending the traffic.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">SWITCH -
+        [!]<replaceable>switch-name</replaceable>[={0|1}]</emphasis></term>
+
+        <listitem>
+          <para>Added in Shorewall 4.5.10 and allows enabling and disabling
+          the rule without requiring <command>shorewall
+          restart</command>.</para>
+
+          <para>The rule is enabled if the value stored in
+          <filename>/proc/net/nf_condition/<replaceable>switch-name</replaceable></filename>
+          is 1. The rule is disabled if that file contains 0 (the default). If
+          '!' is supplied, the test is inverted such that the rule is enabled
+          if the file contains 0.</para>
+
+          <para>Within the <replaceable>switch-name</replaceable>, '@0' and
+          '@{0}' are replaced by the name of the chain to which the rule is a
+          added. The <replaceable>switch-name</replaceable> (after '...'
+          expansion) must begin with a letter and be composed of letters,
+          decimal digits, underscores or hyphens. Switch names must be 30
+          characters or less in length.</para>
+
+          <para>Switches are normally <emphasis role="bold">off</emphasis>. To
+          turn a switch <emphasis role="bold">on</emphasis>:</para>
+
+          <simplelist>
+            <member><command>echo 1 &gt;
+            /proc/net/nf_condition/<replaceable>switch-name</replaceable></command></member>
+          </simplelist>
+
+          <para>To turn it <emphasis role="bold">off</emphasis> again:</para>
+
+          <simplelist>
+            <member><command>echo 0 &gt;
+            /proc/net/nf_condition/<replaceable>switch-name</replaceable></command></member>
+          </simplelist>
+
+          <para>Switch settings are retained over <command>shorewall
+          restart</command>.</para>
+
+          <para>When the <replaceable>switch-name</replaceable> is followed by
+          <option>=0</option> or <option>=1</option>, then the switch is
+          initialized to off or on respectively by the
+          <command>start</command> command. Other commands do not affect the
+          switch setting.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>EXAMPLE</title>
+
+    <para>IPv4 Example 1:</para>
+
+    <programlisting>#ACTION                       SOURCE            DEST               PROTO            DPORT             SPORT               USER
+CT:helper:ftp(expevents=new)  fw                -                  tcp              21              </programlisting>
+
+    <para>IPv4 Example 2 (Shorewall 4.5.10 or later):</para>
+
+    <para>Drop traffic to/from all zones to IP address 1.2.3.4</para>
+
+    <programlisting>?FORMAT 2
+#ACTION                       SOURCE             DEST               PROTO           DPORT             SPORT               USER
+DROP                          all-:1.2.3.4       -
+DROP                          all                1.2.3.4</programlisting>
+
+    <para>or<programlisting>?FORMAT 3
+#ACTION                       SOURCE             DEST               PROTO           DPORT             SPORT               USER
+DROP:P                        1.2.3.4            -
+DROP:PO                       -                  1.2.3.4
+</programlisting></para>
+
+    <para>IPv6 Example 1:</para>
+
+    <para>Use the FTP helper for TCP port 21 connections from the firewall
+    itself.</para>
+
+    <programlisting>FORMAT 2
+#ACTION                       SOURCE            DEST               PROTO            DPORT             SPORT               USER
+CT:helper:ftp(expevents=new)  fw                -                  tcp              21              </programlisting>
+
+    <para>IPv6 Example 2 (Shorewall 4.5.10 or later):</para>
+
+    <para>Drop traffic to/from all zones to IP address 2001:1.2.3::4</para>
+
+    <programlisting>FORMAT 2
+#ACTION                       SOURCE             DEST               PROTO            DPORT             SPORT               USER
+DROP                          all-:2001:1.2.3::4 -
+DROP                          all                2001:1.2.3::4
+</programlisting>
+
+    <para>or<programlisting>FORMAT 3
+#ACTION                       SOURCE             DEST               PROTO            DPORT             SPORT               USER
+DROP:P                        2001:1.2.3::4      -
+DROP:PO                       -                  2001:1.2.3::4</programlisting></para>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall/conntrack</para>
+
+    <para>/etc/shorewall6/conntrack</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para><ulink
+    url="../configuration_file_basics.htm#Pairs">https://shorewall.org/configuration_file_basics.htm#Pairs</ulink></para>
+
+    <para>shorewall(8)</para>
+  </refsect1>
+</refentry>

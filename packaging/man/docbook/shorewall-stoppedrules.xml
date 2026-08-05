@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-stoppedrules</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>stoppedrules</refname>
+
+    <refpurpose>The Shorewall file that governs what traffic flows through the
+    firewall while it is in the 'stopped' state.</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/etc/shorewall[6]/stoppedrules</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>This file is used to define the hosts that are accessible when the
+    firewall is stopped or is being stopped.</para>
+
+    <warning>
+      <para>Changes to this file do not take effect until after the next
+      <command>shorewall start</command>, <command>shorewall reload</command>,
+      <command>shorewall restart</command>, or <option>shorewall
+      compile</option> command.</para>
+    </warning>
+
+    <para>The columns in the file are as follows (where the column name is
+    followed by a different name in parentheses, the different name is used in
+    the alternate specification syntax).</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><emphasis role="bold">ACTION</emphasis> -
+        <option>ACCEPT|NOTRACK|DROP</option></term>
+
+        <listitem>
+          <para>Determines the disposition of the packet.</para>
+
+          <para><option>ACCEPT</option> means that the packet will be
+          accepted.</para>
+
+          <para><option>NOTRACK</option> indicates that no conntrack entry
+          should be created for the packet. <option>NOTRACK</option> does not
+          imply <option>ACCEPT</option>.</para>
+
+          <para><option>DROP</option> was added in Shorewall 4.6.0 and causes
+          the packet to be dropped in the raw table's PREROUTING chain.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">SOURCE</emphasis> - [<emphasis
+        role="bold">-</emphasis>|[$FW|<replaceable>interface</replaceable>]|[{$FW|interface}[<emphasis>:address</emphasis>[,<emphasis>address</emphasis>]...]]|[<emphasis>address</emphasis>[,<emphasis>address</emphasis>]...]</term>
+
+        <listitem>
+          <para><option>$FW</option> matches packets originating on the
+          firewall itself, while <replaceable>interface</replaceable>
+          specifies packets arriving on the named interface.</para>
+
+          <para>This column may also include a comma-separated list of
+          IP/subnet addresses. If your kernel and iptables include iprange
+          match support, IP address ranges are also allowed. Ipsets and
+          exclusion are also supported. When <option>$FW</option> or interface
+          are specified, the list must be preceded by a colon (":").</para>
+
+          <para>If left empty or supplied as "-", 0.0.0.0/0 is assumed.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">DEST</emphasis> - [<emphasis
+        role="bold">-</emphasis>|[$FW|<replaceable>interface</replaceable>]|[{$FW|interface}[<emphasis>:address</emphasis>[,<emphasis>address</emphasis>]...]]|[<emphasis>address</emphasis>[,<emphasis>address</emphasis>]...]</term>
+
+        <listitem>
+          <para><option>$FW</option> matches packets addressed the firewall
+          itself, while <replaceable>interface</replaceable> specifies packets
+          arriving on the named interface. Neither may be specified if the
+          target is <option>NOTRACK</option> or <option>DROP</option>.</para>
+
+          <para>This column may also include a comma-separated list of
+          IP/subnet addresses. If your kernel and iptables include iprange
+          match support, IP address ranges are also allowed. Ipsets and
+          exclusion are also supported. When <option>$FW</option> or interface
+          are specified, the list must be preceded by a colon (":").</para>
+
+          <para>If left empty or supplied as "-", 0.0.0.0/0 is assumed.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">PROTO (Optional)</emphasis> ‒
+        <replaceable>protocol-name-or-number</replaceable>[,...]</term>
+
+        <listitem>
+          <para>Protocol.</para>
+
+          <para>Beginning with Shorewall 4.5.12, this column can accept a
+          comma-separated list of protocols.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">DPORT</emphasis> ‒
+        <replaceable>service-name/port-number-list</replaceable></term>
+
+        <listitem>
+          <para>Optional. A comma-separated list of port numbers and/or
+          service names from <filename>/etc/services</filename>. May also
+          include port ranges of the form
+          <replaceable>low-port</replaceable>:<replaceable>high-port</replaceable>
+          if your kernel and iptables include port range support.</para>
+
+          <para>This column was formerly labelled DEST PORT(S).</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">SPORT</emphasis> ‒
+        <replaceable>service-name/port-number-list</replaceable></term>
+
+        <listitem>
+          <para>Optional. A comma-separated list of port numbers and/or
+          service names from <filename>/etc/services</filename>. May also
+          include port ranges of the form
+          <replaceable>low-port</replaceable>:<replaceable>high-port</replaceable>
+          if your kernel and iptables include port range support.</para>
+
+          <para>Beginning with Shorewall 4.5.15, you may place '=' in this
+          column, provided that the DPORT column is non-empty. This causes the
+          rule to match when either the source port or the destination port in
+          a packet matches one of the ports specified in DEST PORTS(S). Use of
+          '=' requires multi-port match in your iptables and kernel.</para>
+
+          <para>This column was formerly labelled SOURCE PORT(S).</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall/stoppedrules</para>
+
+    <para>/etc/shorewall6/stoppedrules</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para><ulink
+    url="../starting_and_stopping_shorewall.htm">https://shorewall.org/starting_and_stopping_shorewall.htm</ulink></para>
+
+    <para><ulink
+    url="../configuration_file_basics.htm#Pairs">https://shorewall.org/configuration_file_basics.htm#Pairs</ulink></para>
+
+    <para>shorewall(8)</para>
+  </refsect1>
+</refentry>

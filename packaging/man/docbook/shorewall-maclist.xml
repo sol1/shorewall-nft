@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-maclist</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>maclist</refname>
+
+    <refpurpose>Shorewall MAC Verification file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/etc/shorewall[6]/maclist</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>This file is used to define the MAC addresses and optionally their
+    associated IP addresses to be allowed to use the specified interface. The
+    feature is enabled by using the <emphasis role="bold">maclist</emphasis>
+    option in the <ulink
+    url="shorewall-interfaces.html">shorewall-interfaces</ulink>(5)
+    or <ulink url="shorewall-hosts.html">shorewall-hosts</ulink>(5)
+    configuration file.</para>
+
+    <para>The columns in the file are as follows (where the column name is
+    followed by a different name in parentheses, the different name is used in
+    the alternate specification syntax).</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><emphasis role="bold">DISPOSITION</emphasis> - {<emphasis
+        role="bold">ACCEPT</emphasis>|<emphasis
+        role="bold">DROP</emphasis>|<emphasis
+        role="bold">REJECT</emphasis>}[<option>:</option><replaceable>log-level</replaceable>]</term>
+
+        <listitem>
+          <para><emphasis role="bold">ACCEPT</emphasis> or <emphasis
+          role="bold">DROP</emphasis> (if MACLIST_TABLE=filter in <ulink
+          url="shorewall.conf.html">shorewall.conf</ulink>(5), then
+          REJECT is also allowed). If specified, the
+          <replaceable>log-level</replaceable> causes packets matching the
+          rule to be logged at that level.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">INTERFACE</emphasis> -
+        <emphasis>interface</emphasis></term>
+
+        <listitem>
+          <para>Network <emphasis>interface</emphasis> to a host.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">MAC</emphasis> -
+        <emphasis>address</emphasis></term>
+
+        <listitem>
+          <para>MAC <emphasis>address</emphasis> of the host -- you do not
+          need to use the Shorewall format for MAC addresses here. If
+          <emphasis role="bold">IP ADDRESSES</emphasis> is supplied then
+          <emphasis role="bold">MAC</emphasis> can be supplied as a dash
+          (<emphasis role="bold">-</emphasis>)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">IP ADDRESSES</emphasis> (addresses) -
+        [<emphasis>address</emphasis>[<emphasis
+        role="bold">,</emphasis><emphasis>address</emphasis>]...]</term>
+
+        <listitem>
+          <para>Optional - if specified, both the MAC and IP address must
+          match. This column can contain a comma-separated list of host and/or
+          subnet addresses. If your kernel and iptables have iprange match
+          support then IP address ranges are also allowed. Similarly, if your
+          kernel and iptables include ipset support than set names (prefixed
+          by "+") are also allowed.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall/maclist</para>
+
+    <para>/etc/shorewall6/maclist</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para><ulink
+    url="../MAC_Validation.html">https://shorewall.org/MAC_Validation.html</ulink></para>
+
+    <para><ulink
+    url="../configuration_file_basics.htm#Pairs">https://shorewall.org/configuration_file_basics.htm#Pairs</ulink></para>
+
+    <para>shorewall(8)</para>
+  </refsect1>
+</refentry>

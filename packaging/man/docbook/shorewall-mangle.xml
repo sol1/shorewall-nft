@@ -1,0 +1,1740 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-mangle</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>mangle</refname>
+
+    <refpurpose>Shorewall Packet marking/mangling rules file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/etc/shorewall[6]/mangle</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>This file was introduced in Shorewall 4.6.0 and replaces <ulink
+    url="shorewall-tcrules.html">shorewall-tcrules(5)</ulink>. This
+    file is only processed by the compiler if:</para>
+
+    <para>Entries in this file cause packets to be marked as a means of
+    classifying them for traffic control or policy routing.</para>
+
+    <important>
+      <para>Unlike rules in the <ulink
+      url="shorewall-rules.html">shorewall-rules</ulink>(5) file,
+      evaluation of rules in this file will continue after a match. So the
+      final mark for each packet will be the one assigned by the LAST tcrule
+      that matches.</para>
+
+      <para>If you use multiple internet providers with the 'track' option, in
+      /etc/shorewall/providers be sure to read the restrictions at <ulink
+      url="../MultiISP.html">https://shorewall.org/MultiISP.html</ulink>.</para>
+    </important>
+
+    <para>The columns in the file are as follows (where the column name is
+    followed by a different name in parentheses, the different name is used in
+    the alternate specification syntax).</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><emphasis role="bold">ACTION</emphasis> -
+        <replaceable>command</replaceable>[(<replaceable>parameters</replaceable>)][:<replaceable>chain-designator</replaceable>]</term>
+
+        <listitem>
+          <para>The <replaceable>chain-designator </replaceable>indicates the
+          Netfilter chain that the entry applies to and may be one of the
+          following:</para>
+
+          <variablelist>
+            <varlistentry>
+              <term>P</term>
+
+              <listitem>
+                <para>PREROUTING chain.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>F</term>
+
+              <listitem>
+                <para>FORWARD chain.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>T</term>
+
+              <listitem>
+                <para>POSTROUTING chain.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>I</term>
+
+              <listitem>
+                <para>INPUT chain.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>NP</term>
+
+              <listitem>
+                <para>PREROUTING chain in the nat table.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>NI</term>
+
+              <listitem>
+                <para>INPUT chain in the nat table.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>NO</term>
+
+              <listitem>
+                <para>OUTPUT chain in the nat table.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>NT</term>
+
+              <listitem>
+                <para>POSTROUTING chain in the nat table.</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+
+          <para>The nat table designators were added in Shorewall 5.2.1. When
+          a nat table designator is given, only the CONNMARK, MARK, SAVE and
+          RESTORE commands may be used.</para>
+
+          <para>Unless otherwise specified for the particular
+          <replaceable>command</replaceable>, the default chain is PREROUTING
+          when MARK_IN_FORWARD_CHAIN=No in <ulink
+          url="shorewall.conf.html">shorewall.conf(5)</ulink>, and
+          FORWARD when MARK_IN_FORWARD_CHAIN=Yes.</para>
+
+          <para>A <replaceable>chain-designator</replaceable> may not be
+          specified if the SOURCE or DEST columns begin with '$FW'. When the
+          SOURCE is $FW, the generated rule is always placed in the OUTPUT
+          chain. If DEST is '$FW', then the rule is placed in the INPUT chain.
+          Additionally, a <replaceable>chain-designator</replaceable> may not
+          be specified in an action body.</para>
+
+          <para>Where a command takes parameters, those parameters are
+          enclosed in parentheses ("(....)") and separated by commas.</para>
+
+          <para>The <replaceable>command</replaceable> may be one of the
+          following.</para>
+
+          <variablelist>
+            <varlistentry>
+              <term><emphasis
+              role="bold"><replaceable>action</replaceable>[([<replaceable>param</replaceable>[,...])]</emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 5.0.7.
+                <replaceable>action</replaceable> must be an action declared
+                with the <option>mangle</option> option in <ulink
+                url="manpages/shorewall-actions.html">shorewall-actions(5)</ulink>.
+                If the action accepts parameters, they are specified as a
+                comma-separated list within parentheses following the
+                <replaceable>action</replaceable> name.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">ADD(<replaceable>ipset</replaceable>:<replaceable>flags</replaceable>)</emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 4.6.7. Causes addresses and/or port
+                numbers to be added to the named
+                <replaceable>ipset</replaceable>. The
+                <replaceable>flags</replaceable> specify the address or tuple
+                to be added to the set and must match the type of ipset
+                involved. For example, for an iphash ipset, either the SOURCE
+                or DESTINATION address can be added using
+                <replaceable>flags</replaceable> <emphasis
+                role="bold">src</emphasis> or <emphasis
+                role="bold">dst</emphasis> respectively (see the -A command in
+                ipset (8)).</para>
+
+                <para>ADD is non-terminating. Even if a packet matches the
+                rule, it is passed on to the next rule.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">CHECKSUM</emphasis></term>
+
+              <listitem>
+                <para>Compute and fill in the checksum in a packet that lacks
+                a checksum. This is particularly useful if you need to work
+                around old applications, such as dhcp clients, that do not
+                work well with checksum offloads, but you don't want to
+                disable checksum offload in your device.</para>
+
+                <para>Requires 'Checksum Target' support in your kernel and
+                iptables.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">CLASSIFY(<replaceable>classid</replaceable>)</emphasis></term>
+
+              <listitem>
+                <para>A classification Id (classid) is of the form
+                <emphasis>major</emphasis>:<emphasis>minor</emphasis> where
+                <emphasis>major</emphasis> and <emphasis>minor</emphasis> are
+                integers. Corresponds to the 'class' specification in these
+                traffic shaping modules:</para>
+
+                <programlisting>       atm
+       cbq
+       dsmark
+       pfifo_fast
+       htb
+       prio</programlisting>
+
+                <para>Classification occurs in the POSTROUTING chain except
+                when the <emphasis role="bold">SOURCE</emphasis> is <emphasis
+                role="bold">$FW</emphasis>[:<emphasis>address</emphasis>] in
+                which case classification occurs in the OUTPUT chain.</para>
+
+                <para>When using Shorewall's built-in traffic shaping tool,
+                the <emphasis>major</emphasis> class is the device number (the
+                first device in <ulink
+                url="shorewall-tcdevices.html">shorewall-tcdevices</ulink>(5)
+                is major class 1, the second device is major class 2, and so
+                on) and the <emphasis>minor</emphasis> class is the class's
+                MARK value in <ulink
+                url="shorewall-tcclasses.html">shorewall-tcclasses</ulink>(5)
+                preceded by the number 1 (MARK 1 corresponds to minor class
+                11, MARK 5 corresponds to minor class 15, MARK 22 corresponds
+                to minor class 122, etc.).</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">?COMMENT</emphasis></term>
+
+              <listitem>
+                <para>The rest of the line will be attached as a comment to
+                the Netfilter rule(s) generated by the following entries. The
+                comment will appear delimited by "/* ... */" in the output of
+                <command>shorewall show mangle</command></para>
+
+                <para>To stop the comment from being attached to further
+                rules, simply include ?COMMENT on a line by itself.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">CONMARK({mark|range})</emphasis></term>
+
+              <listitem>
+                <para>Identical to MARK with the exception that the mark is
+                assigned to connection to which the packet belongs is marked
+                rather than to the packet itself.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">CONTINUE</emphasis></term>
+
+              <listitem>
+                <para>Don't process any more marking rules in the
+                table.</para>
+
+                <para>Currently, CONTINUE may not be used with
+                <emphasis>exclusion</emphasis> (see the SOURCE and DEST
+                columns below); that restriction will be removed when
+                iptables/Netfilter provides the necessary support.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">DEL(<replaceable>ipset</replaceable>:<replaceable>flags</replaceable>)</emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 4.6.7. Causes an entry to be deleted
+                from the named <replaceable>ipset</replaceable>. The
+                <replaceable>flags</replaceable> specify the address or tuple
+                to be deleted from the set and must match the type of ipset
+                involved. For example, for an iphash ipset, either the SOURCE
+                or DESTINATION address can be deleted using
+                <replaceable>flags</replaceable> <emphasis
+                role="bold">src</emphasis> or <emphasis
+                role="bold">dst</emphasis> respectively (see the -D command in
+                ipset (8)).</para>
+
+                <para>DEL is non-terminating. Even if a packet matches the
+                rule, it is passed on to the next rule.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">DIVERT</emphasis></term>
+
+              <listitem>
+                <para>Two DIVERT rule should precede the TPROXY rule and
+                should select DEST PORT tcp 80 and SOURCE PORT tcp 80
+                respectively (assuming that tcp port 80 is being proxied).
+                DIVERT avoids sending packets to the TPROXY target once a
+                socket connection to Squid3 has been established by TPROXY.
+                DIVERT marks the packet with a unique mark and exempts it from
+                any rules that follow.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">DIVERTHA</emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 5.0.4. To setup the HAProxy
+                configuration described at <ulink
+                url="http://www.loadbalancer.org/blog/setting-up-haproxy-with-transparent-mode-on-centos-6-x">http://www.loadbalancer.org/blog/setting-up-haproxy-with-transparent-mode-on-centos-6-x</ulink>,
+                place this entry in <ulink
+                url="shorewall-providers.html">shorewall-providers(5)</ulink>:</para>
+
+                <programlisting>#NAME    NUMBER   MARK    DUPLICATE  INTERFACE GATEWAY         OPTIONS               COPY
+TProxy   1        -       -          lo        -               tproxy</programlisting>
+
+                <para>and use this DIVERTHA entry:</para>
+
+                <programlisting>#ACTION         SOURCE          DEST            PROTO   DPORT   SPORT   USER    TEST    LENGTH  TOS   CONNBYTES         HELPER    PROBABILITY DSCP
+DIVERTHA        -               -               tcp</programlisting>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">DROP</emphasis></term>
+
+              <listitem>
+                <para>Causes matching packets to be discarded.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">DSCP</emphasis>(<replaceable>dscp</replaceable>)</term>
+
+              <listitem>
+                <para>Sets the <firstterm>Differentiated Services Code
+                Point</firstterm> field in the IP header. The
+                <replaceable>dscp</replaceable> value may be given as an even
+                number (hex or decimal) or as the name of a DSCP class. Valid
+                class names and their associated hex numeric values
+                are:</para>
+
+                <programlisting>    CS0  =&gt; 0x00
+    CS1  =&gt; 0x08
+    CS2  =&gt; 0x10
+    CS3  =&gt; 0x18
+    CS4  =&gt; 0x20
+    CS5  =&gt; 0x28
+    CS6  =&gt; 0x30
+    CS7  =&gt; 0x38
+    BE   =&gt; 0x00
+    AF11 =&gt; 0x0a
+    AF12 =&gt; 0x0c
+    AF13 =&gt; 0x0e
+    AF21 =&gt; 0x12
+    AF22 =&gt; 0x14
+    AF23 =&gt; 0x16
+    AF31 =&gt; 0x1a
+    AF32 =&gt; 0x1c
+    AF33 =&gt; 0x1e
+    AF41 =&gt; 0x22
+    AF42 =&gt; 0x24
+    AF43 =&gt; 0x26
+    EF   =&gt; 0x2e</programlisting>
+
+                <para>To indicate more than one class, add their hex values
+                together and specify the result. By default, DSCP rules are
+                placed in the POSTROUTING chain.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">ECN</emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 5.0.6 as an alternative to entries in
+                <ulink
+                url="shorewall-ecn.html">shorewall-ecn(5)</ulink>.
+                If a PROTO is specified, it must be 'tcp' (6). If no PROTO is
+                supplied, TCP is assumed. This action causes all ECN bits in
+                the TCP header to be cleared.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">IMQ</emphasis>(<replaceable>number</replaceable>)</term>
+
+              <listitem>
+                <para>Specifies that the packet should be passed to the IMQ
+                identified by <replaceable>number</replaceable>. Requires IMQ
+                Target support in your kernel and iptables.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">INLINE</emphasis>[(<replaceable>action</replaceable>)]</term>
+
+              <listitem>
+                <para>Allows you to place your own ip[6]tables matches at the
+                end of the line following a semicolon (";") (deprecated) or
+                two semicolons (";;") (preferred since Shoreall 5.0.0). If an
+                <replaceable>action</replaceable> is specified, the compiler
+                proceeds as if that <replaceable>action</replaceable> had been
+                specified in this column. If no action is specified, then you
+                may include your own jump ("-j
+                <replaceable>target</replaceable>
+                [<replaceable>option</replaceable>] ...") after any matches
+                specified at the end of the rule. If the target is not one
+                known to Shorewall, then it must be defined as a builtin
+                action in <ulink
+                url="shorewall-actions.html">shorewall-actions</ulink>
+                (5).</para>
+
+                <para>The following rules are equivalent:</para>
+
+                <programlisting>2:P                   eth0              -         tcp 22
+INLINE(MARK(2)):P     eth0              -         tcp 22
+INLINE(MARK(2)):P     eth0              -                 ;; -p tcp
+INLINE                eth0              -         tcp 22  ;; -j MARK --set-mark 2
+INLINE                eth0              -                 ;; -p tcp -j MARK --set-mark 2
+</programlisting>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">IPMARK</emphasis></term>
+
+              <listitem>
+                <para>Assigns a mark to each matching packet based on the
+                either the source or destination IP address. By default, it
+                assigns a mark value equal to the low-order 8 bits of the
+                source address. Default values are:</para>
+
+                <simplelist>
+                  <member>src</member>
+
+                  <member><emphasis>mask1</emphasis> = 0xFF</member>
+
+                  <member><emphasis>mask2</emphasis> = 0x00</member>
+
+                  <member><emphasis>shift</emphasis> = 0</member>
+                </simplelist>
+
+                <para>'src' and 'dst' specify whether the mark is to be based
+                on the source or destination address respectively. The
+                selected address is first shifted to the right by
+                <emphasis>shift</emphasis> bits. The result is then LANDed
+                with <emphasis>mask1</emphasis> then LORed with
+                <emphasis>ma<emphasis>s</emphasis>k2</emphasis>.</para>
+
+                <para>In a sense, the IPMARK target is more like an IPCLASSIFY
+                target in that the mark value is later interpreted as a class
+                ID. A packet mark is 32 bits wide; so is a class ID. The
+                &lt;major&gt; class occupies the high-order 16 bits and the
+                &lt;minor&gt; class occupies the low-order 16 bits. So the
+                class ID 1:4ff (remember that class IDs are always in hex) is
+                equivalent to a mark value of 0x104ff. Remember that Shorewall
+                uses the interface number as the &lt;major&gt; number where
+                the first interface in tcdevices has &lt;major&gt; number 1,
+                the second has &lt;major&gt; number 2, and so on.</para>
+
+                <para>The IPMARK target assigns a mark to each matching packet
+                based on the either the source or destination IP address. By
+                default, it assigns a mark value equal to the low-order 8 bits
+                of the source address. The syntax is as follows:</para>
+
+                <blockquote>
+                  <para><option>IPMARK</option>[([{<option>src</option>|<option>dst</option>}][,[<replaceable>mask1</replaceable>][,[<replaceable>mask2</replaceable>][,[<replaceable>shift</replaceable>]]]])]</para>
+                </blockquote>
+
+                <para>Default values are:</para>
+
+                <simplelist>
+                  <member><option>src</option></member>
+
+                  <member><replaceable>mask1</replaceable> = 0xFF</member>
+
+                  <member><replaceable>mask2</replaceable> = 0x00</member>
+
+                  <member><replaceable>shift</replaceable> = 0</member>
+                </simplelist>
+
+                <para><option>src</option> and <option>dst</option> specify
+                whether the mark is to be based on the source or destination
+                address respectively. The selected address is first shifted
+                right by <replaceable>shift</replaceable>, then LANDed with
+                <replaceable>mask1</replaceable> and then LORed with
+                <replaceable>mask2</replaceable>. The
+                <replaceable>shift</replaceable> argument is intended to be
+                used primarily with IPv6 addresses.</para>
+
+                <para>Example:</para>
+
+                <blockquote>
+                  <para>IPMARK(src,0xff,0x10100)</para>
+
+                  <simplelist>
+                    <member>Suppose that the source IP address is 192.168.4.3
+                    = 0xc0a80403; then</member>
+
+                    <member>0xc0a80403 &gt;&gt; 0 = 0xc0a80403</member>
+
+                    <member>0xc0a80403 LAND 0xFF = 0x03</member>
+
+                    <member>0x03 LOR 0x10100 = 0x10103 or class ID
+                    1:103</member>
+                  </simplelist>
+                </blockquote>
+
+                <para>It is important to realize that, while class IDs are
+                composed of a <replaceable>major</replaceable> and a
+                <replaceable>minor</replaceable> value, the set of values must
+                be unique. That is, the same numeric value cannot be used as
+                both a <replaceable>major</replaceable> and a
+                <replaceable>minor</replaceable> number for the same interface
+                unless class nesting occurs (which is not currently possible
+                with Shorewall). You should keep this in mind when deciding
+                how to map IP addresses to class IDs.</para>
+
+                <para>For example, suppose that your internal network is
+                192.168.1.0/29 (host IP addresses 192.168.1.1 - 192.168.1.6).
+                Your first notion might be to use IPMARK(src,0xFF,0x10000) so
+                as to produce class IDs 1:1 through 1:6. But 1:1 is an invalid
+                class ID since the <replaceable>major</replaceable> and
+                <replaceable>minor</replaceable> classes are equal. So you
+                might choose instead to use IPMARK(src,0xFF,0x10100) as in the
+                example above so that all of your
+                <replaceable>minor</replaceable> classes will have a value
+                &gt; 256.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">IP6TABLES({<replaceable>target</replaceable>
+              [<replaceable>option</replaceable> ...])</emphasis></term>
+
+              <listitem>
+                <para>IPv6 only.</para>
+
+                <para>This action allows you to specify an iptables target
+                with options (e.g., 'IP6TABLES(MARK --set-xmark 0x01/0xff)'.
+                If the target is not one recognized by Shorewall, the
+                following error message will be issued:</para>
+
+                <simplelist>
+                  <member>ERROR: Unknown target
+                  (<replaceable>target</replaceable>)</member>
+                </simplelist>
+
+                <para>This error message may be eliminated by adding the
+                <replaceable>target</replaceable> as a builtin action in
+                <ulink
+                url="shorewall-actions.html">shorewall-actions(5)</ulink>.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">IPTABLES({<replaceable>target</replaceable>
+              [<replaceable>option</replaceable> ...])</emphasis></term>
+
+              <listitem>
+                <para>IPv4 only.</para>
+
+                <para>This action allows you to specify an iptables target
+                with options (e.g., 'IPTABLES(MARK --set-xmark 0x01/0xff)'. If
+                the target is not one recognized by Shorewall, the following
+                error message will be issued:</para>
+
+                <simplelist>
+                  <member>ERROR: Unknown target
+                  (<replaceable>target</replaceable>)</member>
+                </simplelist>
+
+                <para>This error message may be eliminated by adding the
+                <replaceable>target</replaceable> as a builtin action in
+                <ulink
+                url="shorewall-actions.html">shorewall-actions(5)</ulink>.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">MARK({<replaceable>mark</replaceable>|<replaceable>range</replaceable>})</emphasis></term>
+
+              <listitem>
+                <para>where <replaceable>mark</replaceable> is a packet mark
+                value.</para>
+
+                <para>Normally will set the mark value. If preceded by a
+                vertical bar ("|"), the mark value will be logically ORed with
+                the current mark value to produce a new mark value. If
+                preceded by an ampersand ("&amp;"), will be logically ANDed
+                with the current mark value to produce a new mark
+                value.</para>
+
+                <para>Both "|" and "&amp;" require Extended MARK Target
+                support in your kernel and iptables.</para>
+
+                <para>The mark value may be optionally followed by "/" and a
+                mask value (used to determine those bits of the connection
+                mark to actually be set). When a mask is specified, the result
+                of logically ANDing the mark value with the mask must be the
+                same as the mark value.</para>
+
+                <para>A mark <replaceable>range</replaceable> is a pair of
+                integers separated by a dash ("-").</para>
+
+                <para>May be optionally followed by a slash ("/") and a mask
+                and requires the <firstterm>Statistics Match</firstterm>
+                capability in iptables and kernel. Marks in the specified
+                range are assigned to packets on a round-robin fashion.</para>
+
+                <para>When a mask is specified, the result of logically ANDing
+                each mark value with the mask must be the same as the mark
+                value. The least significant bit in the mask is used as an
+                increment. For example, if '0x200-0x400/0xff00' is specified,
+                then the assigned mark values are 0x200, 0x300 and 0x400 in
+                equal proportions. If no mask is specified, then ( 2 **
+                MASK_BITS ) - 1 is assumed (MASK_BITS is set in <ulink
+                url="shorewall.conf.html">shorewall.conf</ulink>(5)).</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">NFLOG</emphasis>[(<emphasis>nflog-parameters</emphasis>)]</term>
+
+              <listitem>
+                <para>Added in Shorewall 5.0.9. Logs matching packets using
+                NFLOG. The <replaceable>nflog-parameters</replaceable> are a
+                comma-separated list of up to 3 numbers:</para>
+
+                <itemizedlist>
+                  <listitem>
+                    <para>The first number specifies the netlink group
+                    (0-65535). If omitted (e.g., NFLOG(,0,10)) then a value of
+                    0 is assumed.</para>
+                  </listitem>
+
+                  <listitem>
+                    <para>The second number specifies the maximum number of
+                    bytes to copy. If omitted, 0 (no limit) is assumed.</para>
+                  </listitem>
+
+                  <listitem>
+                    <para>The third number specifies the number of log
+                    messages that should be buffered in the kernel before they
+                    are sent to user space. The default is 1.</para>
+                  </listitem>
+                </itemizedlist>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">RESTORE</emphasis>[(<emphasis>mask</emphasis>)]</term>
+
+              <listitem>
+                <para>Restore the packet's mark from the connection's mark
+                using the supplied mask if any. Your kernel and iptables must
+                include CONNMARK support.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">SAME[(<replaceable>timeout</replaceable>)]</emphasis></term>
+
+              <listitem>
+                <para>Some websites run applications that require multiple
+                connections from a client browser. Where multiple 'balanced'
+                providers are configured, this can lead to problems when some
+                of the connections are routed through one provider and some
+                through another. The SAME target allows you to work around
+                that problem. SAME may be used in the PREROUTING and OUTPUT
+                chains. When used in PREROUTING, it causes matching
+                connections from an individual local system to all use the
+                same provider. For example: <programlisting>#ACTION           SOURCE         DEST         PROTO      DPORT
+SAME:P            192.168.1.0/24 0.0.0.0/0    tcp        80,443</programlisting>
+                If a host in 192.168.1.0/24 attempts a connection on TCP port
+                80 or 443 and it has sent a packet on either of those ports in
+                the last five minutes then the new connection will use the
+                same provider as the connection over which that last packet
+                was sent.</para>
+
+                <para>When used in the OUTPUT chain, it causes all matching
+                connections to an individual remote system to all use the same
+                provider. For example:<programlisting>#ACTION           SOURCE         DEST         PROTO      DPORT
+SAME              $FW            0.0.0.0/0    tcp        80,443</programlisting>The
+                optional <replaceable>timeout</replaceable> parameter was
+                added in Shorewall 4.6.7 and specifies a number of seconds .
+                When not specified, a value of 300 seconds (5 minutes) is
+                assumed. If the firewall attempts a connection on TCP port 80
+                or 443 and it has sent a packet on either of those ports in
+                the last <replaceable>timeout</replaceable> seconds to the
+                same remote system then the new connection will use the same
+                provider as the connection over which that last packet was
+                sent.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">SAVE[(<emphasis><replaceable>mask</replaceable>)</emphasis>]
+              </emphasis></term>
+
+              <listitem>
+                <para>Save the packet's mark to the connection's mark using
+                the supplied mask if any. Your kernel and iptables must
+                include CONNMARK support.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">TCPMSS</emphasis>([<replaceable>mss</replaceable>[,<replaceable>ipsec</replaceable>]])</term>
+
+              <listitem>
+                <para>Added in Shorewall 5.1.9. This target only applies to
+                TCP traffic and alters the MSS value in SYN packets. It may be
+                used in the FORWARD and POSTROUTING chains; the default is
+                FORWARD.</para>
+
+                <para>The <replaceable>mss</replaceable> parameter may be
+                either <option>pmtu</option> or an integer in the range
+                500:65533. The value <option>pmtu</option> automatically
+                clamps the MSS value to (path_MTU - 40 for IPv4; -60 for
+                IPv6). This may not function as desired where asymmetric
+                routes with differing path MTU exist — the kernel uses the
+                path MTU which it would use to send packets from itself to the
+                source and destination IP addresses. Prior to Linux 2.6.25,
+                only the path MTU to the destination IP address was considered
+                by this option; subsequent kernels also consider the path MTU
+                to the source IP address. If an integer is given, the MSS
+                option is set to the specified value. If the MSS of the packet
+                is already lower than <replaceable>mss</replaceable>, it will
+                not be increased (from Linux 2.6.25 onwards) to avoid more
+                problems with hosts relying on a proper MSS. If
+                <replaceable>mss</replaceable> is omitted,
+                <option>pmtu</option> is assumed.</para>
+
+                <para>The <replaceable>ipsec</replaceable> parameter
+                determines whether the rule applies to IPSEC traffic
+                (<option>ipsec</option> is passed), non-IPSEC traffic
+                (<option>none</option> is passed) or both
+                (<option>all</option> is passed). If omitted,
+                <option>all</option> is assumed.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">TOS</emphasis>(<replaceable>tos</replaceable>[/<replaceable>mask</replaceable>])</term>
+
+              <listitem>
+                <para>Sets the <firstterm>Type of Service</firstterm> field in
+                the IP header. The <replaceable>tos</replaceable> value may be
+                given as an number (hex or decimal) or as the name of a TOS
+                type. Valid type names and their associated hex numeric values
+                are:</para>
+
+                <programlisting>Minimize-Delay       =&gt; 0x10,
+Maximize-Throughput  =&gt; 0x08,
+Maximize-Reliability =&gt; 0x04,
+Minimize-Cost        =&gt; 0x02,
+Normal-Service       =&gt; 0x00</programlisting>
+
+                <para>To indicate more than one class, add their hex values
+                together and specify the result.</para>
+
+                <para>When <replaceable>tos</replaceable> is given as a
+                number, it may be optionally followed by '/' and a
+                <replaceable>mask</replaceable>. When no
+                <replaceable>mask</replaceable> is given, the value 0xff is
+                assumed. When <replaceable>tos</replaceable> is given as a
+                type name, the <replaceable>mask</replaceable> 0x3f is
+                assumed.</para>
+
+                <para>The action performed is to zero out the bits specified
+                by the <replaceable>mask</replaceable>, then set the bits
+                specified by <replaceable>tos</replaceable>.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">TPROXY</emphasis>([<replaceable>port</replaceable>[,<replaceable>address</replaceable>]])</term>
+
+              <listitem>
+                <para>Transparently redirects a packet without altering the IP
+                header. Requires a tproxy provider to be defined in <ulink
+                url="shorewall-providers.html">shorewall-providers</ulink>(5).</para>
+
+                <para>There are three parameters to TPROXY - neither is
+                required:</para>
+
+                <itemizedlist>
+                  <listitem>
+                    <para><replaceable>port</replaceable> - the port on which
+                    the proxy server is listening. If omitted, the original
+                    destination port.</para>
+                  </listitem>
+
+                  <listitem>
+                    <para><replaceable>address</replaceable> - a local (to the
+                    firewall) IP address on which the proxy server is
+                    listening. If omitted, the IP address of the interface on
+                    which the request arrives.</para>
+                  </listitem>
+                </itemizedlist>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">TTL</emphasis>([<emphasis
+              role="bold">-</emphasis>|<emphasis
+              role="bold">+</emphasis>]<replaceable>number</replaceable>)</term>
+
+              <listitem>
+                <para>If <emphasis role="bold">+</emphasis> is included,
+                packets matching the rule will have their TTL incremented by
+                <replaceable>number</replaceable>. Similarly, if <emphasis
+                role="bold">-</emphasis> is included, matching packets have
+                their TTL decremented by <replaceable>number</replaceable>. If
+                neither <emphasis role="bold">+</emphasis> nor <emphasis
+                role="bold">-</emphasis> is given, the TTL of matching packets
+                is set to <replaceable>number</replaceable>. The valid range
+                of values for <replaceable>number</replaceable> is
+                1-255.</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">SOURCE -
+        {-|<replaceable>source-spec</replaceable>[,...]}</emphasis></term>
+
+        <listitem>
+          <para>where <replaceable>source-spec</replaceable> is one of:</para>
+
+          <variablelist>
+            <varlistentry>
+              <term>[!]<replaceable>interface</replaceable></term>
+
+              <listitem>
+                <para>where <replaceable>interface</replaceable> is the
+                logical name of an <replaceable>interface</replaceable>
+                defined in <ulink
+                url="shorewall-interfaces.html">shorewall-interfaces</ulink>(5).
+                Matches packets entering the firewall from the named
+                interface. May not be used in CLASSIFY rules or in rules using
+                the :T chain qualifier.</para>
+
+                <para>Beginning with Shorweall 5.2.1, the
+                <replaceable>interface</replaceable> may be preceded with '!'
+                which matches all interfaces except the one specified.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><replaceable>address</replaceable>[,...][<replaceable>exclusion</replaceable>]</term>
+
+              <listitem>
+                <para>where <replaceable>address</replaceable> is:</para>
+
+                <blockquote>
+                  <para>A host or network IP address.</para>
+
+                  <para>The name of an ipset preceded by a plus sign
+                  ("+").</para>
+
+                  <para>A MAC address in Shorewall format (preceded by a tilde
+                  ("~") and using dash ("-") as a separator (e.g.,
+                  ~00-A0-C9-15-39-78).</para>
+                </blockquote>
+
+                <para>Matches traffic whose source IP address matches one of
+                the listed addresses and that does not match an address listed
+                in the <replaceable>exclusion</replaceable> (see <ulink
+                url="shorewall-exclusion.html">shorewall-exclusion</ulink>(5)).</para>
+
+                <para><emphasis role="bold">This form will not match traffic
+                that originates on the firewall itself unless either
+                &lt;major&gt;&lt;minor&gt; or the :T chain qualifier is used
+                in the ACTION column.</emphasis></para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>[!]<replaceable>interface</replaceable>:<replaceable>address</replaceable>,[...][<replaceable>exclusion</replaceable>]</term>
+
+              <listitem>
+                <para>This form combines the preceding two forms and matches
+                when both the incoming interface and source IP address
+                match.</para>
+
+                <para>Beginning with Shorweall 5.2.1, the
+                <replaceable>interface</replaceable> may be preceded with '!'
+                which matches all interfaces except the one specified.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>[!]<replaceable>interface</replaceable>:<replaceable>exclusion</replaceable></term>
+
+              <listitem>
+                <para>This form matches packets arriving through the named
+                <replaceable>interface</replaceable> and whose source IP
+                address does not match any of the addresses in the
+                <replaceable>exclusion</replaceable>.</para>
+
+                <para>Beginning with Shorweall 5.2.1, the
+                <replaceable>interface</replaceable> may be preceded with '!'
+                which matches all interfaces except the one specified.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>$FW</term>
+
+              <listitem>
+                <para>Matches packets originating on the firewall system. May
+                not be used with a chain qualifier (:P, :F, etc.) in the
+                ACTION column.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>$FW:<replaceable>address</replaceable>[,...][<replaceable>exclusion</replaceable>]</term>
+
+              <listitem>
+                <para>where <replaceable>address</replaceable> is as above
+                (MAC addresses are not permitted). Matches packets originating
+                on the firewall and whose source IP address matches one of the
+                listed addresses and does not match any address listed in the
+                <replaceable>exclusion</replaceable>. May not be used with a
+                chain qualifier (:P, :F, etc.) in the ACTION column.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>$FW:<replaceable>exclusion</replaceable></term>
+
+              <listitem>
+                <para>Matches traffic originating on the firewall, provided
+                that the source IP address does not match any address listed
+                in the <replaceable>exclusion</replaceable>.</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+
+          <para>Beginning with Shorewall 5.1.0, multiple
+          <replaceable>source_spec</replaceable>s, separated by commas, may be
+          given provided that the following alternative forms are used:</para>
+
+          <blockquote>
+            <para>(<replaceable>address</replaceable>[,...][<replaceable>exclusion</replaceable>])</para>
+
+            <para><replaceable>interface</replaceable>:(<replaceable>address</replaceable>[,...][<replaceable>exclusion</replaceable>])</para>
+
+            <para><replaceable>interface</replaceable>:(<replaceable>exclusion</replaceable>)</para>
+
+            <para>$FW:(<replaceable>address</replaceable>[,...][<replaceable>exclusion</replaceable>])</para>
+
+            <para>$FW:(<replaceable>exclusion</replaceable>)</para>
+          </blockquote>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">DEST -
+        {-|<replaceable>dest-spec</replaceable>[,...]}</emphasis></term>
+
+        <listitem>
+          <para>where <replaceable>dest-spec</replaceable> is one of:</para>
+
+          <variablelist>
+            <varlistentry>
+              <term><replaceable>interface</replaceable></term>
+
+              <listitem>
+                <para>where <replaceable>interface</replaceable> is the
+                logical name of an interface defined in <ulink
+                url="shorewall-interfaces.html">shorewall-interfaces</ulink>(5).
+                Matches packets leaving the firewall through the named
+                interface. May not be used in the PREROUTING chain (:P in the
+                mark column or no chain qualifier and MARK_IN_FORWARD_CHAIN=No
+                in <ulink
+                url="shorewall.conf">shorewall.conf</ulink>
+                (5)).</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><replaceable>address</replaceable>[,...][<replaceable>exclusion</replaceable>]</term>
+
+              <listitem>
+                <para>where <replaceable>address</replaceable> is:</para>
+
+                <blockquote>
+                  <para>A host or network IP address.</para>
+
+                  <para>The name of an ipset preceded by a plus sign
+                  ("+").</para>
+
+                  <para>A MAC address in Shorewall format (preceded by a tilde
+                  ("~") and using dash ("-") as a separator (e.g.,
+                  ~00-A0-C9-15-39-78).</para>
+                </blockquote>
+
+                <para>Matches traffic whose destination IP address matches one
+                of the listed addresses and that does not match an address
+                listed in the <replaceable>exclusion</replaceable> (see <ulink
+                url="shorewall-exclusion.html">shorewall-exclusion</ulink>(5)).</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><replaceable>interface</replaceable>:<replaceable>address</replaceable>,[...][<replaceable>exclusion</replaceable>]</term>
+
+              <listitem>
+                <para>This form combines the preceding two forms and matches
+                when both the outgoing interface and destination IP address
+                match. May not be used in the PREROUTING chain (:P in the mark
+                column or no chain qualifier and MARK_IN_FORWARD_CHAIN=No in
+                <ulink url="shorewall.conf">shorewall.conf</ulink>
+                (5)).</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><replaceable>interface</replaceable>:<replaceable>exclusion</replaceable></term>
+
+              <listitem>
+                <para>This form matches packets leaving through the named
+                <replaceable>interface</replaceable> and whose destination IP
+                address does not match any of the addresses in the
+                <replaceable>exclusion</replaceable>. May not be used in the
+                PREROUTING chain (:P in the mark column or no chain qualifier
+                and MARK_IN_FORWARD_CHAIN=No in <ulink
+                url="shorewall.conf">shorewall.conf</ulink>
+                (5)).</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>$FW</term>
+
+              <listitem>
+                <para>Matches packets originating on the firewall system. May
+                not be used with a chain qualifier (:P, :F, etc.) in the
+                ACTION column.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>$FW:<replaceable>address</replaceable>[,...][<replaceable>exclusion</replaceable>]</term>
+
+              <listitem>
+                <para>where <replaceable>address</replaceable> is as above
+                (MAC addresses are not permitted). Matches packets destined
+                for the firewall and whose destination IP address matches one
+                of the listed addresses and does not match any address listed
+                in the <replaceable>exclusion</replaceable>. May not be used
+                with a chain qualifier (:P, :F, etc.) in the ACTION
+                column.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>$FW:<replaceable>exclusion</replaceable></term>
+
+              <listitem>
+                <para>Matches traffic destined for the firewall, provided that
+                the destination IP address does not match any address listed
+                in the <replaceable>exclusion</replaceable>.</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+
+          <para>Beginning with Shorewall 5.1.0, multiple
+          <replaceable>dest_spec</replaceable>s, separated by commas, may be
+          given provided that the following alternative forms are used:</para>
+
+          <blockquote>
+            <para>(<replaceable>address</replaceable>[,...][<replaceable>exclusion</replaceable>])</para>
+
+            <para><replaceable>interface</replaceable>:(<replaceable>address</replaceable>[,...][<replaceable>exclusion</replaceable>])</para>
+
+            <para><replaceable>interface</replaceable>:(<replaceable>exclusion</replaceable>)</para>
+
+            <para>$FW:(<replaceable>address</replaceable>[,...][<replaceable>exclusion</replaceable>])</para>
+
+            <para>$FW:(<replaceable>exclusion</replaceable>)</para>
+          </blockquote>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">PROTO</emphasis> - {<emphasis
+        role="bold">-</emphasis>|<emphasis
+        role="bold">{tcp:[!]syn</emphasis>|<emphasis
+        role="bold">ipp2p</emphasis>|<emphasis
+        role="bold">ipp2p:udp</emphasis>|<emphasis
+        role="bold">ipp2p:all</emphasis>|<emphasis>protocol-number</emphasis>|<emphasis>protocol-name</emphasis>|<emphasis
+        role="bold">all}[,...]}</emphasis></term>
+
+        <listitem>
+          <para>See <ulink
+          url="shorewall-rules.html">shorewall-rules(5)</ulink> for
+          details.</para>
+
+          <para>Beginning with Shorewall 4.5.12, this column can accept a
+          comma-separated list of protocols.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">DPORT</emphasis>- {<emphasis
+        role="bold">-</emphasis>|<emphasis>port-name-number-or-range</emphasis>[<emphasis
+        role="bold">,</emphasis><emphasis>port-name-number-or-range</emphasis>]...|+<replaceable>ipset</replaceable>}</term>
+
+        <listitem>
+          <para>Optional destination Ports. A comma-separated list of Port
+          names (from services(5)), <emphasis>port number</emphasis>s or
+          <emphasis>port range</emphasis>s; if the protocol is <emphasis
+          role="bold">icmp</emphasis>, this column is interpreted as the
+          destination icmp-type(s). ICMP types may be specified as a numeric
+          type, a numeric type and code separated by a slash (e.g., 3/4), or a
+          typename. See <ulink
+          url="../configuration_file_basics.htm#ICMP">https://shorewall.org/configuration_file_basics.htm#ICMP</ulink>.</para>
+
+          <para>If the protocol is <emphasis role="bold">ipp2p</emphasis>,
+          this column is interpreted as an ipp2p option without the leading
+          "--" (example <emphasis role="bold">bit</emphasis> for bit-torrent).
+          If no PORT is given, <emphasis role="bold">ipp2p</emphasis> is
+          assumed.</para>
+
+          <para>An entry in this field requires that the PROTO column specify
+          icmp (1), tcp (6), udp (17), sctp (132) or udplite (136). Use '-' if
+          any of the following field is supplied.</para>
+
+          <para>Beginning with Shorewall 4.6.0, an
+          <replaceable>ipset</replaceable> name can be specified in this
+          column. This is intended to be used with
+          <firstterm>bitmap:port</firstterm> ipsets.</para>
+
+          <para>This column was formerly named DEST PORT(S).</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">SPORT</emphasis> - {<emphasis
+        role="bold">-</emphasis>|<emphasis>port-name-number-or-range</emphasis>[<emphasis
+        role="bold">,</emphasis><emphasis>port-name-number-or-range</emphasis>]...|+<replaceable>ipset</replaceable>}</term>
+
+        <listitem>
+          <para>Optional source port(s). If omitted, any source port is
+          acceptable. Specified as a comma-separated list of port names, port
+          numbers or port ranges.</para>
+
+          <para>An entry in this field requires that the PROTO column specify
+          tcp (6), udp (17), sctp (132) or udplite (136). Use '-' if any of
+          the following fields is supplied.</para>
+
+          <para>Beginning with Shorewall 4.5.15, you may place '=' in this
+          column, provided that the DPORT column is non-empty. This causes the
+          rule to match when either the source port or the destination port in
+          a packet matches one of the ports specified in DEST PORTS(S). Use of
+          '=' requires multi-port match in your iptables and kernel.</para>
+
+          <para>Beginning with Shorewall 4.6.0, an
+          <replaceable>ipset</replaceable> name can be specified in this
+          column. This is intended to be used with
+          <firstterm>bitmap:port</firstterm> ipsets.</para>
+
+          <para>This column was formerly labelled SOURCE PORT(S).</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">USER</emphasis> - [<emphasis
+        role="bold">!</emphasis>][<emphasis>user-name-or-number</emphasis>][<emphasis
+        role="bold">:</emphasis><emphasis>group-name-or-number</emphasis>][<emphasis
+        role="bold">+</emphasis><emphasis>program-name</emphasis>]</term>
+
+        <listitem>
+          <para>This optional column may only be non-empty if the SOURCE is
+          the firewall itself.</para>
+
+          <para>When this column is non-empty, the rule applies only if the
+          program generating the output is running under the effective
+          <emphasis>user</emphasis> and/or <emphasis>group</emphasis>
+          specified (or is NOT running under that id if "!" is given).</para>
+
+          <para>Examples:</para>
+
+          <variablelist>
+            <varlistentry>
+              <term>joe</term>
+
+              <listitem>
+                <para>program must be run by joe</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>:kids</term>
+
+              <listitem>
+                <para>program must be run by a member of the 'kids'
+                group</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>!:kids</term>
+
+              <listitem>
+                <para>program must not be run by a member of the 'kids'
+                group</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>+upnpd</term>
+
+              <listitem>
+                <para>#program named upnpd</para>
+
+                <important>
+                  <para>The ability to specify a program name was removed from
+                  Netfilter in kernel version 2.6.14.</para>
+                </important>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">TEST</emphasis> - [<emphasis
+        role="bold">!</emphasis>]<emphasis>value</emphasis>[/<emphasis>mask</emphasis>][<emphasis
+        role="bold">:C</emphasis>]</term>
+
+        <listitem>
+          <para>Optional - Defines a test on the existing packet or connection
+          mark. The rule will match only if the test returns true.</para>
+
+          <para>If you don't want to define a test but need to specify
+          anything in the following columns, place a "-" in this field.</para>
+
+          <variablelist>
+            <varlistentry>
+              <term>!</term>
+
+              <listitem>
+                <para>Inverts the test (not equal)</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis>value</emphasis></term>
+
+              <listitem>
+                <para>Value of the packet or connection mark.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis>mask</emphasis></term>
+
+              <listitem>
+                <para>A mask to be applied to the mark before testing.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">:C</emphasis></term>
+
+              <listitem>
+                <para>Designates a connection mark. If omitted, the packet
+                mark's value is tested.</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">LENGTH</emphasis> -
+        [<emphasis>length</emphasis>|[<emphasis>min</emphasis>]<emphasis
+        role="bold">:</emphasis>[<emphasis>max</emphasis>]]</term>
+
+        <listitem>
+          <para>Optional - packet payload length. This field, if present allow
+          you to match the length of a packet payload (Layer 4 data ) against
+          a specific value or range of values. You must have iptables length
+          support for this to work. A range is specified in the form
+          <emphasis>min</emphasis>:<emphasis>max</emphasis> where either
+          <emphasis>min</emphasis> or <emphasis>max</emphasis> (but not both)
+          may be omitted. If <emphasis>min</emphasis> is omitted, then 0 is
+          assumed; if <emphasis>max</emphasis> is omitted, than any packet
+          that is <emphasis>min</emphasis> or longer will match.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">TOS</emphasis> -
+        <emphasis>tos</emphasis></term>
+
+        <listitem>
+          <para>Type of service. Either a standard name, or a numeric value to
+          match.</para>
+
+          <programlisting>         <emphasis role="bold">Minimize-Delay</emphasis> (16)
+         <emphasis role="bold">Maximize-Throughput</emphasis> (8)
+         <emphasis role="bold">Maximize-Reliability</emphasis> (4)
+         <emphasis role="bold">Minimize-Cost</emphasis> (2)
+         <emphasis role="bold">Normal-Service</emphasis> (0)</programlisting>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">CONNBYTES</emphasis> -
+        [!]<emphasis>min</emphasis>:[<emphasis>max</emphasis>[:{<emphasis
+        role="bold">O</emphasis>|<emphasis role="bold">R</emphasis>|<emphasis
+        role="bold">B</emphasis>}[:{<emphasis
+        role="bold">B</emphasis>|<emphasis role="bold">P</emphasis>|<emphasis
+        role="bold">A</emphasis>}]]]</term>
+
+        <listitem>
+          <para>Optional connection Bytes; defines a byte or packet range that
+          the connection must fall within in order for the rule to
+          match.</para>
+
+          <para>A packet matches if the the packet/byte count is within the
+          range defined by <emphasis>min</emphasis> and
+          <emphasis>max</emphasis> (unless ! is given in which case, a packet
+          matches if the packet/byte count is not within the range).
+          <emphasis>min</emphasis> is an integer which defines the beginning
+          of the byte/packet range. <emphasis>max</emphasis> is an integer
+          which defines the end of the byte/packet range; if omitted, only the
+          beginning of the range is checked. The first letter gives the
+          direction which the range refers to:<blockquote>
+              <para><emphasis role="bold">O</emphasis> - The original
+              direction of the connection.</para>
+
+              <para>- The opposite direction from the original
+              connection.</para>
+
+              <para><emphasis role="bold">B</emphasis> - The total of both
+              directions.</para>
+            </blockquote></para>
+
+          <para>If omitted, <emphasis role="bold">B</emphasis> is
+          assumed.</para>
+
+          <para>The second letter determines what the range refers
+          to.<blockquote>
+              <para><emphasis role="bold">B</emphasis> - Bytes</para>
+
+              <para><emphasis role="bold">P</emphasis> - Packets</para>
+
+              <para><emphasis role="bold">A</emphasis> - Average packet
+              size.</para>
+            </blockquote>If omitted, <emphasis role="bold">B</emphasis> is
+          assumed.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">HELPER -
+        </emphasis><emphasis>helper</emphasis></term>
+
+        <listitem>
+          <para>Names a Netfilter protocol <firstterm>helper</firstterm>
+          module such as <option>ftp</option>, <option>sip</option>,
+          <option>amanda</option>, etc. A packet will match if it was accepted
+          by the named helper module.</para>
+
+          <para>Example: Mark all FTP data connections with mark
+          4:<programlisting>#ACTION   SOURCE    DEST      PROTO   DPORT      SPORT   USER TEST LENGTH TOS CONNBYTES HELPER
+4:T       0.0.0.0/0 0.0.0.0/0 TCP     -          -       -    -    -      -   -         ftp</programlisting></para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">PROBABILITY</emphasis> -
+        [<replaceable>probability</replaceable>]</term>
+
+        <listitem>
+          <para>Added in Shorewall 4.5.0. When non-empty, requires the
+          <firstterm>Statistics Match</firstterm> capability in your kernel
+          and ip6tables and causes the rule to match randomly but with the
+          given <replaceable>probability</replaceable>. The
+          <replaceable>probability</replaceable> is a number 0 &lt;
+          <replaceable>probability</replaceable> &lt;= 1 and may be expressed
+          at up to 8 decimal points of precision.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">DSCP -</emphasis>
+        [[!]<replaceable>dscp</replaceable>]</term>
+
+        <listitem>
+          <para>Added in Shorewall 4.5.1. When non-empty, match packets whose
+          <firstterm>Differentiated Service Code Point</firstterm> field
+          matches the supplied value (when '!' is given, the rule matches
+          packets whose DSCP field does not match the supplied value). The
+          <replaceable>dscp</replaceable> value may be given as an even number
+          (hex or decimal) or as the name of a DSCP class. Valid class names
+          and their associated hex numeric values are:</para>
+
+          <programlisting>    CS0  =&gt; 0x00
+    CS1  =&gt; 0x08
+    CS2  =&gt; 0x10
+    CS3  =&gt; 0x18
+    CS4  =&gt; 0x20
+    CS5  =&gt; 0x28
+    CS6  =&gt; 0x30
+    CS7  =&gt; 0x38
+    BE   =&gt; 0x00
+    AF11 =&gt; 0x0a
+    AF12 =&gt; 0x0c
+    AF13 =&gt; 0x0e
+    AF21 =&gt; 0x12
+    AF22 =&gt; 0x14
+    AF23 =&gt; 0x16
+    AF31 =&gt; 0x1a
+    AF32 =&gt; 0x1c
+    AF33 =&gt; 0x1e
+    AF41 =&gt; 0x22
+    AF42 =&gt; 0x24
+    AF43 =&gt; 0x26
+    EF   =&gt; 0x2e</programlisting>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">STATE</emphasis> -- {<emphasis
+        role="bold">NEW</emphasis>|<emphasis
+        role="bold">RELATED</emphasis>|<emphasis
+        role="bold">ESTABLISHED</emphasis>|<emphasis
+        role="bold">INVALID</emphasis>} [,...]</term>
+
+        <listitem>
+          <para>The rule will only match if the packet's connection is in one
+          of the listed states.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">TIME</emphasis> -
+        <emphasis>timeelement</emphasis>[&amp;<emphasis>timeelement</emphasis>...]</term>
+
+        <listitem>
+          <para>Added in Shorewall 4.6.2.</para>
+
+          <para>May be used to limit the rule to a particular time period each
+          day, to particular days of the week or month, or to a range defined
+          by dates and times. Requires time match support in your kernel and
+          ip6tables.</para>
+
+          <para><replaceable>timeelement</replaceable> may be:</para>
+
+          <variablelist>
+            <varlistentry>
+              <term>timestart=<replaceable>hh</replaceable>:<replaceable>mm</replaceable>[:<replaceable>ss</replaceable>]</term>
+
+              <listitem>
+                <para>Defines the starting time of day.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>timestop=<replaceable>hh</replaceable>:<replaceable>mm</replaceable>[:<replaceable>ss</replaceable>]</term>
+
+              <listitem>
+                <para>Defines the ending time of day.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>contiguous</term>
+
+              <listitem>
+                <para>Added in Shoreawll 5.0.12. When <emphasis
+                role="bold">timestop</emphasis> is smaller than <emphasis
+                role="bold">timestart</emphasis> value, match this as a single
+                time period instead of distinct intervals.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>utc</term>
+
+              <listitem>
+                <para>Times are expressed in Greenwich Mean Time.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>localtz</term>
+
+              <listitem>
+                <para>Deprecated by the Netfilter team in favor of <emphasis
+                role="bold">kerneltz</emphasis>. Times are expressed in Local
+                Civil Time (default).</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>kerneltz</term>
+
+              <listitem>
+                <para>Added in Shorewall 4.5.2. Times are expressed in Local
+                Kernel Time (requires iptables 1.4.12 or later).</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>weekdays=ddd[,ddd]...</term>
+
+              <listitem>
+                <para>where <replaceable>ddd</replaceable> is one of
+                <option>Mon</option>, <option>Tue</option>,
+                <option>Wed</option>, <option>Thu</option>,
+                <option>Fri</option>, <option>Sat</option> or
+                <option>Sun</option></para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>monthdays=dd[,dd],...</term>
+
+              <listitem>
+                <para>where <replaceable>dd</replaceable> is an ordinal day of
+                the month</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>datestart=<replaceable>yyyy</replaceable>[-<replaceable>mm</replaceable>[-<replaceable>dd</replaceable>[<option>T</option><replaceable>hh</replaceable>[:<replaceable>mm</replaceable>[:<replaceable>ss</replaceable>]]]]]</term>
+
+              <listitem>
+                <para>Defines the starting date and time.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>datestop=<replaceable>yyyy</replaceable>[-<replaceable>mm</replaceable>[-<replaceable>dd</replaceable>[<option>T</option><replaceable>hh</replaceable>[:<replaceable>mm</replaceable>[:<replaceable>ss</replaceable>]]]]]</term>
+
+              <listitem>
+                <para>Defines the ending date and time.</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">SWITCH -
+        [!]<replaceable>switch-name</replaceable>[={0|1}]</emphasis></term>
+
+        <listitem>
+          <para>Added in Shorewall 5.1.0 and allows enabling and disabling the
+          rule without requiring <command>shorewall reload</command>.</para>
+
+          <para>The rule is enabled if the value stored in
+          <filename>/proc/net/nf_condition/<replaceable>switch-name</replaceable></filename>
+          is 1. The rule is disabled if that file contains 0 (the default). If
+          '!' is supplied, the test is inverted such that the rule is enabled
+          if the file contains 0.</para>
+
+          <para>Within the <replaceable>switch-name</replaceable>, '@0' and
+          '@{0}' are replaced by the name of the chain to which the rule is a
+          added. The <replaceable>switch-name</replaceable> (after '@...'
+          expansion) must begin with a letter and be composed of letters,
+          decimal digits, underscores or hyphens. Switch names must be 30
+          characters or less in length.</para>
+
+          <para>Switches are normally <emphasis role="bold">off</emphasis>. To
+          turn a switch <emphasis role="bold">on</emphasis>:</para>
+
+          <simplelist>
+            <member><command>echo 1 &gt;
+            /proc/net/nf_condition/<replaceable>switch-name</replaceable></command></member>
+          </simplelist>
+
+          <para>To turn it <emphasis role="bold">off</emphasis> again:</para>
+
+          <simplelist>
+            <member><command>echo 0 &gt;
+            /proc/net/nf_condition/<replaceable>switch-name</replaceable></command></member>
+          </simplelist>
+
+          <para>Switch settings are retained over <command>shorewall
+          reload</command>.</para>
+
+          <para>When the <replaceable>switch-name</replaceable> is followed by
+          <option>=0</option> or <option>=1</option>, then the switch is
+          initialized to off or on respectively by the
+          <command>start</command> command. Other commands do not affect the
+          switch setting.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Example</title>
+
+    <variablelist>
+      <varlistentry>
+        <term>IPv4 Example 1:</term>
+
+        <listitem>
+          <para>Mark all ICMP echo traffic with packet mark 1. Mark all peer
+          to peer traffic with packet mark 4.</para>
+
+          <para>This is a little more complex than otherwise expected. Since
+          the ipp2p module is unable to determine all packets in a connection
+          are P2P packets, we mark the entire connection as P2P if any of the
+          packets are determined to match.</para>
+
+          <para>We assume packet/connection mark 0 means unclassified.</para>
+
+          <programlisting>       #ACTION    SOURCE    DEST         PROTO   DPORT         SPORT   USER    TEST
+       MARK(1):T  0.0.0.0/0 0.0.0.0/0    icmp    echo-request
+       MARK(1):T  0.0.0.0/0 0.0.0.0/0    icmp    echo-reply
+       RESTORE:T  0.0.0.0/0 0.0.0.0/0    all     -             -       -       0
+       CONTINUE:T 0.0.0.0/0 0.0.0.0/0    all     -             -       -       !0
+       MARK(4):T  0.0.0.0/0 0.0.0.0/0   ipp2p:all
+       SAVE:T     0.0.0.0/0 0.0.0.0/0   all     -             -       -       !0</programlisting>
+
+          <para>If a packet hasn't been classified (packet mark is 0), copy
+          the connection mark to the packet mark. If the packet mark is set,
+          we're done. If the packet is P2P, set the packet mark to 4. If the
+          packet mark has been set, save it to the connection mark.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>IPv4 Example 2:</term>
+
+        <listitem>
+          <para>SNAT outgoing connections on eth0 from 192.168.1.0/24 in
+          round-robin fashion between addresses 1.1.1.1, 1.1.1.3, and 1.1.1.9
+          (Shorewall 4.5.9 and later).</para>
+
+          <programlisting>/etc/shorewall/mangle:
+
+       #ACTION            SOURCE         DEST         PROTO   DPORT         SPORT   USER    TEST
+       CONNMARK(1-3):F    192.168.1.0/24 eth0 ; state=NEW
+
+/etc/shorewall/snat:
+
+       #ACTION          SOURCE              DEST     ...
+       SNAT(1.1.1.1)    eth0:192.168.1.0/24 - { mark=1:C }
+       SNAT(1.1.1.3)    eth0:192.168.1.0/24 - { mark=2:C }
+       SNAT(1.1.1.4)    eth0:192.168.1.0/24 - { mark=3:C }</programlisting>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>IPv6 Example 1:</term>
+
+        <listitem>
+          <para>Mark all ICMP echo traffic with packet mark 1. Mark all peer
+          to peer traffic with packet mark 4.</para>
+
+          <para>This is a little more complex than otherwise expected. Since
+          the ipp2p module is unable to determine all packets in a connection
+          are P2P packets, we mark the entire connection as P2P if any of the
+          packets are determined to match.</para>
+
+          <para>We assume packet/connection mark 0 means unclassified.</para>
+
+          <programlisting>       #ACTION    SOURCE    DEST         PROTO   DPORT         SPORT   USER    TEST
+       MARK(1):T  ::/0      ::/0         icmp    echo-request
+       MARK(1):T  ::/0      ::/0         icmp    echo-reply
+       RESTORE:T  ::/0      ::/0         all     -             -       -       0
+       CONTINUE:T ::/0      ::/0         all     -             -       -       !0
+       MARK(4):T  ::/0      ::/0         ipp2p:all
+       SAVE:T     ::/0      ::/0         all     -             -       -       !0</programlisting>
+
+          <para>If a packet hasn't been classified (packet mark is 0), copy
+          the connection mark to the packet mark. If the packet mark is set,
+          we're done. If the packet is P2P, set the packet mark to 4. If the
+          packet mark has been set, save it to the connection mark.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall/mangle</para>
+
+    <para>/etc/shorewall6/mangle</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para><ulink
+    url="../traffic_shaping.htm">https://shorewall.org/traffic_shaping.htm</ulink></para>
+
+    <para><ulink
+    url="../MultiISP.html">https://shorewall.org/MultiISP.html</ulink></para>
+
+    <para><ulink
+    url="../PacketMarking.html">https://shorewall.org/PacketMarking.html</ulink></para>
+
+    <para><ulink
+    url="../configuration_file_basics.htm#Pairs">https://shorewall.org/configuration_file_basics.htm#Pairs</ulink></para>
+
+    <para>shorewall(8)</para>
+  </refsect1>
+</refentry>

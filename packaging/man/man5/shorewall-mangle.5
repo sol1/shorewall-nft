@@ -1,0 +1,1436 @@
+'\" t
+.\"     Title: shorewall-mangle
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Configuration Files
+.\"    Source: Configuration Files
+.\"  Language: English
+.\"
+.TH "SHOREWALL\-MANGLE" "5" "08/05/2026" "Configuration Files" "Configuration Files"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+mangle \- Shorewall Packet marking/mangling rules file
+.SH "SYNOPSIS"
+.HP \w'\fB/etc/shorewall[6]/mangle\fR\ 'u
+\fB/etc/shorewall[6]/mangle\fR
+.SH "DESCRIPTION"
+.PP
+This file was introduced in Shorewall 4\&.6\&.0 and replaces
+\m[blue]\fBshorewall\-tcrules(5)\fR\m[]\&\s-2\u[1]\d\s+2\&. This file is only processed by the compiler if:
+.PP
+Entries in this file cause packets to be marked as a means of classifying them for traffic control or policy routing\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+.PP
+Unlike rules in the
+\m[blue]\fBshorewall\-rules\fR\m[]\&\s-2\u[2]\d\s+2(5) file, evaluation of rules in this file will continue after a match\&. So the final mark for each packet will be the one assigned by the LAST tcrule that matches\&.
+.PP
+If you use multiple internet providers with the \*(Aqtrack\*(Aq option, in /etc/shorewall/providers be sure to read the restrictions at
+\m[blue]\fBhttps://shorewall\&.org/MultiISP\&.html\fR\m[]\&\s-2\u[3]\d\s+2\&.
+.sp .5v
+.RE
+.PP
+The columns in the file are as follows (where the column name is followed by a different name in parentheses, the different name is used in the alternate specification syntax)\&.
+.PP
+\fBACTION\fR \- \fIcommand\fR[(\fIparameters\fR)][:\fIchain\-designator\fR]
+.RS 4
+The
+\fIchain\-designator \fRindicates the Netfilter chain that the entry applies to and may be one of the following:
+.PP
+P
+.RS 4
+PREROUTING chain\&.
+.RE
+.PP
+F
+.RS 4
+FORWARD chain\&.
+.RE
+.PP
+T
+.RS 4
+POSTROUTING chain\&.
+.RE
+.PP
+I
+.RS 4
+INPUT chain\&.
+.RE
+.PP
+NP
+.RS 4
+PREROUTING chain in the nat table\&.
+.RE
+.PP
+NI
+.RS 4
+INPUT chain in the nat table\&.
+.RE
+.PP
+NO
+.RS 4
+OUTPUT chain in the nat table\&.
+.RE
+.PP
+NT
+.RS 4
+POSTROUTING chain in the nat table\&.
+.RE
+.sp
+The nat table designators were added in Shorewall 5\&.2\&.1\&. When a nat table designator is given, only the CONNMARK, MARK, SAVE and RESTORE commands may be used\&.
+.sp
+Unless otherwise specified for the particular
+\fIcommand\fR, the default chain is PREROUTING when MARK_IN_FORWARD_CHAIN=No in
+\m[blue]\fBshorewall\&.conf(5)\fR\m[]\&\s-2\u[4]\d\s+2, and FORWARD when MARK_IN_FORWARD_CHAIN=Yes\&.
+.sp
+A
+\fIchain\-designator\fR
+may not be specified if the SOURCE or DEST columns begin with \*(Aq$FW\*(Aq\&. When the SOURCE is $FW, the generated rule is always placed in the OUTPUT chain\&. If DEST is \*(Aq$FW\*(Aq, then the rule is placed in the INPUT chain\&. Additionally, a
+\fIchain\-designator\fR
+may not be specified in an action body\&.
+.sp
+Where a command takes parameters, those parameters are enclosed in parentheses ("(\&.\&.\&.\&.)") and separated by commas\&.
+.sp
+The
+\fIcommand\fR
+may be one of the following\&.
+.PP
+\fB\fIaction\fR\fR\fB[([\fR\fB\fIparam\fR\fR\fB[,\&.\&.\&.])]\fR
+.RS 4
+Added in Shorewall 5\&.0\&.7\&.
+\fIaction\fR
+must be an action declared with the
+\fBmangle\fR
+option in
+\m[blue]\fBshorewall\-actions(5)\fR\m[]\&\s-2\u[5]\d\s+2\&. If the action accepts parameters, they are specified as a comma\-separated list within parentheses following the
+\fIaction\fR
+name\&.
+.RE
+.PP
+\fBADD(\fR\fB\fIipset\fR\fR\fB:\fR\fB\fIflags\fR\fR\fB)\fR
+.RS 4
+Added in Shorewall 4\&.6\&.7\&. Causes addresses and/or port numbers to be added to the named
+\fIipset\fR\&. The
+\fIflags\fR
+specify the address or tuple to be added to the set and must match the type of ipset involved\&. For example, for an iphash ipset, either the SOURCE or DESTINATION address can be added using
+\fIflags\fR
+\fBsrc\fR
+or
+\fBdst\fR
+respectively (see the \-A command in ipset (8))\&.
+.sp
+ADD is non\-terminating\&. Even if a packet matches the rule, it is passed on to the next rule\&.
+.RE
+.PP
+\fBCHECKSUM\fR
+.RS 4
+Compute and fill in the checksum in a packet that lacks a checksum\&. This is particularly useful if you need to work around old applications, such as dhcp clients, that do not work well with checksum offloads, but you don\*(Aqt want to disable checksum offload in your device\&.
+.sp
+Requires \*(AqChecksum Target\*(Aq support in your kernel and iptables\&.
+.RE
+.PP
+\fBCLASSIFY(\fR\fB\fIclassid\fR\fR\fB)\fR
+.RS 4
+A classification Id (classid) is of the form
+\fImajor\fR:\fIminor\fR
+where
+\fImajor\fR
+and
+\fIminor\fR
+are integers\&. Corresponds to the \*(Aqclass\*(Aq specification in these traffic shaping modules:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+       atm
+       cbq
+       dsmark
+       pfifo_fast
+       htb
+       prio
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Classification occurs in the POSTROUTING chain except when the
+\fBSOURCE\fR
+is
+\fB$FW\fR[:\fIaddress\fR] in which case classification occurs in the OUTPUT chain\&.
+.sp
+When using Shorewall\*(Aqs built\-in traffic shaping tool, the
+\fImajor\fR
+class is the device number (the first device in
+\m[blue]\fBshorewall\-tcdevices\fR\m[]\&\s-2\u[6]\d\s+2(5) is major class 1, the second device is major class 2, and so on) and the
+\fIminor\fR
+class is the class\*(Aqs MARK value in
+\m[blue]\fBshorewall\-tcclasses\fR\m[]\&\s-2\u[7]\d\s+2(5) preceded by the number 1 (MARK 1 corresponds to minor class 11, MARK 5 corresponds to minor class 15, MARK 22 corresponds to minor class 122, etc\&.)\&.
+.RE
+.PP
+\fB?COMMENT\fR
+.RS 4
+The rest of the line will be attached as a comment to the Netfilter rule(s) generated by the following entries\&. The comment will appear delimited by "/* \&.\&.\&. */" in the output of
+\fBshorewall show mangle\fR
+.sp
+To stop the comment from being attached to further rules, simply include ?COMMENT on a line by itself\&.
+.RE
+.PP
+\fBCONMARK({mark|range})\fR
+.RS 4
+Identical to MARK with the exception that the mark is assigned to connection to which the packet belongs is marked rather than to the packet itself\&.
+.RE
+.PP
+\fBCONTINUE\fR
+.RS 4
+Don\*(Aqt process any more marking rules in the table\&.
+.sp
+Currently, CONTINUE may not be used with
+\fIexclusion\fR
+(see the SOURCE and DEST columns below); that restriction will be removed when iptables/Netfilter provides the necessary support\&.
+.RE
+.PP
+\fBDEL(\fR\fB\fIipset\fR\fR\fB:\fR\fB\fIflags\fR\fR\fB)\fR
+.RS 4
+Added in Shorewall 4\&.6\&.7\&. Causes an entry to be deleted from the named
+\fIipset\fR\&. The
+\fIflags\fR
+specify the address or tuple to be deleted from the set and must match the type of ipset involved\&. For example, for an iphash ipset, either the SOURCE or DESTINATION address can be deleted using
+\fIflags\fR
+\fBsrc\fR
+or
+\fBdst\fR
+respectively (see the \-D command in ipset (8))\&.
+.sp
+DEL is non\-terminating\&. Even if a packet matches the rule, it is passed on to the next rule\&.
+.RE
+.PP
+\fBDIVERT\fR
+.RS 4
+Two DIVERT rule should precede the TPROXY rule and should select DEST PORT tcp 80 and SOURCE PORT tcp 80 respectively (assuming that tcp port 80 is being proxied)\&. DIVERT avoids sending packets to the TPROXY target once a socket connection to Squid3 has been established by TPROXY\&. DIVERT marks the packet with a unique mark and exempts it from any rules that follow\&.
+.RE
+.PP
+\fBDIVERTHA\fR
+.RS 4
+Added in Shorewall 5\&.0\&.4\&. To setup the HAProxy configuration described at
+\m[blue]\fBhttp://www\&.loadbalancer\&.org/blog/setting\-up\-haproxy\-with\-transparent\-mode\-on\-centos\-6\-x\fR\m[], place this entry in
+\m[blue]\fBshorewall\-providers(5)\fR\m[]\&\s-2\u[8]\d\s+2:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+#NAME    NUMBER   MARK    DUPLICATE  INTERFACE GATEWAY         OPTIONS               COPY
+TProxy   1        \-       \-          lo        \-               tproxy
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+and use this DIVERTHA entry:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+#ACTION         SOURCE          DEST            PROTO   DPORT   SPORT   USER    TEST    LENGTH  TOS   CONNBYTES         HELPER    PROBABILITY DSCP
+DIVERTHA        \-               \-               tcp
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+\fBDROP\fR
+.RS 4
+Causes matching packets to be discarded\&.
+.RE
+.PP
+\fBDSCP\fR(\fIdscp\fR)
+.RS 4
+Sets the
+Differentiated Services Code Point
+field in the IP header\&. The
+\fIdscp\fR
+value may be given as an even number (hex or decimal) or as the name of a DSCP class\&. Valid class names and their associated hex numeric values are:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+    CS0  => 0x00
+    CS1  => 0x08
+    CS2  => 0x10
+    CS3  => 0x18
+    CS4  => 0x20
+    CS5  => 0x28
+    CS6  => 0x30
+    CS7  => 0x38
+    BE   => 0x00
+    AF11 => 0x0a
+    AF12 => 0x0c
+    AF13 => 0x0e
+    AF21 => 0x12
+    AF22 => 0x14
+    AF23 => 0x16
+    AF31 => 0x1a
+    AF32 => 0x1c
+    AF33 => 0x1e
+    AF41 => 0x22
+    AF42 => 0x24
+    AF43 => 0x26
+    EF   => 0x2e
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+To indicate more than one class, add their hex values together and specify the result\&. By default, DSCP rules are placed in the POSTROUTING chain\&.
+.RE
+.PP
+\fBECN\fR
+.RS 4
+Added in Shorewall 5\&.0\&.6 as an alternative to entries in
+\m[blue]\fBshorewall\-ecn(5)\fR\m[]\&\s-2\u[9]\d\s+2\&. If a PROTO is specified, it must be \*(Aqtcp\*(Aq (6)\&. If no PROTO is supplied, TCP is assumed\&. This action causes all ECN bits in the TCP header to be cleared\&.
+.RE
+.PP
+\fBIMQ\fR(\fInumber\fR)
+.RS 4
+Specifies that the packet should be passed to the IMQ identified by
+\fInumber\fR\&. Requires IMQ Target support in your kernel and iptables\&.
+.RE
+.PP
+\fBINLINE\fR[(\fIaction\fR)]
+.RS 4
+Allows you to place your own ip[6]tables matches at the end of the line following a semicolon (";") (deprecated) or two semicolons (";;") (preferred since Shoreall 5\&.0\&.0)\&. If an
+\fIaction\fR
+is specified, the compiler proceeds as if that
+\fIaction\fR
+had been specified in this column\&. If no action is specified, then you may include your own jump ("\-j
+\fItarget\fR
+[\fIoption\fR] \&.\&.\&.") after any matches specified at the end of the rule\&. If the target is not one known to Shorewall, then it must be defined as a builtin action in
+\m[blue]\fBshorewall\-actions\fR\m[]\&\s-2\u[10]\d\s+2
+(5)\&.
+.sp
+The following rules are equivalent:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+2:P                   eth0              \-         tcp 22
+INLINE(MARK(2)):P     eth0              \-         tcp 22
+INLINE(MARK(2)):P     eth0              \-                 ;; \-p tcp
+INLINE                eth0              \-         tcp 22  ;; \-j MARK \-\-set\-mark 2
+INLINE                eth0              \-                 ;; \-p tcp \-j MARK \-\-set\-mark 2
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+\fBIPMARK\fR
+.RS 4
+Assigns a mark to each matching packet based on the either the source or destination IP address\&. By default, it assigns a mark value equal to the low\-order 8 bits of the source address\&. Default values are:
+.RS 4
+src
+.RE
+.RS 4
+\fImask1\fR = 0xFF
+.RE
+.RS 4
+\fImask2\fR = 0x00
+.RE
+.RS 4
+\fIshift\fR = 0
+.RE
+\*(Aqsrc\*(Aq and \*(Aqdst\*(Aq specify whether the mark is to be based on the source or destination address respectively\&. The selected address is first shifted to the right by
+\fIshift\fR
+bits\&. The result is then LANDed with
+\fImask1\fR
+then LORed with
+\fIma\fR\fI\fIs\fR\fR\fIk2\fR\&.
+.sp
+In a sense, the IPMARK target is more like an IPCLASSIFY target in that the mark value is later interpreted as a class ID\&. A packet mark is 32 bits wide; so is a class ID\&. The <major> class occupies the high\-order 16 bits and the <minor> class occupies the low\-order 16 bits\&. So the class ID 1:4ff (remember that class IDs are always in hex) is equivalent to a mark value of 0x104ff\&. Remember that Shorewall uses the interface number as the <major> number where the first interface in tcdevices has <major> number 1, the second has <major> number 2, and so on\&.
+.sp
+The IPMARK target assigns a mark to each matching packet based on the either the source or destination IP address\&. By default, it assigns a mark value equal to the low\-order 8 bits of the source address\&. The syntax is as follows:
+\fBIPMARK\fR[([{\fBsrc\fR|\fBdst\fR}][,[\fImask1\fR][,[\fImask2\fR][,[\fIshift\fR]]]])]
+Default values are:
+.RS 4
+\fBsrc\fR
+.RE
+.RS 4
+\fImask1\fR = 0xFF
+.RE
+.RS 4
+\fImask2\fR = 0x00
+.RE
+.RS 4
+\fIshift\fR = 0
+.RE
+\fBsrc\fR
+and
+\fBdst\fR
+specify whether the mark is to be based on the source or destination address respectively\&. The selected address is first shifted right by
+\fIshift\fR, then LANDed with
+\fImask1\fR
+and then LORed with
+\fImask2\fR\&. The
+\fIshift\fR
+argument is intended to be used primarily with IPv6 addresses\&.
+.sp
+Example:
+IPMARK(src,0xff,0x10100)
+.RS 4
+Suppose that the source IP address is 192\&.168\&.4\&.3
+                    = 0xc0a80403; then
+.RE
+.RS 4
+0xc0a80403 >> 0 = 0xc0a80403
+.RE
+.RS 4
+0xc0a80403 LAND 0xFF = 0x03
+.RE
+.RS 4
+0x03 LOR 0x10100 = 0x10103 or class ID
+                    1:103
+.RE
+It is important to realize that, while class IDs are composed of a
+\fImajor\fR
+and a
+\fIminor\fR
+value, the set of values must be unique\&. That is, the same numeric value cannot be used as both a
+\fImajor\fR
+and a
+\fIminor\fR
+number for the same interface unless class nesting occurs (which is not currently possible with Shorewall)\&. You should keep this in mind when deciding how to map IP addresses to class IDs\&.
+.sp
+For example, suppose that your internal network is 192\&.168\&.1\&.0/29 (host IP addresses 192\&.168\&.1\&.1 \- 192\&.168\&.1\&.6)\&. Your first notion might be to use IPMARK(src,0xFF,0x10000) so as to produce class IDs 1:1 through 1:6\&. But 1:1 is an invalid class ID since the
+\fImajor\fR
+and
+\fIminor\fR
+classes are equal\&. So you might choose instead to use IPMARK(src,0xFF,0x10100) as in the example above so that all of your
+\fIminor\fR
+classes will have a value > 256\&.
+.RE
+.PP
+\fBIP6TABLES({\fR\fB\fItarget\fR\fR\fB [\fR\fB\fIoption\fR\fR\fB \&.\&.\&.])\fR
+.RS 4
+IPv6 only\&.
+.sp
+This action allows you to specify an iptables target with options (e\&.g\&., \*(AqIP6TABLES(MARK \-\-set\-xmark 0x01/0xff)\*(Aq\&. If the target is not one recognized by Shorewall, the following error message will be issued:
+.RS 4
+ERROR: Unknown target
+                  (\fItarget\fR)
+.RE
+This error message may be eliminated by adding the
+\fItarget\fR
+as a builtin action in
+\m[blue]\fBshorewall\-actions(5)\fR\m[]\&\s-2\u[10]\d\s+2\&.
+.RE
+.PP
+\fBIPTABLES({\fR\fB\fItarget\fR\fR\fB [\fR\fB\fIoption\fR\fR\fB \&.\&.\&.])\fR
+.RS 4
+IPv4 only\&.
+.sp
+This action allows you to specify an iptables target with options (e\&.g\&., \*(AqIPTABLES(MARK \-\-set\-xmark 0x01/0xff)\*(Aq\&. If the target is not one recognized by Shorewall, the following error message will be issued:
+.RS 4
+ERROR: Unknown target
+                  (\fItarget\fR)
+.RE
+This error message may be eliminated by adding the
+\fItarget\fR
+as a builtin action in
+\m[blue]\fBshorewall\-actions(5)\fR\m[]\&\s-2\u[10]\d\s+2\&.
+.RE
+.PP
+\fBMARK({\fR\fB\fImark\fR\fR\fB|\fR\fB\fIrange\fR\fR\fB})\fR
+.RS 4
+where
+\fImark\fR
+is a packet mark value\&.
+.sp
+Normally will set the mark value\&. If preceded by a vertical bar ("|"), the mark value will be logically ORed with the current mark value to produce a new mark value\&. If preceded by an ampersand ("&"), will be logically ANDed with the current mark value to produce a new mark value\&.
+.sp
+Both "|" and "&" require Extended MARK Target support in your kernel and iptables\&.
+.sp
+The mark value may be optionally followed by "/" and a mask value (used to determine those bits of the connection mark to actually be set)\&. When a mask is specified, the result of logically ANDing the mark value with the mask must be the same as the mark value\&.
+.sp
+A mark
+\fIrange\fR
+is a pair of integers separated by a dash ("\-")\&.
+.sp
+May be optionally followed by a slash ("/") and a mask and requires the
+Statistics Match
+capability in iptables and kernel\&. Marks in the specified range are assigned to packets on a round\-robin fashion\&.
+.sp
+When a mask is specified, the result of logically ANDing each mark value with the mask must be the same as the mark value\&. The least significant bit in the mask is used as an increment\&. For example, if \*(Aq0x200\-0x400/0xff00\*(Aq is specified, then the assigned mark values are 0x200, 0x300 and 0x400 in equal proportions\&. If no mask is specified, then ( 2 ** MASK_BITS ) \- 1 is assumed (MASK_BITS is set in
+\m[blue]\fBshorewall\&.conf\fR\m[]\&\s-2\u[4]\d\s+2(5))\&.
+.RE
+.PP
+\fBNFLOG\fR[(\fInflog\-parameters\fR)]
+.RS 4
+Added in Shorewall 5\&.0\&.9\&. Logs matching packets using NFLOG\&. The
+\fInflog\-parameters\fR
+are a comma\-separated list of up to 3 numbers:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The first number specifies the netlink group (0\-65535)\&. If omitted (e\&.g\&., NFLOG(,0,10)) then a value of 0 is assumed\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The second number specifies the maximum number of bytes to copy\&. If omitted, 0 (no limit) is assumed\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The third number specifies the number of log messages that should be buffered in the kernel before they are sent to user space\&. The default is 1\&.
+.RE
+.RE
+.PP
+\fBRESTORE\fR[(\fImask\fR)]
+.RS 4
+Restore the packet\*(Aqs mark from the connection\*(Aqs mark using the supplied mask if any\&. Your kernel and iptables must include CONNMARK support\&.
+.RE
+.PP
+\fBSAME[(\fR\fB\fItimeout\fR\fR\fB)]\fR
+.RS 4
+Some websites run applications that require multiple connections from a client browser\&. Where multiple \*(Aqbalanced\*(Aq providers are configured, this can lead to problems when some of the connections are routed through one provider and some through another\&. The SAME target allows you to work around that problem\&. SAME may be used in the PREROUTING and OUTPUT chains\&. When used in PREROUTING, it causes matching connections from an individual local system to all use the same provider\&. For example:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+#ACTION           SOURCE         DEST         PROTO      DPORT
+SAME:P            192\&.168\&.1\&.0/24 0\&.0\&.0\&.0/0    tcp        80,443
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+If a host in 192\&.168\&.1\&.0/24 attempts a connection on TCP port 80 or 443 and it has sent a packet on either of those ports in the last five minutes then the new connection will use the same provider as the connection over which that last packet was sent\&.
+.sp
+When used in the OUTPUT chain, it causes all matching connections to an individual remote system to all use the same provider\&. For example:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+#ACTION           SOURCE         DEST         PROTO      DPORT
+SAME              $FW            0\&.0\&.0\&.0/0    tcp        80,443
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+The optional
+\fItimeout\fR
+parameter was added in Shorewall 4\&.6\&.7 and specifies a number of seconds \&. When not specified, a value of 300 seconds (5 minutes) is assumed\&. If the firewall attempts a connection on TCP port 80 or 443 and it has sent a packet on either of those ports in the last
+\fItimeout\fR
+seconds to the same remote system then the new connection will use the same provider as the connection over which that last packet was sent\&.
+.RE
+.PP
+\fBSAVE[(\fR\fB\fI\fImask\fR\fR\fI)\fR\fR\fB] \fR
+.RS 4
+Save the packet\*(Aqs mark to the connection\*(Aqs mark using the supplied mask if any\&. Your kernel and iptables must include CONNMARK support\&.
+.RE
+.PP
+\fBTCPMSS\fR([\fImss\fR[,\fIipsec\fR]])
+.RS 4
+Added in Shorewall 5\&.1\&.9\&. This target only applies to TCP traffic and alters the MSS value in SYN packets\&. It may be used in the FORWARD and POSTROUTING chains; the default is FORWARD\&.
+.sp
+The
+\fImss\fR
+parameter may be either
+\fBpmtu\fR
+or an integer in the range 500:65533\&. The value
+\fBpmtu\fR
+automatically clamps the MSS value to (path_MTU \- 40 for IPv4; \-60 for IPv6)\&. This may not function as desired where asymmetric routes with differing path MTU exist \(em the kernel uses the path MTU which it would use to send packets from itself to the source and destination IP addresses\&. Prior to Linux 2\&.6\&.25, only the path MTU to the destination IP address was considered by this option; subsequent kernels also consider the path MTU to the source IP address\&. If an integer is given, the MSS option is set to the specified value\&. If the MSS of the packet is already lower than
+\fImss\fR, it will not be increased (from Linux 2\&.6\&.25 onwards) to avoid more problems with hosts relying on a proper MSS\&. If
+\fImss\fR
+is omitted,
+\fBpmtu\fR
+is assumed\&.
+.sp
+The
+\fIipsec\fR
+parameter determines whether the rule applies to IPSEC traffic (\fBipsec\fR
+is passed), non\-IPSEC traffic (\fBnone\fR
+is passed) or both (\fBall\fR
+is passed)\&. If omitted,
+\fBall\fR
+is assumed\&.
+.RE
+.PP
+\fBTOS\fR(\fItos\fR[/\fImask\fR])
+.RS 4
+Sets the
+Type of Service
+field in the IP header\&. The
+\fItos\fR
+value may be given as an number (hex or decimal) or as the name of a TOS type\&. Valid type names and their associated hex numeric values are:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+Minimize\-Delay       => 0x10,
+Maximize\-Throughput  => 0x08,
+Maximize\-Reliability => 0x04,
+Minimize\-Cost        => 0x02,
+Normal\-Service       => 0x00
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+To indicate more than one class, add their hex values together and specify the result\&.
+.sp
+When
+\fItos\fR
+is given as a number, it may be optionally followed by \*(Aq/\*(Aq and a
+\fImask\fR\&. When no
+\fImask\fR
+is given, the value 0xff is assumed\&. When
+\fItos\fR
+is given as a type name, the
+\fImask\fR
+0x3f is assumed\&.
+.sp
+The action performed is to zero out the bits specified by the
+\fImask\fR, then set the bits specified by
+\fItos\fR\&.
+.RE
+.PP
+\fBTPROXY\fR([\fIport\fR[,\fIaddress\fR]])
+.RS 4
+Transparently redirects a packet without altering the IP header\&. Requires a tproxy provider to be defined in
+\m[blue]\fBshorewall\-providers\fR\m[]\&\s-2\u[8]\d\s+2(5)\&.
+.sp
+There are three parameters to TPROXY \- neither is required:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIport\fR
+\- the port on which the proxy server is listening\&. If omitted, the original destination port\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIaddress\fR
+\- a local (to the firewall) IP address on which the proxy server is listening\&. If omitted, the IP address of the interface on which the request arrives\&.
+.RE
+.RE
+.PP
+\fBTTL\fR([\fB\-\fR|\fB+\fR]\fInumber\fR)
+.RS 4
+If
+\fB+\fR
+is included, packets matching the rule will have their TTL incremented by
+\fInumber\fR\&. Similarly, if
+\fB\-\fR
+is included, matching packets have their TTL decremented by
+\fInumber\fR\&. If neither
+\fB+\fR
+nor
+\fB\-\fR
+is given, the TTL of matching packets is set to
+\fInumber\fR\&. The valid range of values for
+\fInumber\fR
+is 1\-255\&.
+.RE
+.RE
+.PP
+\fBSOURCE \- {\-|\fR\fB\fIsource\-spec\fR\fR\fB[,\&.\&.\&.]}\fR
+.RS 4
+where
+\fIsource\-spec\fR
+is one of:
+.PP
+[!]\fIinterface\fR
+.RS 4
+where
+\fIinterface\fR
+is the logical name of an
+\fIinterface\fR
+defined in
+\m[blue]\fBshorewall\-interfaces\fR\m[]\&\s-2\u[11]\d\s+2(5)\&. Matches packets entering the firewall from the named interface\&. May not be used in CLASSIFY rules or in rules using the :T chain qualifier\&.
+.sp
+Beginning with Shorweall 5\&.2\&.1, the
+\fIinterface\fR
+may be preceded with \*(Aq!\*(Aq which matches all interfaces except the one specified\&.
+.RE
+.PP
+\fIaddress\fR[,\&.\&.\&.][\fIexclusion\fR]
+.RS 4
+where
+\fIaddress\fR
+is:
+A host or network IP address\&.
+.sp
+The name of an ipset preceded by a plus sign ("+")\&.
+.sp
+A MAC address in Shorewall format (preceded by a tilde ("~") and using dash ("\-") as a separator (e\&.g\&., ~00\-A0\-C9\-15\-39\-78)\&.
+Matches traffic whose source IP address matches one of the listed addresses and that does not match an address listed in the
+\fIexclusion\fR
+(see
+\m[blue]\fBshorewall\-exclusion\fR\m[]\&\s-2\u[12]\d\s+2(5))\&.
+.sp
+\fBThis form will not match traffic that originates on the firewall itself unless either <major><minor> or the :T chain qualifier is used in the ACTION column\&.\fR
+.RE
+.PP
+[!]\fIinterface\fR:\fIaddress\fR,[\&.\&.\&.][\fIexclusion\fR]
+.RS 4
+This form combines the preceding two forms and matches when both the incoming interface and source IP address match\&.
+.sp
+Beginning with Shorweall 5\&.2\&.1, the
+\fIinterface\fR
+may be preceded with \*(Aq!\*(Aq which matches all interfaces except the one specified\&.
+.RE
+.PP
+[!]\fIinterface\fR:\fIexclusion\fR
+.RS 4
+This form matches packets arriving through the named
+\fIinterface\fR
+and whose source IP address does not match any of the addresses in the
+\fIexclusion\fR\&.
+.sp
+Beginning with Shorweall 5\&.2\&.1, the
+\fIinterface\fR
+may be preceded with \*(Aq!\*(Aq which matches all interfaces except the one specified\&.
+.RE
+.PP
+$FW
+.RS 4
+Matches packets originating on the firewall system\&. May not be used with a chain qualifier (:P, :F, etc\&.) in the ACTION column\&.
+.RE
+.PP
+$FW:\fIaddress\fR[,\&.\&.\&.][\fIexclusion\fR]
+.RS 4
+where
+\fIaddress\fR
+is as above (MAC addresses are not permitted)\&. Matches packets originating on the firewall and whose source IP address matches one of the listed addresses and does not match any address listed in the
+\fIexclusion\fR\&. May not be used with a chain qualifier (:P, :F, etc\&.) in the ACTION column\&.
+.RE
+.PP
+$FW:\fIexclusion\fR
+.RS 4
+Matches traffic originating on the firewall, provided that the source IP address does not match any address listed in the
+\fIexclusion\fR\&.
+.RE
+.sp
+Beginning with Shorewall 5\&.1\&.0, multiple
+\fIsource_spec\fRs, separated by commas, may be given provided that the following alternative forms are used:
+(\fIaddress\fR[,\&.\&.\&.][\fIexclusion\fR])
+.sp
+\fIinterface\fR:(\fIaddress\fR[,\&.\&.\&.][\fIexclusion\fR])
+.sp
+\fIinterface\fR:(\fIexclusion\fR)
+.sp
+$FW:(\fIaddress\fR[,\&.\&.\&.][\fIexclusion\fR])
+.sp
+$FW:(\fIexclusion\fR)
+.RE
+.PP
+\fBDEST \- {\-|\fR\fB\fIdest\-spec\fR\fR\fB[,\&.\&.\&.]}\fR
+.RS 4
+where
+\fIdest\-spec\fR
+is one of:
+.PP
+\fIinterface\fR
+.RS 4
+where
+\fIinterface\fR
+is the logical name of an interface defined in
+\m[blue]\fBshorewall\-interfaces\fR\m[]\&\s-2\u[11]\d\s+2(5)\&. Matches packets leaving the firewall through the named interface\&. May not be used in the PREROUTING chain (:P in the mark column or no chain qualifier and MARK_IN_FORWARD_CHAIN=No in
+\m[blue]\fBshorewall\&.conf\fR\m[]
+(5))\&.
+.RE
+.PP
+\fIaddress\fR[,\&.\&.\&.][\fIexclusion\fR]
+.RS 4
+where
+\fIaddress\fR
+is:
+A host or network IP address\&.
+.sp
+The name of an ipset preceded by a plus sign ("+")\&.
+.sp
+A MAC address in Shorewall format (preceded by a tilde ("~") and using dash ("\-") as a separator (e\&.g\&., ~00\-A0\-C9\-15\-39\-78)\&.
+Matches traffic whose destination IP address matches one of the listed addresses and that does not match an address listed in the
+\fIexclusion\fR
+(see
+\m[blue]\fBshorewall\-exclusion\fR\m[]\&\s-2\u[12]\d\s+2(5))\&.
+.RE
+.PP
+\fIinterface\fR:\fIaddress\fR,[\&.\&.\&.][\fIexclusion\fR]
+.RS 4
+This form combines the preceding two forms and matches when both the outgoing interface and destination IP address match\&. May not be used in the PREROUTING chain (:P in the mark column or no chain qualifier and MARK_IN_FORWARD_CHAIN=No in
+\m[blue]\fBshorewall\&.conf\fR\m[]
+(5))\&.
+.RE
+.PP
+\fIinterface\fR:\fIexclusion\fR
+.RS 4
+This form matches packets leaving through the named
+\fIinterface\fR
+and whose destination IP address does not match any of the addresses in the
+\fIexclusion\fR\&. May not be used in the PREROUTING chain (:P in the mark column or no chain qualifier and MARK_IN_FORWARD_CHAIN=No in
+\m[blue]\fBshorewall\&.conf\fR\m[]
+(5))\&.
+.RE
+.PP
+$FW
+.RS 4
+Matches packets originating on the firewall system\&. May not be used with a chain qualifier (:P, :F, etc\&.) in the ACTION column\&.
+.RE
+.PP
+$FW:\fIaddress\fR[,\&.\&.\&.][\fIexclusion\fR]
+.RS 4
+where
+\fIaddress\fR
+is as above (MAC addresses are not permitted)\&. Matches packets destined for the firewall and whose destination IP address matches one of the listed addresses and does not match any address listed in the
+\fIexclusion\fR\&. May not be used with a chain qualifier (:P, :F, etc\&.) in the ACTION column\&.
+.RE
+.PP
+$FW:\fIexclusion\fR
+.RS 4
+Matches traffic destined for the firewall, provided that the destination IP address does not match any address listed in the
+\fIexclusion\fR\&.
+.RE
+.sp
+Beginning with Shorewall 5\&.1\&.0, multiple
+\fIdest_spec\fRs, separated by commas, may be given provided that the following alternative forms are used:
+(\fIaddress\fR[,\&.\&.\&.][\fIexclusion\fR])
+.sp
+\fIinterface\fR:(\fIaddress\fR[,\&.\&.\&.][\fIexclusion\fR])
+.sp
+\fIinterface\fR:(\fIexclusion\fR)
+.sp
+$FW:(\fIaddress\fR[,\&.\&.\&.][\fIexclusion\fR])
+.sp
+$FW:(\fIexclusion\fR)
+.RE
+.PP
+\fBPROTO\fR \- {\fB\-\fR|\fB{tcp:[!]syn\fR|\fBipp2p\fR|\fBipp2p:udp\fR|\fBipp2p:all\fR|\fIprotocol\-number\fR|\fIprotocol\-name\fR|\fBall}[,\&.\&.\&.]}\fR
+.RS 4
+See
+\m[blue]\fBshorewall\-rules(5)\fR\m[]\&\s-2\u[2]\d\s+2
+for details\&.
+.sp
+Beginning with Shorewall 4\&.5\&.12, this column can accept a comma\-separated list of protocols\&.
+.RE
+.PP
+\fBDPORT\fR\- {\fB\-\fR|\fIport\-name\-number\-or\-range\fR[\fB,\fR\fIport\-name\-number\-or\-range\fR]\&.\&.\&.|+\fIipset\fR}
+.RS 4
+Optional destination Ports\&. A comma\-separated list of Port names (from services(5)),
+\fIport number\fRs or
+\fIport range\fRs; if the protocol is
+\fBicmp\fR, this column is interpreted as the destination icmp\-type(s)\&. ICMP types may be specified as a numeric type, a numeric type and code separated by a slash (e\&.g\&., 3/4), or a typename\&. See
+\m[blue]\fBhttps://shorewall\&.org/configuration_file_basics\&.htm#ICMP\fR\m[]\&\s-2\u[13]\d\s+2\&.
+.sp
+If the protocol is
+\fBipp2p\fR, this column is interpreted as an ipp2p option without the leading "\-\-" (example
+\fBbit\fR
+for bit\-torrent)\&. If no PORT is given,
+\fBipp2p\fR
+is assumed\&.
+.sp
+An entry in this field requires that the PROTO column specify icmp (1), tcp (6), udp (17), sctp (132) or udplite (136)\&. Use \*(Aq\-\*(Aq if any of the following field is supplied\&.
+.sp
+Beginning with Shorewall 4\&.6\&.0, an
+\fIipset\fR
+name can be specified in this column\&. This is intended to be used with
+bitmap:port
+ipsets\&.
+.sp
+This column was formerly named DEST PORT(S)\&.
+.RE
+.PP
+\fBSPORT\fR \- {\fB\-\fR|\fIport\-name\-number\-or\-range\fR[\fB,\fR\fIport\-name\-number\-or\-range\fR]\&.\&.\&.|+\fIipset\fR}
+.RS 4
+Optional source port(s)\&. If omitted, any source port is acceptable\&. Specified as a comma\-separated list of port names, port numbers or port ranges\&.
+.sp
+An entry in this field requires that the PROTO column specify tcp (6), udp (17), sctp (132) or udplite (136)\&. Use \*(Aq\-\*(Aq if any of the following fields is supplied\&.
+.sp
+Beginning with Shorewall 4\&.5\&.15, you may place \*(Aq=\*(Aq in this column, provided that the DPORT column is non\-empty\&. This causes the rule to match when either the source port or the destination port in a packet matches one of the ports specified in DEST PORTS(S)\&. Use of \*(Aq=\*(Aq requires multi\-port match in your iptables and kernel\&.
+.sp
+Beginning with Shorewall 4\&.6\&.0, an
+\fIipset\fR
+name can be specified in this column\&. This is intended to be used with
+bitmap:port
+ipsets\&.
+.sp
+This column was formerly labelled SOURCE PORT(S)\&.
+.RE
+.PP
+\fBUSER\fR \- [\fB!\fR][\fIuser\-name\-or\-number\fR][\fB:\fR\fIgroup\-name\-or\-number\fR][\fB+\fR\fIprogram\-name\fR]
+.RS 4
+This optional column may only be non\-empty if the SOURCE is the firewall itself\&.
+.sp
+When this column is non\-empty, the rule applies only if the program generating the output is running under the effective
+\fIuser\fR
+and/or
+\fIgroup\fR
+specified (or is NOT running under that id if "!" is given)\&.
+.sp
+Examples:
+.PP
+joe
+.RS 4
+program must be run by joe
+.RE
+.PP
+:kids
+.RS 4
+program must be run by a member of the \*(Aqkids\*(Aq group
+.RE
+.PP
+!:kids
+.RS 4
+program must not be run by a member of the \*(Aqkids\*(Aq group
+.RE
+.PP
++upnpd
+.RS 4
+#program named upnpd
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+The ability to specify a program name was removed from Netfilter in kernel version 2\&.6\&.14\&.
+.sp .5v
+.RE
+.RE
+.RE
+.PP
+\fBTEST\fR \- [\fB!\fR]\fIvalue\fR[/\fImask\fR][\fB:C\fR]
+.RS 4
+Optional \- Defines a test on the existing packet or connection mark\&. The rule will match only if the test returns true\&.
+.sp
+If you don\*(Aqt want to define a test but need to specify anything in the following columns, place a "\-" in this field\&.
+.PP
+!
+.RS 4
+Inverts the test (not equal)
+.RE
+.PP
+\fIvalue\fR
+.RS 4
+Value of the packet or connection mark\&.
+.RE
+.PP
+\fImask\fR
+.RS 4
+A mask to be applied to the mark before testing\&.
+.RE
+.PP
+\fB:C\fR
+.RS 4
+Designates a connection mark\&. If omitted, the packet mark\*(Aqs value is tested\&.
+.RE
+.RE
+.PP
+\fBLENGTH\fR \- [\fIlength\fR|[\fImin\fR]\fB:\fR[\fImax\fR]]
+.RS 4
+Optional \- packet payload length\&. This field, if present allow you to match the length of a packet payload (Layer 4 data ) against a specific value or range of values\&. You must have iptables length support for this to work\&. A range is specified in the form
+\fImin\fR:\fImax\fR
+where either
+\fImin\fR
+or
+\fImax\fR
+(but not both) may be omitted\&. If
+\fImin\fR
+is omitted, then 0 is assumed; if
+\fImax\fR
+is omitted, than any packet that is
+\fImin\fR
+or longer will match\&.
+.RE
+.PP
+\fBTOS\fR \- \fItos\fR
+.RS 4
+Type of service\&. Either a standard name, or a numeric value to match\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+         \fBMinimize\-Delay\fR (16)
+         \fBMaximize\-Throughput\fR (8)
+         \fBMaximize\-Reliability\fR (4)
+         \fBMinimize\-Cost\fR (2)
+         \fBNormal\-Service\fR (0)
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+\fBCONNBYTES\fR \- [!]\fImin\fR:[\fImax\fR[:{\fBO\fR|\fBR\fR|\fBB\fR}[:{\fBB\fR|\fBP\fR|\fBA\fR}]]]
+.RS 4
+Optional connection Bytes; defines a byte or packet range that the connection must fall within in order for the rule to match\&.
+.sp
+A packet matches if the the packet/byte count is within the range defined by
+\fImin\fR
+and
+\fImax\fR
+(unless ! is given in which case, a packet matches if the packet/byte count is not within the range)\&.
+\fImin\fR
+is an integer which defines the beginning of the byte/packet range\&.
+\fImax\fR
+is an integer which defines the end of the byte/packet range; if omitted, only the beginning of the range is checked\&. The first letter gives the direction which the range refers to:\fBO\fR \- The original direction of the connection\&. .sp \- The opposite direction from the original connection\&. .sp \fBB\fR \- The total of both directions\&.
+.sp
+If omitted,
+\fBB\fR
+is assumed\&.
+.sp
+The second letter determines what the range refers to\&.\fBB\fR \- Bytes .sp \fBP\fR \- Packets .sp \fBA\fR \- Average packet size\&.If omitted,
+\fBB\fR
+is assumed\&.
+.RE
+.PP
+\fBHELPER \- \fR\fIhelper\fR
+.RS 4
+Names a Netfilter protocol
+helper
+module such as
+\fBftp\fR,
+\fBsip\fR,
+\fBamanda\fR, etc\&. A packet will match if it was accepted by the named helper module\&.
+.sp
+Example: Mark all FTP data connections with mark 4:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+#ACTION   SOURCE    DEST      PROTO   DPORT      SPORT   USER TEST LENGTH TOS CONNBYTES HELPER
+4:T       0\&.0\&.0\&.0/0 0\&.0\&.0\&.0/0 TCP     \-          \-       \-    \-    \-      \-   \-         ftp
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+\fBPROBABILITY\fR \- [\fIprobability\fR]
+.RS 4
+Added in Shorewall 4\&.5\&.0\&. When non\-empty, requires the
+Statistics Match
+capability in your kernel and ip6tables and causes the rule to match randomly but with the given
+\fIprobability\fR\&. The
+\fIprobability\fR
+is a number 0 <
+\fIprobability\fR
+<= 1 and may be expressed at up to 8 decimal points of precision\&.
+.RE
+.PP
+\fBDSCP \-\fR [[!]\fIdscp\fR]
+.RS 4
+Added in Shorewall 4\&.5\&.1\&. When non\-empty, match packets whose
+Differentiated Service Code Point
+field matches the supplied value (when \*(Aq!\*(Aq is given, the rule matches packets whose DSCP field does not match the supplied value)\&. The
+\fIdscp\fR
+value may be given as an even number (hex or decimal) or as the name of a DSCP class\&. Valid class names and their associated hex numeric values are:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+    CS0  => 0x00
+    CS1  => 0x08
+    CS2  => 0x10
+    CS3  => 0x18
+    CS4  => 0x20
+    CS5  => 0x28
+    CS6  => 0x30
+    CS7  => 0x38
+    BE   => 0x00
+    AF11 => 0x0a
+    AF12 => 0x0c
+    AF13 => 0x0e
+    AF21 => 0x12
+    AF22 => 0x14
+    AF23 => 0x16
+    AF31 => 0x1a
+    AF32 => 0x1c
+    AF33 => 0x1e
+    AF41 => 0x22
+    AF42 => 0x24
+    AF43 => 0x26
+    EF   => 0x2e
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+\fBSTATE\fR \-\- {\fBNEW\fR|\fBRELATED\fR|\fBESTABLISHED\fR|\fBINVALID\fR} [,\&.\&.\&.]
+.RS 4
+The rule will only match if the packet\*(Aqs connection is in one of the listed states\&.
+.RE
+.PP
+\fBTIME\fR \- \fItimeelement\fR[&\fItimeelement\fR\&.\&.\&.]
+.RS 4
+Added in Shorewall 4\&.6\&.2\&.
+.sp
+May be used to limit the rule to a particular time period each day, to particular days of the week or month, or to a range defined by dates and times\&. Requires time match support in your kernel and ip6tables\&.
+.sp
+\fItimeelement\fR
+may be:
+.PP
+timestart=\fIhh\fR:\fImm\fR[:\fIss\fR]
+.RS 4
+Defines the starting time of day\&.
+.RE
+.PP
+timestop=\fIhh\fR:\fImm\fR[:\fIss\fR]
+.RS 4
+Defines the ending time of day\&.
+.RE
+.PP
+contiguous
+.RS 4
+Added in Shoreawll 5\&.0\&.12\&. When
+\fBtimestop\fR
+is smaller than
+\fBtimestart\fR
+value, match this as a single time period instead of distinct intervals\&.
+.RE
+.PP
+utc
+.RS 4
+Times are expressed in Greenwich Mean Time\&.
+.RE
+.PP
+localtz
+.RS 4
+Deprecated by the Netfilter team in favor of
+\fBkerneltz\fR\&. Times are expressed in Local Civil Time (default)\&.
+.RE
+.PP
+kerneltz
+.RS 4
+Added in Shorewall 4\&.5\&.2\&. Times are expressed in Local Kernel Time (requires iptables 1\&.4\&.12 or later)\&.
+.RE
+.PP
+weekdays=ddd[,ddd]\&.\&.\&.
+.RS 4
+where
+\fIddd\fR
+is one of
+\fBMon\fR,
+\fBTue\fR,
+\fBWed\fR,
+\fBThu\fR,
+\fBFri\fR,
+\fBSat\fR
+or
+\fBSun\fR
+.RE
+.PP
+monthdays=dd[,dd],\&.\&.\&.
+.RS 4
+where
+\fIdd\fR
+is an ordinal day of the month
+.RE
+.PP
+datestart=\fIyyyy\fR[\-\fImm\fR[\-\fIdd\fR[\fBT\fR\fIhh\fR[:\fImm\fR[:\fIss\fR]]]]]
+.RS 4
+Defines the starting date and time\&.
+.RE
+.PP
+datestop=\fIyyyy\fR[\-\fImm\fR[\-\fIdd\fR[\fBT\fR\fIhh\fR[:\fImm\fR[:\fIss\fR]]]]]
+.RS 4
+Defines the ending date and time\&.
+.RE
+.RE
+.PP
+\fBSWITCH \- [!]\fR\fB\fIswitch\-name\fR\fR\fB[={0|1}]\fR
+.RS 4
+Added in Shorewall 5\&.1\&.0 and allows enabling and disabling the rule without requiring
+\fBshorewall reload\fR\&.
+.sp
+The rule is enabled if the value stored in
+/proc/net/nf_condition/\fIswitch\-name\fR
+is 1\&. The rule is disabled if that file contains 0 (the default)\&. If \*(Aq!\*(Aq is supplied, the test is inverted such that the rule is enabled if the file contains 0\&.
+.sp
+Within the
+\fIswitch\-name\fR, \*(Aq@0\*(Aq and \*(Aq@{0}\*(Aq are replaced by the name of the chain to which the rule is a added\&. The
+\fIswitch\-name\fR
+(after \*(Aq@\&.\&.\&.\*(Aq expansion) must begin with a letter and be composed of letters, decimal digits, underscores or hyphens\&. Switch names must be 30 characters or less in length\&.
+.sp
+Switches are normally
+\fBoff\fR\&. To turn a switch
+\fBon\fR:
+.RS 4
+\fBecho 1 >
+            /proc/net/nf_condition/\fR\fB\fIswitch\-name\fR\fR
+.RE
+To turn it
+\fBoff\fR
+again:
+.RS 4
+\fBecho 0 >
+            /proc/net/nf_condition/\fR\fB\fIswitch\-name\fR\fR
+.RE
+Switch settings are retained over
+\fBshorewall reload\fR\&.
+.sp
+When the
+\fIswitch\-name\fR
+is followed by
+\fB=0\fR
+or
+\fB=1\fR, then the switch is initialized to off or on respectively by the
+\fBstart\fR
+command\&. Other commands do not affect the switch setting\&.
+.RE
+.SH "EXAMPLE"
+.PP
+IPv4 Example 1:
+.RS 4
+Mark all ICMP echo traffic with packet mark 1\&. Mark all peer to peer traffic with packet mark 4\&.
+.sp
+This is a little more complex than otherwise expected\&. Since the ipp2p module is unable to determine all packets in a connection are P2P packets, we mark the entire connection as P2P if any of the packets are determined to match\&.
+.sp
+We assume packet/connection mark 0 means unclassified\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+       #ACTION    SOURCE    DEST         PROTO   DPORT         SPORT   USER    TEST
+       MARK(1):T  0\&.0\&.0\&.0/0 0\&.0\&.0\&.0/0    icmp    echo\-request
+       MARK(1):T  0\&.0\&.0\&.0/0 0\&.0\&.0\&.0/0    icmp    echo\-reply
+       RESTORE:T  0\&.0\&.0\&.0/0 0\&.0\&.0\&.0/0    all     \-             \-       \-       0
+       CONTINUE:T 0\&.0\&.0\&.0/0 0\&.0\&.0\&.0/0    all     \-             \-       \-       !0
+       MARK(4):T  0\&.0\&.0\&.0/0 0\&.0\&.0\&.0/0   ipp2p:all
+       SAVE:T     0\&.0\&.0\&.0/0 0\&.0\&.0\&.0/0   all     \-             \-       \-       !0
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+If a packet hasn\*(Aqt been classified (packet mark is 0), copy the connection mark to the packet mark\&. If the packet mark is set, we\*(Aqre done\&. If the packet is P2P, set the packet mark to 4\&. If the packet mark has been set, save it to the connection mark\&.
+.RE
+.PP
+IPv4 Example 2:
+.RS 4
+SNAT outgoing connections on eth0 from 192\&.168\&.1\&.0/24 in round\-robin fashion between addresses 1\&.1\&.1\&.1, 1\&.1\&.1\&.3, and 1\&.1\&.1\&.9 (Shorewall 4\&.5\&.9 and later)\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+/etc/shorewall/mangle:
+
+       #ACTION            SOURCE         DEST         PROTO   DPORT         SPORT   USER    TEST
+       CONNMARK(1\-3):F    192\&.168\&.1\&.0/24 eth0 ; state=NEW
+
+/etc/shorewall/snat:
+
+       #ACTION          SOURCE              DEST     \&.\&.\&.
+       SNAT(1\&.1\&.1\&.1)    eth0:192\&.168\&.1\&.0/24 \- { mark=1:C }
+       SNAT(1\&.1\&.1\&.3)    eth0:192\&.168\&.1\&.0/24 \- { mark=2:C }
+       SNAT(1\&.1\&.1\&.4)    eth0:192\&.168\&.1\&.0/24 \- { mark=3:C }
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+IPv6 Example 1:
+.RS 4
+Mark all ICMP echo traffic with packet mark 1\&. Mark all peer to peer traffic with packet mark 4\&.
+.sp
+This is a little more complex than otherwise expected\&. Since the ipp2p module is unable to determine all packets in a connection are P2P packets, we mark the entire connection as P2P if any of the packets are determined to match\&.
+.sp
+We assume packet/connection mark 0 means unclassified\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+       #ACTION    SOURCE    DEST         PROTO   DPORT         SPORT   USER    TEST
+       MARK(1):T  ::/0      ::/0         icmp    echo\-request
+       MARK(1):T  ::/0      ::/0         icmp    echo\-reply
+       RESTORE:T  ::/0      ::/0         all     \-             \-       \-       0
+       CONTINUE:T ::/0      ::/0         all     \-             \-       \-       !0
+       MARK(4):T  ::/0      ::/0         ipp2p:all
+       SAVE:T     ::/0      ::/0         all     \-             \-       \-       !0
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+If a packet hasn\*(Aqt been classified (packet mark is 0), copy the connection mark to the packet mark\&. If the packet mark is set, we\*(Aqre done\&. If the packet is P2P, set the packet mark to 4\&. If the packet mark has been set, save it to the connection mark\&.
+.RE
+.SH "FILES"
+.PP
+/etc/shorewall/mangle
+.PP
+/etc/shorewall6/mangle
+.SH "SEE ALSO"
+.PP
+\m[blue]\fBhttps://shorewall\&.org/traffic_shaping\&.htm\fR\m[]\&\s-2\u[14]\d\s+2
+.PP
+\m[blue]\fBhttps://shorewall\&.org/MultiISP\&.html\fR\m[]\&\s-2\u[3]\d\s+2
+.PP
+\m[blue]\fBhttps://shorewall\&.org/PacketMarking\&.html\fR\m[]\&\s-2\u[15]\d\s+2
+.PP
+\m[blue]\fBhttps://shorewall\&.org/configuration_file_basics\&.htm#Pairs\fR\m[]\&\s-2\u[16]\d\s+2
+.PP
+shorewall(8)
+.SH "NOTES"
+.IP " 1." 4
+shorewall-tcrules(5)
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-tcrules.html
+.RE
+.IP " 2." 4
+shorewall-rules
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-rules.html
+.RE
+.IP " 3." 4
+https://shorewall.org/MultiISP.html
+.RS 4
+\%[set $man.base.url.for.relative.links]/../MultiISP.html
+.RE
+.IP " 4." 4
+shorewall.conf(5)
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall.conf.html
+.RE
+.IP " 5." 4
+shorewall-actions(5)
+.RS 4
+\%[set $man.base.url.for.relative.links]/manpages/shorewall-actions.html
+.RE
+.IP " 6." 4
+shorewall-tcdevices
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-tcdevices.html
+.RE
+.IP " 7." 4
+shorewall-tcclasses
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-tcclasses.html
+.RE
+.IP " 8." 4
+shorewall-providers(5)
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-providers.html
+.RE
+.IP " 9." 4
+shorewall-ecn(5)
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-ecn.html
+.RE
+.IP "10." 4
+shorewall-actions
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-actions.html
+.RE
+.IP "11." 4
+shorewall-interfaces
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-interfaces.html
+.RE
+.IP "12." 4
+shorewall-exclusion
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-exclusion.html
+.RE
+.IP "13." 4
+https://shorewall.org/configuration_file_basics.htm#ICMP
+.RS 4
+\%[set $man.base.url.for.relative.links]/../configuration_file_basics.htm#ICMP
+.RE
+.IP "14." 4
+https://shorewall.org/traffic_shaping.htm
+.RS 4
+\%[set $man.base.url.for.relative.links]/../traffic_shaping.htm
+.RE
+.IP "15." 4
+https://shorewall.org/PacketMarking.html
+.RS 4
+\%[set $man.base.url.for.relative.links]/../PacketMarking.html
+.RE
+.IP "16." 4
+https://shorewall.org/configuration_file_basics.htm#Pairs
+.RS 4
+\%[set $man.base.url.for.relative.links]/../configuration_file_basics.htm#Pairs
+.RE

@@ -1,0 +1,448 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-zones</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>zones</refname>
+
+    <refpurpose>Shorewall zone declaration file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/etc/shorewall/zones</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>The /etc/shorewall/zones file declares your network zones. You
+    specify the hosts in each zone through entries in
+    <filename>/etc/shorewall/interfaces</filename> or
+    <filename>/etc/shorewall/hosts</filename>.</para>
+
+    <para>The columns in the file are as follows (where the column name is
+    followed by a different name in parentheses, the different name is used in
+    the alternate specification syntax).</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><emphasis role="bold">ZONE</emphasis> -
+        <emphasis>zone</emphasis>[<emphasis
+        role="bold">:</emphasis><emphasis>parent-zone</emphasis>[<emphasis
+        role="bold">,</emphasis><emphasis>parent-zone</emphasis>]...]</term>
+
+        <listitem>
+          <para>Name of the <emphasis>zone</emphasis>. Must start with a
+          letter and consist of letters, digits or '_'. The names "all",
+          "none", "any", "SOURCE" and "DEST" are reserved and may not be used
+          as zone names. The maximum length of a zone name is determined by
+          the setting of the LOGFORMAT option in <ulink
+          url="shorewall.conf.html">shorewall.conf</ulink>(5). With
+          the default LOGFORMAT, zone names can be at most 5 characters
+          long.</para>
+
+          <blockquote>
+            <para>The maximum length of an iptables log prefix is 29 bytes. As
+            explained in <ulink
+            url="shorewall.conf.html">shorewall.conf</ulink> (5),
+            the legacy default LOGPREFIX formatting string is
+            “Shorewall:%s:%s:” where the first %s is replaced by the chain
+            name and the second is replaced by the disposition.</para>
+
+            <itemizedlist>
+              <listitem>
+                <para>The "Shorewall:%s:%s:" formatting string has 12 fixed
+                characters ("Shorewall" and three colons).</para>
+              </listitem>
+
+              <listitem>
+                <para>The longest of the standard dispositions are ACCEPT and
+                REJECT which have 6 characters each.</para>
+              </listitem>
+
+              <listitem>
+                <para>The canonical name for the chain containing the rules
+                for traffic going from zone 1 to zone 2 is "&lt;zone
+                1&gt;2&lt;zone 2&gt;" or "&lt;zone 1&gt;-&lt;zone
+                2&gt;".</para>
+              </listitem>
+
+              <listitem>
+                <para>So if M is the maximum zone name length, such chains can
+                have length 2*M + 1.</para>
+
+                <simplelist>
+                  <member>12 + 6 + 2*M + 1 = 29 which reduces to</member>
+
+                  <member>2*M = 29 - 12 - 6 - 1 = 10 or</member>
+
+                  <member>M = 5</member>
+                </simplelist>
+              </listitem>
+            </itemizedlist>
+
+            <para>In Shorewall 5.1.0, the LOGFORMAT in the default and sample
+            shorewall.conf files was changed to "%s:%s ".</para>
+
+            <itemizedlist>
+              <listitem>
+                <para>That formatting string has 2 fixed characters (":" and a
+                space).</para>
+              </listitem>
+
+              <listitem>
+                <para>So the maximum zone name length M is calculated
+                as:</para>
+
+                <simplelist>
+                  <member>2 + 6 + 2*M + 1 = 29</member>
+
+                  <member>2M = 29 - 2 - 6 - 1 = 20</member>
+
+                  <member>M = 10</member>
+                </simplelist>
+              </listitem>
+            </itemizedlist>
+          </blockquote>
+
+          <para>The order in which Shorewall matches addresses from packets to
+          zones is determined by the order of zone declarations. Where a zone
+          is nested in one or more other zones, you may either ensure that the
+          nested zone precedes its parents in this file, or you may follow the
+          (sub)zone name by ":" and a comma-separated list of the parent
+          zones. The parent zones must have been declared in earlier records
+          in this file. See <ulink
+          url="shorewall-nesting.html">shorewall-nesting</ulink>(5)
+          for additional information.</para>
+
+          <para>Example:</para>
+
+          <programlisting>#ZONE     TYPE     OPTIONS         IN OPTIONS        OUT OPTIONS
+a         ip
+b         ip
+c:a,b     ip</programlisting>
+
+          <para>Currently, Shorewall uses this information to reorder the zone
+          list so that parent zones appear after their subzones in the list.
+          The IMPLICIT_CONTINUE option in <ulink
+          url="shorewall.conf.html">shorewall.conf</ulink>(5) can
+          also create implicit CONTINUE policies to/from the subzone.</para>
+
+          <para>Where an <emphasis role="bold">ipsec</emphasis> zone is
+          explicitly included as a child of an <emphasis
+          role="bold">ip</emphasis> zone, the ruleset allows CONTINUE policies
+          (explicit or implicit) to work as expected.</para>
+
+          <para>In the future, Shorewall may make additional use of nesting
+          information.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">TYPE</emphasis></term>
+
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term><emphasis role="bold">ip</emphasis></term>
+
+              <listitem>
+                <para>This is the standard Shorewall zone type and is the
+                default if you leave this column empty or if you enter "-" in
+                the column. Communication with some zone hosts may be
+                encrypted. Encrypted hosts are designated using the 'ipsec'
+                option in <ulink
+                url="shorewall-hosts.html">shorewall-hosts</ulink>(5).
+                For clarity, this zone type may be specified as
+                <option>ipv4</option> in IPv4 configurations and
+                <option>ipv6</option> in IPv6 configurations.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">ipsec</emphasis></term>
+
+              <listitem>
+                <para>Communication with all zone hosts is encrypted. Your
+                kernel and iptables must include policy match support. For
+                clarity, this zone type may be specified as
+                <option>ipsec4</option> in IPv4 configurations and
+                <option>ipsec6</option> in IPv6 configurations.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">firewall</emphasis></term>
+
+              <listitem>
+                <para>Designates the firewall itself. You must have exactly
+                one 'firewall' zone. No options are permitted with a
+                'firewall' zone. The name that you enter in the ZONE column
+                will be stored in the shell variable $FW which you may use in
+                other configuration files to designate the firewall
+                zone.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">bport</emphasis></term>
+
+              <listitem>
+                <para>The zone is associated with one or more ports on a
+                single bridge. For clarity, this zone type may be specified as
+                <option>bport4</option> in IPv4 configurations and
+                <option>bport6</option> in IPv6 configurations.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">vserver</emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 4.4.11 Beta 2 - A zone composed of
+                Linux-vserver guests. The zone contents must be defined in
+                <ulink
+                url="shorewall-hosts.html">shorewall-hosts</ulink>
+                (5).</para>
+
+                <para>Vserver zones are implicitly handled as subzones of the
+                firewall zone.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">loopback</emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 4.5.17.</para>
+
+                <para>Normally, Shorewall treats the loopback interface (lo)
+                in the following way:</para>
+
+                <itemizedlist>
+                  <listitem>
+                    <para>By default, all traffic through the interface is
+                    ACCEPTed.</para>
+                  </listitem>
+
+                  <listitem>
+                    <para>If a $FW -&gt; $FW policy is defined or $FW -&gt;
+                    $FW rules are defined, they are placed in a chain named
+                    ${FW}2${F2} or ${FW}-${FW} (e.g., 'fw2fw' or 'fw-fw' )
+                    depending on the ZONE2ZONE setting in <ulink
+                    url="shorewall.conf.html">shorewall.conf</ulink>(5).</para>
+                  </listitem>
+
+                  <listitem>
+                    <para>$FW -&gt; $FW traffic is only filtered in the OUTPUT
+                    chain.</para>
+                  </listitem>
+                </itemizedlist>
+
+                <para>By defining a <emphasis role="bold">loopback</emphasis>
+                zone and associating it with the loopback interface in
+                shorewall-interfaces(5), you can effect a slightly different
+                model. Suppose that the <emphasis
+                role="bold">loopback</emphasis> zone name is 'local';
+                then:</para>
+
+                <itemizedlist>
+                  <listitem>
+                    <para>Both $FW -&gt; local and local -&gt; $FW chains are
+                    created.</para>
+                  </listitem>
+
+                  <listitem>
+                    <para>The $FW -&gt; local and local -&gt; $FW policies may
+                    be different.</para>
+                  </listitem>
+
+                  <listitem>
+                    <para>Both $FW -&gt; local and local -&gt; $FW rules may
+                    be specified.</para>
+                  </listitem>
+                </itemizedlist>
+
+                <para>Rules to/from the <emphasis
+                role="bold">loopback</emphasis> zone and any zone other than
+                the firewall zone are ignored with a warning.</para>
+
+                <para><emphasis role="bold">loopback</emphasis> zones may be
+                nested within other <emphasis role="bold">loopback</emphasis>
+                zones.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>local</term>
+
+              <listitem>
+                <para>Added in Shorewall 4.5.17. <emphasis
+                role="bold">local</emphasis> is the same as <emphasis
+                role="bold">ipv4</emphasis> with the exception that the zone
+                is only accessible from the <emphasis
+                role="bold">firewall</emphasis> and <emphasis
+                role="bold">vserver</emphasis> zones.</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">OPTIONS, IN OPTIONS and OUT
+        OPTIONS</emphasis> (options, in_options, out_options) -
+        [<emphasis>option</emphasis>[<emphasis
+        role="bold">,</emphasis><emphasis>option</emphasis>]...]</term>
+
+        <listitem>
+          <para>A comma-separated list of options. With the exception of the
+          <option>mss</option> and <option>blacklist</option> options, these
+          only apply to TYPE <option>ipsec</option> zones.</para>
+
+          <variablelist>
+            <varlistentry>
+              <term><emphasis role="bold">dynamic_shared</emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 4.5.9. May only be specified in the
+                OPTIONS column and indicates that only a single ipset should
+                be created for this zone if it has multiple dynamic entries in
+                <ulink
+                url="shorewall-hosts.html">shorewall-hosts</ulink>(5).
+                Without this option, a separate ipset is created for each
+                interface.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">reqid=</emphasis><emphasis>number</emphasis></term>
+
+              <listitem>
+                <para>where <emphasis>number</emphasis> is specified using
+                setkey(8) using the 'unique:<emphasis>number</emphasis> option
+                for the SPD level.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">spi=</emphasis>&lt;number&gt;</term>
+
+              <listitem>
+                <para>where <emphasis>number</emphasis> is the SPI of the SA
+                used to encrypt/decrypt packets.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">proto=</emphasis><emphasis
+              role="bold">ah</emphasis>|<emphasis
+              role="bold">esp</emphasis>|<emphasis
+              role="bold">ipcomp</emphasis></term>
+
+              <listitem>
+                <para>IPSEC Encapsulation Protocol</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">mss=</emphasis><emphasis>number</emphasis></term>
+
+              <listitem>
+                <para>sets the MSS field in TCP packets. If you supply this
+                option, you should also set FASTACCEPT=No in <ulink
+                url="shorewall.conf.html">shorewall.conf</ulink>(5)
+                to insure that both the SYN and SYN,ACK packets have their MSS
+                field adjusted.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">mode=</emphasis><emphasis
+              role="bold">transport</emphasis>|<emphasis
+              role="bold">tunnel</emphasis></term>
+
+              <listitem>
+                <para>IPSEC mode</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">tunnel-src=</emphasis><emphasis>address</emphasis>[/<emphasis>mask</emphasis>]</term>
+
+              <listitem>
+                <para>only available with mode=tunnel</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">tunnel-dst=</emphasis><emphasis>address</emphasis>[/<emphasis>mask</emphasis>]</term>
+
+              <listitem>
+                <para>only available with mode=tunnel</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">strict</emphasis></term>
+
+              <listitem>
+                <para>Means that packets must match all rules.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">next</emphasis></term>
+
+              <listitem>
+                <para>Separates rules; can only be used with strict</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+
+          <para>The options in the OPTIONS column are applied to both incoming
+          and outgoing traffic. The IN OPTIONS are applied to incoming traffic
+          (in addition to OPTIONS) and the OUT OPTIONS are applied to outgoing
+          traffic.</para>
+
+          <para>If you wish to leave a column empty but need to make an entry
+          in a following column, use "-".</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall/zones</para>
+
+    <para>/etc/shorewall6/zones</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para><ulink
+    url="../Multiple_Zones.html">https://shorewall.org/Multiple_Zones.html</ulink>.</para>
+
+    <para><ulink
+    url="../configuration_file_basics.htm#Pairs">https://shorewall.org/configuration_file_basics.htm#Pairs</ulink></para>
+
+    <para>shorewall(8)</para>
+  </refsect1>
+</refentry>

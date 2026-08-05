@@ -1,0 +1,424 @@
+'\" t
+.\"     Title: shorewall-zones
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Configuration Files
+.\"    Source: Configuration Files
+.\"  Language: English
+.\"
+.TH "SHOREWALL\-ZONES" "5" "08/05/2026" "Configuration Files" "Configuration Files"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+zones \- Shorewall zone declaration file
+.SH "SYNOPSIS"
+.HP \w'\fB/etc/shorewall/zones\fR\ 'u
+\fB/etc/shorewall/zones\fR
+.SH "DESCRIPTION"
+.PP
+The /etc/shorewall/zones file declares your network zones\&. You specify the hosts in each zone through entries in
+/etc/shorewall/interfaces
+or
+/etc/shorewall/hosts\&.
+.PP
+The columns in the file are as follows (where the column name is followed by a different name in parentheses, the different name is used in the alternate specification syntax)\&.
+.PP
+\fBZONE\fR \- \fIzone\fR[\fB:\fR\fIparent\-zone\fR[\fB,\fR\fIparent\-zone\fR]\&.\&.\&.]
+.RS 4
+Name of the
+\fIzone\fR\&. Must start with a letter and consist of letters, digits or \*(Aq_\*(Aq\&. The names "all", "none", "any", "SOURCE" and "DEST" are reserved and may not be used as zone names\&. The maximum length of a zone name is determined by the setting of the LOGFORMAT option in
+\m[blue]\fBshorewall\&.conf\fR\m[]\&\s-2\u[1]\d\s+2(5)\&. With the default LOGFORMAT, zone names can be at most 5 characters long\&.
+The maximum length of an iptables log prefix is 29 bytes\&. As explained in
+\m[blue]\fBshorewall\&.conf\fR\m[]\&\s-2\u[1]\d\s+2
+(5), the legacy default LOGPREFIX formatting string is \(lqShorewall:%s:%s:\(rq where the first %s is replaced by the chain name and the second is replaced by the disposition\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The "Shorewall:%s:%s:" formatting string has 12 fixed characters ("Shorewall" and three colons)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The longest of the standard dispositions are ACCEPT and REJECT which have 6 characters each\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The canonical name for the chain containing the rules for traffic going from zone 1 to zone 2 is "<zone 1>2<zone 2>" or "<zone 1>\-<zone 2>"\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+So if M is the maximum zone name length, such chains can have length 2*M + 1\&.
+.RS 4
+12 + 6 + 2*M + 1 = 29 which reduces to
+.RE
+.RS 4
+2*M = 29 \- 12 \- 6 \- 1 = 10 or
+.RE
+.RS 4
+M = 5
+.RE
+.RE
+.sp
+In Shorewall 5\&.1\&.0, the LOGFORMAT in the default and sample shorewall\&.conf files was changed to "%s:%s "\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+That formatting string has 2 fixed characters (":" and a space)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+So the maximum zone name length M is calculated as:
+.RS 4
+2 + 6 + 2*M + 1 = 29
+.RE
+.RS 4
+2M = 29 \- 2 \- 6 \- 1 = 20
+.RE
+.RS 4
+M = 10
+.RE
+.RE
+The order in which Shorewall matches addresses from packets to zones is determined by the order of zone declarations\&. Where a zone is nested in one or more other zones, you may either ensure that the nested zone precedes its parents in this file, or you may follow the (sub)zone name by ":" and a comma\-separated list of the parent zones\&. The parent zones must have been declared in earlier records in this file\&. See
+\m[blue]\fBshorewall\-nesting\fR\m[]\&\s-2\u[2]\d\s+2(5) for additional information\&.
+.sp
+Example:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+#ZONE     TYPE     OPTIONS         IN OPTIONS        OUT OPTIONS
+a         ip
+b         ip
+c:a,b     ip
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Currently, Shorewall uses this information to reorder the zone list so that parent zones appear after their subzones in the list\&. The IMPLICIT_CONTINUE option in
+\m[blue]\fBshorewall\&.conf\fR\m[]\&\s-2\u[1]\d\s+2(5) can also create implicit CONTINUE policies to/from the subzone\&.
+.sp
+Where an
+\fBipsec\fR
+zone is explicitly included as a child of an
+\fBip\fR
+zone, the ruleset allows CONTINUE policies (explicit or implicit) to work as expected\&.
+.sp
+In the future, Shorewall may make additional use of nesting information\&.
+.RE
+.PP
+\fBTYPE\fR
+.RS 4
+.PP
+\fBip\fR
+.RS 4
+This is the standard Shorewall zone type and is the default if you leave this column empty or if you enter "\-" in the column\&. Communication with some zone hosts may be encrypted\&. Encrypted hosts are designated using the \*(Aqipsec\*(Aq option in
+\m[blue]\fBshorewall\-hosts\fR\m[]\&\s-2\u[3]\d\s+2(5)\&. For clarity, this zone type may be specified as
+\fBipv4\fR
+in IPv4 configurations and
+\fBipv6\fR
+in IPv6 configurations\&.
+.RE
+.PP
+\fBipsec\fR
+.RS 4
+Communication with all zone hosts is encrypted\&. Your kernel and iptables must include policy match support\&. For clarity, this zone type may be specified as
+\fBipsec4\fR
+in IPv4 configurations and
+\fBipsec6\fR
+in IPv6 configurations\&.
+.RE
+.PP
+\fBfirewall\fR
+.RS 4
+Designates the firewall itself\&. You must have exactly one \*(Aqfirewall\*(Aq zone\&. No options are permitted with a \*(Aqfirewall\*(Aq zone\&. The name that you enter in the ZONE column will be stored in the shell variable $FW which you may use in other configuration files to designate the firewall zone\&.
+.RE
+.PP
+\fBbport\fR
+.RS 4
+The zone is associated with one or more ports on a single bridge\&. For clarity, this zone type may be specified as
+\fBbport4\fR
+in IPv4 configurations and
+\fBbport6\fR
+in IPv6 configurations\&.
+.RE
+.PP
+\fBvserver\fR
+.RS 4
+Added in Shorewall 4\&.4\&.11 Beta 2 \- A zone composed of Linux\-vserver guests\&. The zone contents must be defined in
+\m[blue]\fBshorewall\-hosts\fR\m[]\&\s-2\u[3]\d\s+2
+(5)\&.
+.sp
+Vserver zones are implicitly handled as subzones of the firewall zone\&.
+.RE
+.PP
+\fBloopback\fR
+.RS 4
+Added in Shorewall 4\&.5\&.17\&.
+.sp
+Normally, Shorewall treats the loopback interface (lo) in the following way:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+By default, all traffic through the interface is ACCEPTed\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+If a $FW \-> $FW policy is defined or $FW \-> $FW rules are defined, they are placed in a chain named ${FW}2${F2} or ${FW}\-${FW} (e\&.g\&., \*(Aqfw2fw\*(Aq or \*(Aqfw\-fw\*(Aq ) depending on the ZONE2ZONE setting in
+\m[blue]\fBshorewall\&.conf\fR\m[]\&\s-2\u[1]\d\s+2(5)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+$FW \-> $FW traffic is only filtered in the OUTPUT chain\&.
+.RE
+.sp
+By defining a
+\fBloopback\fR
+zone and associating it with the loopback interface in shorewall\-interfaces(5), you can effect a slightly different model\&. Suppose that the
+\fBloopback\fR
+zone name is \*(Aqlocal\*(Aq; then:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Both $FW \-> local and local \-> $FW chains are created\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The $FW \-> local and local \-> $FW policies may be different\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Both $FW \-> local and local \-> $FW rules may be specified\&.
+.RE
+.sp
+Rules to/from the
+\fBloopback\fR
+zone and any zone other than the firewall zone are ignored with a warning\&.
+.sp
+\fBloopback\fR
+zones may be nested within other
+\fBloopback\fR
+zones\&.
+.RE
+.PP
+local
+.RS 4
+Added in Shorewall 4\&.5\&.17\&.
+\fBlocal\fR
+is the same as
+\fBipv4\fR
+with the exception that the zone is only accessible from the
+\fBfirewall\fR
+and
+\fBvserver\fR
+zones\&.
+.RE
+.RE
+.PP
+\fBOPTIONS, IN OPTIONS and OUT OPTIONS\fR (options, in_options, out_options) \- [\fIoption\fR[\fB,\fR\fIoption\fR]\&.\&.\&.]
+.RS 4
+A comma\-separated list of options\&. With the exception of the
+\fBmss\fR
+and
+\fBblacklist\fR
+options, these only apply to TYPE
+\fBipsec\fR
+zones\&.
+.PP
+\fBdynamic_shared\fR
+.RS 4
+Added in Shorewall 4\&.5\&.9\&. May only be specified in the OPTIONS column and indicates that only a single ipset should be created for this zone if it has multiple dynamic entries in
+\m[blue]\fBshorewall\-hosts\fR\m[]\&\s-2\u[3]\d\s+2(5)\&. Without this option, a separate ipset is created for each interface\&.
+.RE
+.PP
+\fBreqid=\fR\fInumber\fR
+.RS 4
+where
+\fInumber\fR
+is specified using setkey(8) using the \*(Aqunique:\fInumber\fR
+option for the SPD level\&.
+.RE
+.PP
+\fBspi=\fR<number>
+.RS 4
+where
+\fInumber\fR
+is the SPI of the SA used to encrypt/decrypt packets\&.
+.RE
+.PP
+\fBproto=\fR\fBah\fR|\fBesp\fR|\fBipcomp\fR
+.RS 4
+IPSEC Encapsulation Protocol
+.RE
+.PP
+\fBmss=\fR\fInumber\fR
+.RS 4
+sets the MSS field in TCP packets\&. If you supply this option, you should also set FASTACCEPT=No in
+\m[blue]\fBshorewall\&.conf\fR\m[]\&\s-2\u[1]\d\s+2(5) to insure that both the SYN and SYN,ACK packets have their MSS field adjusted\&.
+.RE
+.PP
+\fBmode=\fR\fBtransport\fR|\fBtunnel\fR
+.RS 4
+IPSEC mode
+.RE
+.PP
+\fBtunnel\-src=\fR\fIaddress\fR[/\fImask\fR]
+.RS 4
+only available with mode=tunnel
+.RE
+.PP
+\fBtunnel\-dst=\fR\fIaddress\fR[/\fImask\fR]
+.RS 4
+only available with mode=tunnel
+.RE
+.PP
+\fBstrict\fR
+.RS 4
+Means that packets must match all rules\&.
+.RE
+.PP
+\fBnext\fR
+.RS 4
+Separates rules; can only be used with strict
+.RE
+.sp
+The options in the OPTIONS column are applied to both incoming and outgoing traffic\&. The IN OPTIONS are applied to incoming traffic (in addition to OPTIONS) and the OUT OPTIONS are applied to outgoing traffic\&.
+.sp
+If you wish to leave a column empty but need to make an entry in a following column, use "\-"\&.
+.RE
+.SH "FILES"
+.PP
+/etc/shorewall/zones
+.PP
+/etc/shorewall6/zones
+.SH "SEE ALSO"
+.PP
+\m[blue]\fBhttps://shorewall\&.org/Multiple_Zones\&.html\fR\m[]\&\s-2\u[4]\d\s+2\&.
+.PP
+\m[blue]\fBhttps://shorewall\&.org/configuration_file_basics\&.htm#Pairs\fR\m[]\&\s-2\u[5]\d\s+2
+.PP
+shorewall(8)
+.SH "NOTES"
+.IP " 1." 4
+shorewall.conf
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall.conf.html
+.RE
+.IP " 2." 4
+shorewall-nesting
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-nesting.html
+.RE
+.IP " 3." 4
+shorewall-hosts
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-hosts.html
+.RE
+.IP " 4." 4
+https://shorewall.org/Multiple_Zones.html
+.RS 4
+\%[set $man.base.url.for.relative.links]/../Multiple_Zones.html
+.RE
+.IP " 5." 4
+https://shorewall.org/configuration_file_basics.htm#Pairs
+.RS 4
+\%[set $man.base.url.for.relative.links]/../configuration_file_basics.htm#Pairs
+.RE

@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-tcdevices</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>tcdevices</refname>
+
+    <refpurpose>Shorewall Traffic Shaping Devices file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/etc/shorewall[6]/tcdevices</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>Entries in this file define the bandwidth for interfaces on which
+    you want traffic shaping to be enabled.</para>
+
+    <para>If you do not plan to use traffic shaping for a device, don't put it
+    in here as it limits the throughput of that device to the limits you set
+    here.</para>
+
+    <para>A note on the <emphasis>bandwidth</emphasis> definitions used in
+    this file:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>don't use a space between the integer value and the unit: 30kbit
+        is valid while 30 kbit is not.</para>
+      </listitem>
+
+      <listitem>
+        <para>you can use one of the following units:</para>
+
+        <variablelist>
+          <varlistentry>
+            <term><emphasis role="bold">kbps</emphasis></term>
+
+            <listitem>
+              <para>Kilobytes per second.</para>
+            </listitem>
+          </varlistentry>
+
+          <varlistentry>
+            <term><emphasis role="bold">mbps</emphasis></term>
+
+            <listitem>
+              <para>Megabytes per second.</para>
+            </listitem>
+          </varlistentry>
+
+          <varlistentry>
+            <term><emphasis role="bold">gbps</emphasis></term>
+
+            <listitem>
+              <para>Gigabytes per second.</para>
+            </listitem>
+          </varlistentry>
+
+          <varlistentry>
+            <term><emphasis role="bold">kbit</emphasis></term>
+
+            <listitem>
+              <para>Kilobits per second.</para>
+            </listitem>
+          </varlistentry>
+
+          <varlistentry>
+            <term><emphasis role="bold">mbit</emphasis></term>
+
+            <listitem>
+              <para>Megabits per second.</para>
+            </listitem>
+          </varlistentry>
+
+          <varlistentry>
+            <term><emphasis role="bold">gbit</emphasis></term>
+
+            <listitem>
+              <para>Gigabits per second.</para>
+            </listitem>
+          </varlistentry>
+
+          <varlistentry>
+            <term><emphasis role="bold">bps</emphasis> or <emphasis
+            role="bold">number</emphasis></term>
+
+            <listitem>
+              <para>Bytes per second.</para>
+            </listitem>
+          </varlistentry>
+        </variablelist>
+      </listitem>
+
+      <listitem>
+        <para>Only whole integers are allowed.</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>The columns in the file are as follows (where the column name is
+    followed by a different name in parentheses, the different name is used in
+    the alternate specification syntax).</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><emphasis role="bold">INTERFACE</emphasis> -
+        [<emphasis>number</emphasis>:]<emphasis>interface</emphasis></term>
+
+        <listitem>
+          <para>Name of <emphasis>interface</emphasis>. Each interface may be
+          listed only once in this file. You may NOT specify the name of an
+          alias (e.g., eth0:0) here; see <ulink
+          url="../FAQ.htm#faq18">https://shorewall.org/FAQ.htm#faq18</ulink></para>
+
+          <para>You may NOT specify wildcards here, e.g. if you have multiple
+          ppp interfaces, you need to put them all in here!</para>
+
+          <para>If the device doesn't exist, a warning message will be issued
+          during "shorewall [re]start" and "shorewall reload" and traffic
+          shaping configuration will be skipped for that device.</para>
+
+          <para>Shorewall assigns a sequential <firstterm>interface
+          number</firstterm> to each interface (the first entry in the file is
+          interface 1, the second is interface 2 and so on) You can explicitly
+          specify the interface number by prefixing the interface name with
+          the number and a colon (":"). Example: 1:eth0.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">IN-BANDWIDTH (in_bandwidth)</emphasis> -
+        {-|<replaceable>bandwidth</replaceable>[:<replaceable>burst</replaceable>]|~<replaceable>bandwidth</replaceable>[:<replaceable>interval</replaceable>:<replaceable>decay_interval</replaceable>]}</term>
+
+        <listitem>
+          <para>The incoming <emphasis>bandwidth</emphasis> of that interface.
+          Please note that you are not able to do traffic shaping on incoming
+          traffic, as the traffic is already received before you could do so.
+          But this allows you to define the maximum traffic allowed for this
+          interface in total, if the rate is exceeded, the packets are
+          dropped. You want this mainly if you have a DSL or Cable connection
+          to avoid queuing at your providers side.</para>
+
+          <para>If you don't want any traffic to be dropped, set this to a
+          value to zero in which case Shorewall will not create an ingress
+          qdisc.Must be set to zero if the REDIRECTED INTERFACES column is
+          non-empty.</para>
+
+          <para>The optional burst option was added in Shorewall 4.4.18. The
+          default <replaceable>burst</replaceable> is 10kb. A larger
+          <replaceable>burst</replaceable> can help make the
+          <replaceable>bandwidth</replaceable> more accurate; often for fast
+          lines, the enforced rate is well below the specified
+          <replaceable>bandwidth</replaceable>.</para>
+
+          <para>What is described above creates a rate/burst policing filter.
+          Beginning with Shorewall 4.4.25, a rate-estimated policing filter
+          may be configured instead. Rate-estimated filters should be used
+          with Ethernet adapters that have Generic Receive Offload enabled by
+          default. See <ulink url="../FAQ.htm#faq97a">Shorewall FAQ
+          97a</ulink>.</para>
+
+          <para>To create a rate-estimated filter, precede the bandwidth with
+          a tilde ("~"). The optional interval and decay_interval determine
+          how often the rate is estimated and how many samples are retained
+          for estimating. Please see <ulink
+          url="http://ace-host.stuart.id.au/russell/files/tc/doc/estimators.txt">http://ace-host.stuart.id.au/russell/files/tc/doc/estimators.txt</ulink>
+          for details. If not specified, the default
+          <replaceable>interval</replaceable> is 250ms and the default
+          <replaceable>decay_interval</replaceable> is 4sec.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">OUT-BANDWIDTH</emphasis> (out_bandwidth) -
+        <emphasis>bandwidth</emphasis></term>
+
+        <listitem>
+          <para>The outgoing <emphasis>bandwidth</emphasis> of that interface.
+          This is the maximum speed your connection can handle. It is also the
+          speed you can refer as "full" if you define the tc classes in <ulink
+          url="shorewall-tcclasses.html">shorewall-tcclasses</ulink>(5).
+          Outgoing traffic above this rate will be dropped.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">OPTIONS</emphasis> - {<emphasis
+        role="bold">-</emphasis>|<emphasis
+        role="bold">{classify</emphasis>|<emphasis
+        role="bold">htb|hfsc</emphasis>|<emphasis
+        role="bold">linklayer</emphasis>={<emphasis
+        role="bold">ethernet</emphasis>|<emphasis
+        role="bold">atm</emphasis>|<emphasis
+        role="bold">adsl</emphasis>}|<emphasis
+        role="bold">tsize</emphasis>=<replaceable>tsize</replaceable>|<emphasis
+        role="bold">mtu</emphasis>=<replaceable>mtu</replaceable>|<emphasis
+        role="bold">mpu</emphasis>=<replaceable>mpu</replaceable>|<emphasis
+        role="bold">overhead</emphasis>=<replaceable>overhead</replaceable>}
+        ,...}</term>
+
+        <listitem>
+          <para><option>classify</option> ― When specified, Shorewall will not
+          generate tc or Netfilter rules to classify traffic based on packet
+          marks. You must do all classification using CLASSIFY rules in <ulink
+          url="shorewall-mangle.html">shorewall-mangle</ulink>(5).</para>
+
+          <para><emphasis role="bold">connmark</emphasis> -- Added in
+          Shorewall 5.2.7. May only be specified if the REDIRECTED_INTERFACES
+          column is non-empty. It allows packet marks to be used to classify
+          traffic for these interfaces.</para>
+
+          <para><option>htb</option> - Use the <firstterm>Hierarchical Token
+          Bucket</firstterm> queuing discipline. This is the default.</para>
+
+          <para><option>hfsc</option> - Shorewall normally uses the
+          Hierarchical Token Bucket queuing discipline. When
+          <option>hfsc</option> is specified, the <firstterm>Hierarchical Fair
+          Service Curves</firstterm> discipline is used instead (see tc-hfsc
+          (7)).</para>
+
+          <para><emphasis role="bold">linklayer</emphasis> - Added in
+          Shorewall 4.5.6. Type of link (ethernet, atm, adsl). When specified,
+          causes scheduler packet size manipulation as described in tc-stab
+          (8). When this option is given, the following options may also be
+          given after it:</para>
+
+          <blockquote>
+            <para><emphasis
+            role="bold">mtu</emphasis>=<replaceable>mtu</replaceable> - The
+            device MTU; default 2048 (will be rounded up to a power of
+            two)</para>
+
+            <para><emphasis
+            role="bold">mpu</emphasis>=<replaceable>mpubytes</replaceable> -
+            Minimum packet size used in calculations. Smaller packets will be
+            rounded up to this size</para>
+
+            <para><emphasis
+            role="bold">tsize</emphasis>=<replaceable>tablesize</replaceable>
+            - Size table entries; default is 512</para>
+
+            <para><emphasis
+            role="bold">overhead</emphasis>=<replaceable>overheadbytes</replaceable>
+            - Number of overhead bytes per packet.</para>
+          </blockquote>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">REDIRECTED INTERFACES</emphasis>
+        (redirect)-
+        [<emphasis>interface</emphasis>[,<emphasis>interface</emphasis>]...]</term>
+
+        <listitem>
+          <para>May only be specified if the interface in the INTERFACE column
+          is an Intermediate Frame Block (IFB) device. Causes packets that
+          enter each listed interface to be passed through the egress filters
+          defined for this device, thus providing a form of incoming traffic
+          shaping. When this column is non-empty, the <emphasis
+          role="bold">classify</emphasis> option is assumed unless the
+          <emphasis role="bold">connmark</emphasis> option is
+          specified.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Examples</title>
+
+    <variablelist>
+      <varlistentry>
+        <term>Example 1:</term>
+
+        <listitem>
+          <para>Suppose you are using PPP over Ethernet (DSL) and ppp0 is the
+          interface for this. The device has an outgoing bandwidth of 500kbit
+          and an incoming bandwidth of 6000kbit</para>
+
+          <programlisting>        #INTERFACE   IN-BANDWIDTH    OUT-BANDWIDTH         OPTIONS         REDIRECTED
+        #                                                                  INTERFACES
+        1:ppp0         6000kbit        500kbit</programlisting>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall/tcdevices</para>
+
+    <para>/etc/shorewall6/tcdevices</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para>tc-hfsc (7)</para>
+
+    <para><ulink
+    url="../traffic_shaping.htm">https://shorewall.org/traffic_shaping.htm</ulink></para>
+
+    <para><ulink
+    url="../configuration_file_basics.htm#Pairs">https://shorewall.org/configuration_file_basics.htm#Pairs</ulink></para>
+
+    <para><ulink
+    url="http://ace-host.stuart.id.au/russell/files/tc/doc/estimators.txt">http://ace-host.stuart.id.au/russell/files/tc/doc/estimators.txt</ulink></para>
+
+    <para>shorewall(8)</para>
+  </refsect1>
+</refentry>

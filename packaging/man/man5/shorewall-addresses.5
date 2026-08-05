@@ -1,0 +1,262 @@
+'\" t
+.\"     Title: shorewall-addresses
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Configuration Files
+.\"    Source: Configuration Files
+.\"  Language: English
+.\"
+.TH "SHOREWALL\-ADDRESSES" "5" "08/05/2026" "Configuration Files" "Configuration Files"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+addresses \- Specifying addresses within a Shorewall configuration
+.SH "DESCRIPTION"
+.PP
+In both Shorewall and Shorewall6, there are two basic types of addresses:
+.PP
+Host Address
+.RS 4
+This address type refers to a single host\&.
+.sp
+In IPv4, the format is
+\fIi\&.j\&.k\&.l\fR
+where
+\fIi\fR
+through
+\fIl\fR
+are decimal numbers between 1 and 255\&.
+.sp
+In IPv6, the format is
+\fIa:b:c:d:e:f:g:h\fR
+where
+\fIa\fR
+through
+\fIh\fR
+consist of 1 to 4 hexadecimal digits (leading zeros may be omitted)\&. a single series of 0 addresses may be omitted\&. For example 2001:227:e857:1:0:0:0:0:1 may be written 2001:227:e857:1::1\&.
+.RE
+.PP
+Network Address
+.RS 4
+A network address refers to 1 or more hosts and consists of a host address followed by a slash ("/") and a
+Variable Length Subnet Mask
+(VLSM)\&. This is known as
+Classless Internet Domain Routing
+(CIDR) notation\&.
+.sp
+The VLSM is a decimal number\&. For IPv4, it is in the range 0 through 32\&. For IPv6, the range is 0 through 128\&. The number represents the number of leading bits in the address that represent the network address; the remainder of the bits are a host address and are generally given as zero\&.
+.sp
+Examples:
+.sp
+IPv4: 192\&.168\&.1\&.0/24
+.sp
+IPv6: 2001:227:e857:1:0:0:0:0:1/64
+.RE
+.PP
+In the Shorewall documentation and manpages, we have tried to make it clear which type of address is accepted in each specific case\&.
+.PP
+Because Shorewall uses a colon (":") as a separator in many contexts, IPv6 addresses are best written using the standard convention in which the address itself is enclosed in square brackets:
+.RS 4
+[2001:227:e857:1::1]
+.RE
+.RS 4
+[2001:227:e857:1::]/64
+.RE
+.SH "SPECIFYING SOURCE AND DEST"
+.PP
+Entries in Shorewall configuration files often deal with the source (SOURCE) and destination (DEST) of connections and Shorewall implements a uniform way for specifying them\&.
+.PP
+A SOURCE or DEST consists of one to three parts separated by colons (":"):
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+ZONE \(em The name of a zone declared in
+/etc/shorewall/zones
+or
+/etc/shorewall6/zones\&. This part is only available in the rules file (/etc/shorewall/rules,
+/etc/shorewall/blrules,/etc/shorewall6/rules
+and
+/etc/shorewall6/blrules)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
+INTERFACE \(em The name of an interface that matches an entry in
+/etc/shorewall/interfaces
+(/etc/shorewall6/interfaces)\&.
+.sp
+Beginning with Shorweall 5\&.2\&.1, the
+\fIinterface\fR
+may be preceded with \*(Aq!\*(Aq which matches all interfaces except the one specified\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 3.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  3." 4.2
+.\}
+ADDRESS LIST \(em A list of one or more addresses (host or network) or address ranges, separated by commas\&. In an IPv6 configuration, this list must be included in square or angled brackets ("[\&.\&.\&.]" or "<\&.\&.\&.>")\&. The list may have exclusion\&.
+.RE
+.PP
+Examples\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+All hosts in the
+\fBnet\fR
+zone \(em
+\fBnet\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
+Subnet 192\&.168\&.1\&.0/29 in the
+\fBloc\fR
+zone \(em
+\fBloc:192\&.168\&.1\&.0/29\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 3.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  3." 4.2
+.\}
+All hosts in the net zone connecting through
+ppp0
+\(em
+\fBnet:ppp0\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 4.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  4." 4.2
+.\}
+All hosts interfaced by
+eth3
+\(em
+\fBeth3\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 5.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  5." 4.2
+.\}
+Subnet 10\&.0\&.1\&.0/24 interfacing through
+eth2
+\(em
+\fBeth2:10\&.0\&.1\&.0/24\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 6.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  6." 4.2
+.\}
+Host 2002:ce7c:92b4:1:a00:27ff:feb1:46a9 in the
+\fBloc\fR
+zone \(em
+\fBloc:[2002:ce7c:92b4:1:a00:27ff:feb1:46a9]\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 7.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  7." 4.2
+.\}
+The primary IP address of eth0 in the $FW zone \-
+\fB$FW:&eth0\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 8.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  8." 4.2
+.\}
+All hosts in Vatican City \-
+\fBnet:^VA\fR
+(Requires the
+\fIGeoIP Match\fR
+capability)\&.
+.RE
+.SH "IP ADDRESS RANGES"
+.PP
+If you kernel and iptables have
+\fIIP Range match support\fR, you may use IP address ranges in Shorewall configuration file entries; IP address ranges have the syntax <\fIlow IP address\fR>\-<\fIhigh IP address\fR>\&.
+.PP
+Example: 192\&.168\&.1\&.5\-192\&.168\&.1\&.12\&.
+.SH ""
+.PP
+.SH "SEE ALSO"
+.PP
+For more information about addressing, see the\m[blue]\fBSetup Guide\fR\m[]\&\s-2\u[1]\d\s+2\&.
+.SH "NOTES"
+.IP " 1." 4
+Setup Guide
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall_setup_guide.htm#Addressing
+.RE

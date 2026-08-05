@@ -1,0 +1,453 @@
+'\" t
+.\"     Title: shorewall-tcfilters
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Configuration Files
+.\"    Source: Configuration Files
+.\"  Language: English
+.\"
+.TH "SHOREWALL\-TCFILTERS" "5" "08/05/2026" "Configuration Files" "Configuration Files"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+tcfilters \- Shorewall u32/basic classifier rules file
+.SH "SYNOPSIS"
+.HP \w'\fB/etc/shorewall[6]/tcfilters\fR\ 'u
+\fB/etc/shorewall[6]/tcfilters\fR
+.SH "DESCRIPTION"
+.PP
+Entries in this file cause packets to be classified for traffic shaping\&.
+.PP
+Beginning with Shorewall 4\&.4\&.15, the file may contain entries for both IPv4 and IPv6\&. By default, all rules apply to IPv4 but that can be changed by inserting a line as follows:
+.PP
+IPV4
+.RS 4
+Following entries apply to IPv4\&.
+.RE
+.PP
+IPV6
+.RS 4
+Following entries apply to IPv6
+.RE
+.PP
+ALL
+.RS 4
+Following entries apply to both IPv4 and IPv6\&. Each entry is processed twice; once for IPv4 and once for IPv6\&.
+.RE
+.PP
+The columns in the file are as follows (where the column name is followed by a different name in parentheses, the different name is used in the alternate specification syntax)\&.
+.PP
+\fBCLASS\fR \- \fIinterface\fR\fB:\fR\fIclass\fR
+.RS 4
+The name or number of an
+interface
+defined in
+\m[blue]\fBshorewall\-tcdevices\fR\m[]\&\s-2\u[1]\d\s+2(5) followed by a
+\fIclass\fR
+number defined for that interface in
+\m[blue]\fBshorewall\-tcclasses\fR\m[]\&\s-2\u[2]\d\s+2(5)\&.
+.RE
+.PP
+\fBSOURCE\fR \- {\fB\-\fR|\fIaddress\fR|+\fIipset\fR}
+.RS 4
+Source of the packet\&. May be a host or network
+\fIaddress\fR\&. DNS names are not allowed\&. Beginning with Shorewall 4\&.6\&.0, an ipset name (prefixed with \*(Aq+\*(Aq) may be used if your kernel and ip6tables have the
+Basic Ematch
+capability and you set BASIC_FILTERS=Yes in
+\m[blue]\fBshorewall\&.conf (5)\fR\m[]\&\s-2\u[3]\d\s+2\&. The ipset name may optionally be followed by a number or a comma separated list of src and/or dst enclosed in square brackets ([\&.\&.\&.])\&. See
+\m[blue]\fBshorewall\-ipsets(5)\fR\m[]\&\s-2\u[4]\d\s+2
+for details\&.
+.RE
+.PP
+\fBDEST\fR \- {\fB\-\fR|\fIaddress\fR|+\fIipset\fR}
+.RS 4
+Destination of the packet\&. May be a host or network
+\fIaddress\fR\&. DNS names are not allowed\&. Beginning with Shorewall 4\&.6\&.0, an ipset name (prefixed with \*(Aq+\*(Aq) may be used if your kernel and ip6tables have the
+Basic Ematch
+capability and you set BASIC_FILTERS=Yes in
+\m[blue]\fBshorewall\&.conf (5)\fR\m[]\&\s-2\u[3]\d\s+2\&. The ipset name may optionally be followed by a number or a comma separated list of src and/or dst enclosed in square brackets ([\&.\&.\&.])\&. See
+\m[blue]\fBshorewall\-ipsets(5)\fR\m[]\&\s-2\u[4]\d\s+2
+for details\&.
+.sp
+You may exclude certain hosts from the set already defined through use of an
+\fIexclusion\fR
+(see
+\m[blue]\fBshorewall\-exclusion\fR\m[]\&\s-2\u[5]\d\s+2(5))\&.
+.RE
+.PP
+\fBPROTO\fR \- {\fB\-\fR|{\fIprotocol\-number\fR|\fIprotocol\-name\fR|\fBall}[,\&.\&.\&.]}\fR
+.RS 4
+Protocol\&.
+.sp
+Beginning with Shorewall 4\&.5\&.12, this column can accept a comma\-separated list of protocols\&.
+.RE
+.PP
+\fBDPORT\fR \- [\fB\-\fR|\fIport\-name\-or\-number\fR]
+.RS 4
+Optional destination Ports\&. A Port name (from services(5)) or a
+\fIport number\fR; if the protocol is
+\fBicmp\fR, this column is interpreted as the destination icmp\-type(s)\&.
+.sp
+This column was previously labelled DEST PORT(S)\&.
+.RE
+.PP
+\fBSPORT\fR \- [\fB\-\fR|\fIport\-name\-or\-number\fR]
+.RS 4
+Optional source port\&.
+.sp
+This column was previously labelled SOURCE PORT(S)\&.
+.RE
+.PP
+\fBTOS\fR (Optional) \- [\fB\-\fR|\fItos\fR]
+.RS 4
+Specifies the value of the TOS field\&. The
+\fItos\fR
+value can be any of the following:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBtos\-minimize\-delay\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBtos\-maximize\-throughput\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBtos\-maximize\-reliability\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBtos\-minimize\-cost\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBtos\-normal\-service\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIhex\-number\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIhex\-number\fR/\fIhex\-number\fR
+.RE
+.sp
+The
+\fIhex\-number\fRs must be exactly two digits (e\&.g\&., 0x04)x\&.
+.RE
+.PP
+\fBLENGTH\fR \- [\fB\-\fR|\fInumber\fR]
+.RS 4
+Optional \- Must be a power of 2 between 32 and 8192 inclusive\&. Packets with a total length that is strictly less than the specified
+\fInumber\fR
+will match the rule\&.
+.RE
+.PP
+\fBPRIORITY\fR \- [\fB\-\fR|\fIpriority\fR]
+.RS 4
+Added in Shorewall 4\&.5\&.8\&. Specifies the rule
+\fIpriority\fR\&. The
+\fIpriority\fR
+value must be > 0 and <= 65535\&.
+.sp
+When a
+\fIpriority\fR
+is not given:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+For Shorewall versions prior to 4\&.5\&.8 \- all filters have priority 10\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+For Shorewall 4\&.5\&.8 and later \- for each device, the compiler maintains a
+high\-water priority
+with an initial value of 0\&. When a filter has no
+\fIpriority\fR, the high\-water priority is incremented by 1 and assigned to the filter\&. When a
+\fIpriority\fR
+greater than the high\-water priority is entered in this column, the high\-water priority is set to the specified
+\fIpriority\fR\&. An attempt to assign a priority value greater than 65535 (explicitly or implicitly) raises an error\&.
+.RE
+.sp
+The default priority values used by other Shorewall\-generated filters are as follows:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Classify by packet mark \- (
+\fIclass priority\fR
+<< 8 ) | 20\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Ingress policing \- 10
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Simple TC ACK packets \- 1
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Complex TC ACK packets \- (
+\fIclass priority\fR
+<< 8 ) | 10\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Classify by TOS \- (
+\fIclass priority\fR
+<< 8 ) | 15\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Class with \*(Aqoccurs\*(Aq \- 65535
+.RE
+.RE
+.SH "EXAMPLE"
+.PP
+IPv4 Example 1:
+.RS 4
+Place all \*(Aqping\*(Aq traffic on interface 1 in class 10\&. Note that ALL cannot be used because IPv4 ICMP and IPv6 ICMP are two different protocols\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+       #CLASS    SOURCE    DEST         PROTO   DPORT
+
+       IPV4
+
+       1:10      0\&.0\&.0\&.0/0 0\&.0\&.0\&.0/0    icmp    echo\-request
+       1:10      0\&.0\&.0\&.0/0 0\&.0\&.0\&.0/0    icmp    echo\-reply
+
+       IPV6
+
+       1:10      ::/0      ::/0         icmp6   echo\-request
+       1:10      ::/0      ::/0         icmp6   echo\-reply
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+IPv4 Example 2:
+.RS 4
+Add two filters with priority 10 (Shorewall 4\&.5\&.8 or later)\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+       #CLASS    SOURCE    DEST         PROTO   DPORT           PRIORITY
+
+       IPV4
+
+       1:10      0\&.0\&.0\&.0/0 0\&.0\&.0\&.0/0    icmp    echo\-request    10
+       1:10      0\&.0\&.0\&.0/0 0\&.0\&.0\&.0/0    icmp    echo\-reply      10
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+IPv6 Example 1:
+.RS 4
+Add two filters with priority 10 (Shorewall 4\&.5\&.8 or later)\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+       #CLASS    SOURCE    DEST         PROTO   DPORT           PRIORITY
+
+       IPV6
+
+       1:10      ::/0      ::/0         icmp    echo\-request    10
+       1:10      ::/0      ::/0         icmp    echo\-reply      10
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.SH "FILES"
+.PP
+/etc/shorewall/tcfilters
+.PP
+/etc/shorewall6/tcfilters
+.SH "SEE ALSO"
+.PP
+\m[blue]\fBhttps://shorewall\&.org/traffic_shaping\&.htm\fR\m[]\&\s-2\u[6]\d\s+2
+.PP
+\m[blue]\fBhttps://shorewall\&.org/MultiISP\&.html\fR\m[]\&\s-2\u[7]\d\s+2
+.PP
+\m[blue]\fBhttps://shorewall\&.org/PacketMarking\&.html\fR\m[]\&\s-2\u[8]\d\s+2
+.PP
+\m[blue]\fBhttps://shorewall\&.org/configuration_file_basics\&.htm#Pairs\fR\m[]\&\s-2\u[9]\d\s+2
+.PP
+shorewall(8)
+.SH "NOTES"
+.IP " 1." 4
+shorewall-tcdevices
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-tcdevices.html
+.RE
+.IP " 2." 4
+shorewall-tcclasses
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-tcclasses.html
+.RE
+.IP " 3." 4
+shorewall.conf (5)
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall.conf.html
+.RE
+.IP " 4." 4
+shorewall-ipsets(5)
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-ipsets.html
+.RE
+.IP " 5." 4
+shorewall-exclusion
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-exclusion.html
+.RE
+.IP " 6." 4
+https://shorewall.org/traffic_shaping.htm
+.RS 4
+\%[set $man.base.url.for.relative.links]/../traffic_shaping.htm
+.RE
+.IP " 7." 4
+https://shorewall.org/MultiISP.html
+.RS 4
+\%[set $man.base.url.for.relative.links]/../MultiISP.html
+.RE
+.IP " 8." 4
+https://shorewall.org/PacketMarking.html
+.RS 4
+\%[set $man.base.url.for.relative.links]/../PacketMarking.html
+.RE
+.IP " 9." 4
+https://shorewall.org/configuration_file_basics.htm#Pairs
+.RS 4
+\%[set $man.base.url.for.relative.links]/../configuration_file_basics.htm#Pairs
+.RE

@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-ecn</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>ecn</refname>
+
+    <refpurpose>Shorewall ECN file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/etc/shorewall/ecn</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>IPv4 only.</para>
+
+    <para>Use this file to list the destinations for which you want to disable
+    ECN (Explicit Congestion Notification). Use of this file is deprecated in
+    favor of ECN rules in <ulink
+    url="shorewall-mangle.html">shorewall-mangle</ulink>(8).</para>
+
+    <para>The columns in the file are as follows.</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><emphasis role="bold">INTERFACE</emphasis> -
+        <emphasis>interface</emphasis></term>
+
+        <listitem>
+          <para>Interface through which host(s) communicate with the
+          firewall</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">HOST(S)</emphasis> (Optional) - [<emphasis
+        role="bold">-</emphasis>|<emphasis>address-or-address-range</emphasis>[<emphasis
+        role="bold">,</emphasis><emphasis>address-or-address-range</emphasis>]...]</term>
+
+        <listitem>
+          <para>Comma-separated list of host and/or network addresses. If left
+          empty or supplied as "-", 0.0.0.0/0 is assumed. If your kernel and
+          iptables include iprange match support then IP address ranges are
+          also permitted.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall/ecn</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para>shorewall(8)</para>
+  </refsect1>
+</refentry>

@@ -1,0 +1,1414 @@
+'\" t
+.\"     Title: shorewall-files
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Configuration Files
+.\"    Source: Configuration Files
+.\"  Language: English
+.\"
+.TH "SHOREWALL\-FILES" "5" "08/05/2026" "Configuration Files" "Configuration Files"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+files \- Shorewall Configuration Files
+.SH "SYNOPSIS"
+.HP \w'\fB/etc/shorewall[6]/*\fR\ 'u
+\fB/etc/shorewall[6]/*\fR
+.SH "DESCRIPTION"
+.PP
+The following are the Shorewall[6] configuration files:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall/shorewall\&.conf and /etc/shorewall6/shorewall6\&.conf\fR\m[]\&\s-2\u[1]\d\s+2
+\- used to set global firewall parameters\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall[6]/params\fR\m[]\&\s-2\u[2]\d\s+2
+\- use this file to set shell variables that you will expand in other files\&. It is always processed by /bin/sh or by the shell specified through SHOREWALL_SHELL in
+/etc/shorewall/shorewall\&.conf\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall[6]/zones\fR\m[]\&\s-2\u[3]\d\s+2
+\- partition the firewall\*(Aqs view of the world into zones\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall[6]/policy\fR\m[]\&\s-2\u[4]\d\s+2
+\- establishes firewall high\-level policy\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+/etc/shorewall[6]/initdone
+\- An optional Perl script that will be invoked by the Shorewall rules compiler when the compiler has finished it\*(Aqs initialization\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall[6]/interfaces\fR\m[]\&\s-2\u[5]\d\s+2
+\- describes the interfaces on the firewall system\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall[6]/hosts\fR\m[]\&\s-2\u[6]\d\s+2
+\- allows defining zones in terms of individual hosts and subnetworks\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall[6]/masq\fR\m[]\&\s-2\u[7]\d\s+2
+\- directs the firewall where to use many\-to\-one (dynamic) Network Address Translation (a\&.k\&.a\&. Masquerading) and Source Network Address Translation (SNAT)\&. Superseded by /etc/shorewall[6]/snat in Shorewall 5\&.0\&.14 and not supported in Shorewall 5\&.1\&.0 and later versions\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall[6]/mangle\fR\m[]\&\s-2\u[8]\d\s+2
+\- supersedes
+/etc/shorewall/tcrules
+in Shorewall 4\&.6\&.0\&. Contains rules for packet marking, TTL, TPROXY, etc\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall[6]/rules\fR\m[]\&\s-2\u[9]\d\s+2
+\- defines rules that are exceptions to the overall policies established in /etc/shorewall/policy\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall[6]/nat\fR\m[]\&\s-2\u[10]\d\s+2
+\- defines one\-to\-one NAT rules\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall6/proxyarp\fR\m[]\&\s-2\u[11]\d\s+2
+\- defines use of Proxy ARP\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall6/proxyndp\fR\m[]\&\s-2\u[12]\d\s+2
+\- defines use of Proxy NDP\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+/etc/shorewall[6]/routestopped
+\- defines hosts accessible when Shorewall is stopped\&. Superseded in Shorewall 4\&.6\&.8 by
+/etc/shorewall/stoppedrules\&. Not supported in Shorewall 5\&.0\&.0 and later versions\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall[6]/tcrules\fR\m[]\&\s-2\u[13]\d\s+2\- The file has a rather unfortunate name because it is used to define marking of packets for later use by both traffic control/shaping and policy routing\&. This file is superseded by
+/etc/shorewall/mangle
+in Shorewall 4\&.6\&.0\&. Not supported in Shorewall 5\&.0\&.0 and later releases\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall[6]/tos\fR\m[]\&\s-2\u[14]\d\s+2
+\- defines rules for setting the TOS field in packet headers\&. Superseded in Shorewall 4\&.5\&.1 by the TOS target in
+/etc/shorewall/tcrules
+(which file has since been superseded by
+/etc/shorewall/mangle)\&. Not supported in Shorewall 5\&.0\&.0 and later versions\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall[6]/tunnels\fR\m[]\&\s-2\u[15]\d\s+2
+\- defines tunnels (VPN) with end\-points on the firewall system\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall[6]/blacklist\fR\m[]\&\s-2\u[16]\d\s+2
+\- Deprecated in favor of
+/etc/shorewall/blrules\&. Lists blacklisted IP/subnet/MAC addresses\&. Not supported in Shorewall 5\&.0\&.0 and later releases\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+/etc/shorewall[6]/blrules
+\(em Added in Shorewall 4\&.5\&.0\&. Define blacklisting and whitelisting\&. Supersedes
+/etc/shorewall/blacklist\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+/etc/shorewall[6]/init
+\- shell commands that you wish to execute at the beginning of a
+\(lqshorewall start\(rq, "shorewall reload" or
+\(lqshorewall restart\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+/etc/shorewall[6]/start
+\- shell commands that you wish to execute near the completion of a
+\(lqshorewall start\(rq, "shorewall reload" or
+\(lqshorewall restart\(rq
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+/etc/shorewall[6]/started
+\- shell commands that you wish to execute after the completion of a
+\(lqshorewall start\(rq, "shorewall reload" or
+\(lqshorewall restart\(rq
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+/etc/shorewall[6]/stop\- commands that you wish to execute at the beginning of a
+\(lqshorewall stop\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+/etc/shorewall[6]/stopped
+\- shell commands that you wish to execute at the completion of a
+\(lqshorewall stop\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall/ecn\fR\m[]\&\s-2\u[17]\d\s+2
+\- disable Explicit Congestion Notification (ECN \- RFC 3168) to remote hosts or networks\&. Superseded by ECN entries in
+/etc/shorewall/mangle
+in Shorewall 5\&.0\&.6\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall/accounting\fR\m[]\&\s-2\u[18]\d\s+2
+\- define IP traffic accounting rules
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall[6]/actions\fR\m[]\&\s-2\u[19]\d\s+2
+and
+/usr/share/shorewall[6]/action\&.template
+allow user\-defined actions\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall[6]/providers\fR\m[]\&\s-2\u[20]\d\s+2
+\- defines alternate routing tables\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall[6]/rtrules\fR\m[]\&\s-2\u[21]\d\s+2
+\- Defines routing rules to be used in conjunction with the routing tables defined in
+/etc/shorewall/providers\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall[6]/tcdevices\fR\m[]\&\s-2\u[22]\d\s+2,
+\m[blue]\fB/etc/shorewall[6]/tcclasses\fR\m[]\&\s-2\u[23]\d\s+2,
+\m[blue]\fB/etc/shorewall[6]/tcfilters\fR\m[]\&\s-2\u[24]\d\s+2
+\- Define complex traffic shaping\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall[6]/tcrules\fR\m[]\&\s-2\u[13]\d\s+2
+\- Mark or classify traffic for traffic shaping or multiple providers\&. Deprecated in Shorewall 4\&.6\&.0 in favor of
+/etc/shorewall/mangle\&. Not supported in Shorewall 5\&.0\&.0 and later releases\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall[6]/tcinterfaces\fR\m[]\&\s-2\u[25]\d\s+2
+and
+\m[blue]\fB/etc/shorewall[6]/tcpri\fR\m[]\&\s-2\u[26]\d\s+2
+\- Define simple traffic shaping\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall[6]/secmarks\fR\m[]\&\s-2\u[27]\d\s+2
+\- Added in Shorewall 4\&.4\&.13\&. Attach an SELinux context to selected packets\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall[6]/vardir\fR\m[]\&\s-2\u[28]\d\s+2
+\- Determines the directory where Shorewall maintains its state\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall/arprules\fR\m[]\&\s-2\u[29]\d\s+2
+\(em Added in Shorewall 4\&.5\&.12\&. Allows specification of arptables rules\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall/mangle\fR\m[]\&\s-2\u[8]\d\s+2
+\-\- Added in Shorewall 4\&.6\&.0\&. Supersedes/etc/shorewall/tcrules\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\m[blue]\fB/etc/shorewall[6]/snat\fR\m[]\&\s-2\u[30]\d\s+2
+\- directs the firewall where to use many\-to\-one (dynamic) Network Address Translation (a\&.k\&.a\&. Masquerading) and Source Network Address Translation (SNAT)\&. Superseded /etc/shorewall[6]/masq in Shorewall 5\&.0\&.14
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+/usr/share/shorewall[6]/actions\&.std
+\- Actions defined by Shorewall\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+/usr/share/shorewall[6]/action\&.*
+\- Details of actions defined by Shorewall\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+/usr/share/shorewall[6]/macro\&.*
+\- Details of macros defined by Shorewall\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+/usr/share/shorewall[6]/modules
+\(em Specifies the kernel modules to be loaded during shorewall start/restart\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+/usr/share/shorewall[6]/helpers
+\(em Added in Shorewall 4\&.4\&.7\&. Specifies the kernel modules to be loaded during shorewall start/restart when LOAD_HELPERS_ONLY=Yes in
+shorewall\&.conf\&.
+.RE
+.SH "CONFIG_PATH"
+.PP
+The CONFIG_PATH option in
+\m[blue]\fBshorewall[6]\&.conf(5)\fR\m[]\&\s-2\u[20]\d\s+2
+determines where the compiler searches for configuration files\&. The default setting is CONFIG_PATH=/etc/shorewall:/usr/share/shorewall which means that the compiler first looks in /etc/shorewall and if it doesn\*(Aqt find the file, it then looks in /usr/share/shorewall\&.
+.PP
+You can change this setting to have the compiler look in different places\&. For example, if you want to put your own versions of standard macros in /etc/shorewall/Macros, then you could set CONFIG_PATH=/etc/shorewall:/etc/shorewall/Macros:/usr/share/shorewall and the compiler will use your versions rather than the standard ones\&.
+.SH "COMMENTS"
+.PP
+You may place comments in configuration files by making the first non\-whitespace character a pound sign (\(lq#\(rq)\&. You may also place comments at the end of any line, again by delimiting the comment from the rest of the line with a pound sign\&.
+.PP
+\fBExample\ \&1.\ \&Comments in a Configuration File\fR
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+# This is a comment
+ACCEPT  net     $FW      tcp     www     #This is an end\-of\-line comment
+.fi
+.if n \{\
+.RE
+.\}
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+.PP
+Except in
+\m[blue]\fBshorewall\&.conf(5)\fR\m[]\&\s-2\u[1]\d\s+2
+and
+\m[blue]\fBparams(5)\fR\m[]\&\s-2\u[2]\d\s+2, if a comment ends with a backslash ("\e"), the next line will also be treated as a comment\&. See
+Line Continuation
+below\&.
+.sp .5v
+.RE
+.SH "BLANK LINES"
+.PP
+Most of the configuration files are organized into space\-separated columns\&. If you don\*(Aqt want to supply a value in a column but want to supply a value in a following column, simply enter \*(Aq\-\*(Aq to make the column appear empty\&.
+.PP
+Example:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+#INTERFACE         BROADCAST            OPTIONS
+br0                \-                    routeback
+.fi
+.if n \{\
+.RE
+.\}
+.SH "LINE CONTINUATION"
+.PP
+Lines may be continued using the usual backslash (\(lq\e\(rq) followed immediately by a new line character (Enter key)\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ACCEPT  net     $FW      tcp \e↵
+smtp,www,pop3,imap  #Services running on the firewall
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+.PP
+What follows does NOT apply to
+\m[blue]\fBshorewall\-params(5)\fR\m[]\&\s-2\u[31]\d\s+2
+and
+\m[blue]\fBshorewall\&.conf(5)\fR\m[]\&\s-2\u[1]\d\s+2\&.
+.sp .5v
+.RE
+.PP
+In certain cases, leading white space is ignored in continuation lines:
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+The continued line ends with a colon (":")
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
+The continued line ends with a comma (",")
+.RE
+.PP
+Example (/etc/shorewall/rules):
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+#ACTION     SOURCE          DEST            PROTO           DPORT
+ACCEPT      net:\e
+            206\&.124\&.146\&.177,\e
+            206\&.124\&.146\&.178,\e
+            206\&.124\&.146\&.180\e
+                            dmz             tcp             873
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+The leading white space on the first through third continuation lines is ignored so the SOURCE column effectively contains "net:206\&.124\&.146\&.177,206\&.124\&.147\&.178,206\&.124\&.146\&.180"\&. Because the third continuation line does not end with a comma or colon, the leading white space in the last line is not ignored\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+.PP
+A trailing backslash is not ignored in a comment\&. So the continued rule above can be commented out with a single \*(Aq#\*(Aq as follows:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+#ACTION     SOURCE          DEST            PROTO           DPORT
+\fB#\fRACCEPT     net:\e
+            206\&.124\&.146\&.177,\e
+            206\&.124\&.146\&.178,\e
+            206\&.124\&.146\&.180\e
+                            dmz             tcp             873
+.fi
+.if n \{\
+.RE
+.\}
+.sp .5v
+.RE
+.SH "ALTERNATIVE SPECIFICATION OF COLUMN VALUES"
+.PP
+Some of the configuration files now have a large number of columns\&. That makes it awkward to specify a value for one of the right\-most columns as you must have the correct number of intervening \*(Aq\-\*(Aq columns\&.
+.PP
+This problem is addressed by allowing column values to be specified as
+\fIcolumn\-name\fR/\fIvalue\fR
+pairs\&.
+.PP
+There is considerable flexibility in how you specify the pairs:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+At any point, you can enter a left curly bracket (\*(Aq{\*(Aq) followed by one or more specifications of the following forms:
+.RS 4
+\fIcolumn\-name\fR=\fIvalue\fR
+.RE
+.RS 4
+\fIcolumn\-name\fR=\fI>value\fR
+.RE
+.RS 4
+\fIcolumn\-name\fR:\fIvalue\fR
+.RE
+The pairs must be followed by a right curly bracket ("}")\&.
+.sp
+The value may optionally be enclosed in double quotes\&.
+.sp
+The pairs must be separated by white space, but you can add a comma adjacent to the
+\fIvalues\fR
+for readability as in:
+.RS 4
+\fB{ proto=>udp, port=1024
+          }\fR
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+You can also separate the pairs from columns by using a semicolon:
+.RS 4
+\fB; proto:udp,
+          port:1024\fR
+.RE
+.RE
+.PP
+In Shorewall 5\&.0\&.3, the sample configuration files and the man pages were updated to use the same column names in both the column headings and in the alternate specification format\&. The following table shows the column names for each of the table\-oriented configuration files\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+Column names are
+\fBcase\-insensitive\fR\&.
+.sp .5v
+.RE
+.TS
+allbox tab(:);
+l l
+l l
+l l
+l l
+l l
+l l
+l l
+l l
+l l
+l l
+l l
+l l
+l l
+l l
+l l
+l l
+l l
+l l
+l l
+l l
+l l
+l l
+l l
+l l
+l l
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBFile\fR
+T}:T{
+\fBColumn names\fR
+T}
+T{
+accounting
+T}:T{
+action,chain, source, dest, proto, dport, sport, user,
+            mark, ipsec, headers
+T}
+T{
+conntrack
+T}:T{
+action,source,dest,proto,dport,sport,user,switch
+T}
+T{
+blacklist
+T}:T{
+networks,proto,port,options
+T}
+T{
+blrules
+T}:T{
+action,source,dest,proto,dport,sport,origdest,rate,user,mark,connlimit,time,headers,switch,helper
+T}
+T{
+ecn
+T}:T{
+interface,hosts\&. Beginning with Shorewall 4\&.5\&.4, \*(Aqhost\*(Aq is
+            a synonym for \*(Aqhosts\*(Aq\&.
+T}
+T{
+hosts
+T}:T{
+zone,hosts,options\&. Beginning with Shorewall 4\&.5\&.4, \*(Aqhost\*(Aq
+            is a synonym for \*(Aqhosts\*(Aq\&.
+T}
+T{
+interfaces
+T}:T{
+zone,interface,broadcast,options
+T}
+T{
+maclist
+T}:T{
+disposition,interface,mac,addresses
+T}
+T{
+mangle
+T}:T{
+action,source,dest,proto,dport,sport,user,test,length,tos,connbytes,helper,headers
+T}
+T{
+masq
+T}:T{
+interface,source,address,proto,port,ipsec,mark,user,switch
+T}
+T{
+nat
+T}:T{
+external,interface,internal,allints,local
+T}
+T{
+netmap
+T}:T{
+type,net1,interface,net2,net3,proto,dport,sport
+T}
+T{
+notrack
+T}:T{
+source,dest,proto,dport,sport,user
+T}
+T{
+policy
+T}:T{
+source,dest,policy,loglevel,limit,connlimit
+T}
+T{
+providers
+T}:T{
+table,number,mark,duplicate,interface,gateway,options,copy
+T}
+T{
+proxyarp and proxyndp
+T}:T{
+address,interface,external,haveroute,persistent
+T}
+T{
+rtrules
+T}:T{
+source,dest,provider,priority
+T}
+T{
+routes
+T}:T{
+provider,dest,gateway,device
+T}
+T{
+routestopped
+T}:T{
+interface,hosts,options,proto,dport,sport
+T}
+T{
+rules
+T}:T{
+action,source,dest,proto,dport,sport,origdest,rate,user,mark,connlimit,time,headers,switch,helper
+T}
+T{
+secmarks
+T}:T{
+secmark,chain,source,dest,proto,dport,sport,user,mark
+T}
+T{
+tcclasses
+T}:T{
+interface,mark,rate,ceil,prio,options
+T}
+T{
+tcdevices
+T}:T{
+interface,in_bandwidth,out_bandwidth,options,redirect
+T}
+T{
+tcfilters
+T}:T{
+class,source,dest,proto,dport,sport,tos,length
+T}
+T{
+tcinterfaces
+T}:T{
+interface,type,in_bandwidth,out_bandwidth
+T}
+T{
+tcpri
+T}:T{
+band,proto,port,address,interface,helper
+T}
+T{
+tcrules
+T}:T{
+mark,source,dest,proto,dport,sport,user,test,length,tos,connbytes,helper,headers\&.
+            Beginning with Shorewall 4\&.5\&.3, \*(Aqaction\*(Aq is a synonym for
+            \*(Aqmark\*(Aq\&.
+T}
+T{
+tos
+T}:T{
+source,dest,proto,dport,sport,tos,mark
+T}
+T{
+tunnels
+T}:T{
+type,zone,gateway,gateway_zone\&. Beginning with Shorewall
+            4\&.5\&.3, \*(Aqgateways\*(Aq is a synonym for \*(Aqgateway\*(Aq\&. Beginning with
+            Shorewall 4\&.5\&.4, \*(Aqgateway_zones\*(Aq is a synonym for
+            \*(Aqgateway_zone\*(Aq\&.
+T}
+T{
+zones
+T}:T{
+zone,type,options,in_options,out_options
+T}
+.TE
+.sp 1
+.PP
+Example (rules file):
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+#ACTION         SOURCE            DEST            PROTO   DPORT
+DNAT            net               loc:10\&.0\&.0\&.1    tcp     80    ; mark="88"
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Here\*(Aqs the same line in several equivalent formats:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+{ action=>DNAT, source=>net, dest=>loc:10\&.0\&.0\&.1, proto=>tcp, dport=>80, mark=>88 }
+; action:"DNAT" source:"net"  dest:"loc:10\&.0\&.0\&.1" proto:"tcp" dport:"80" mark:"88"
+DNAT { source=net dest=loc:10\&.0\&.0\&.1 proto=tcp dport=80 mark=88 }
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Beginning with Shorewall 5\&.0\&.11, ip[6]table comments can be attached to individual rules using the
+\fBcomment\fR
+keyword\&.
+.PP
+Example from the rules file:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+        ACCEPT net $FW { proto=tcp, dport=22, comment="Accept \e"SSH\e"" }
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+As shown in that example, when the comment contains whitespace, it must be enclosed in double quotes and any embedded double quotes must be escaped using a backslash ("\e")\&.
+.SH "TIME COLUMNS"
+.PP
+Several of the files include a TIME column that allows you to specify times when the rule is to be applied\&. Contents of this column is a list of
+\fItimeelement\fRs separated by apersands (&)\&.
+.PP
+Each
+\fItimeelement\fR
+is one of the following:
+.PP
+timestart=\fIhh\fR:\fImm\fR[:\fIss\fR]
+.RS 4
+Defines the starting time of day\&.
+.RE
+.PP
+timestop=\fIhh\fR:\fImm\fR[:\fIss\fR]
+.RS 4
+Defines the ending time of day\&.
+.RE
+.PP
+contiguous
+.RS 4
+Added in Shoreawll 5\&.0\&.12\&. When
+\fBtimestop\fR
+is smaller than
+\fBtimestart\fR
+value, match this as a single time period instead of distinct intervals\&. See the Examples below\&.
+.RE
+.PP
+utc
+.RS 4
+Times are expressed in Greenwich Mean Time\&.
+.RE
+.PP
+localtz
+.RS 4
+Deprecated by the Netfilter team in favor of
+\fBkerneltz\fR\&. Times are expressed in Local Civil Time (default)\&.
+.RE
+.PP
+kerneltz
+.RS 4
+Added in Shorewall 4\&.5\&.2\&. Times are expressed in Local Kernel Time (requires iptables 1\&.4\&.12 or later)\&.
+.RE
+.PP
+weekdays=ddd[,ddd]\&.\&.\&.
+.RS 4
+where
+\fIddd\fR
+is one of
+\fBMon\fR,
+\fBTue\fR,
+\fBWed\fR,
+\fBThu\fR,
+\fBFri\fR,
+\fBSat\fR
+or
+\fBSun\fR
+.RE
+.PP
+monthdays=dd[,dd],\&.\&.\&.
+.RS 4
+where
+\fIdd\fR
+is an ordinal day of the month
+.RE
+.PP
+datestart=\fIyyyy\fR[\-\fImm\fR[\-\fIdd\fR[\fBT\fR\fIhh\fR[:\fImm\fR[:\fIss\fR]]]]]
+.RS 4
+Defines the starting date and time\&.
+.RE
+.PP
+datestop=\fIyyyy\fR[\-\fImm\fR[\-\fIdd\fR[\fBT\fR\fIhh\fR[:\fImm\fR[:\fIss\fR]]]]]
+.RS 4
+Defines the ending date and time\&.
+.RE
+.PP
+Examples:
+.PP
+To match on weekends, use:
+.RS 4
+.sp
+weekdays=Sat,Sun
+.RE
+.PP
+Or, to match (once) on a national holiday block:
+.RS 4
+.sp
+datestart=2016\-12\-24&datestop=2016\-12\-27
+.RE
+.PP
+Since the stop time is actually inclusive, you would need the following stop time to not match the first second of the new day:
+.RS 4
+.sp
+datestart=2016\-12\-24T17:00&datestop=2016\-12\-27T23:59:59
+.RE
+.PP
+During Lunch Hour
+.RS 4
+.RE
+.PP
+The fourth Friday in the month:
+.RS 4
+.sp
+weekdays=Fri&monthdays=22,23,24,25,26,27,28
+.RE
+.PP
+Matching across days might not do what is expected\&. For instance,
+.RS 4
+.sp
+weekdays=Mon&timestart=23:00&timestop=01:00
+.sp
+Will match Monday, for one hour from midnight to 1 a\&.m\&., and then again for another hour from 23:00 onwards\&. If this is unwanted, e\&.g\&. if you would like \*(Aqmatch for two hours from Montay 23:00 onwards\*(Aq you need to also specify the
+\fBcontiguous\fR
+option in the example above\&.
+.RE
+.SH "SWITCHES"
+.PP
+here are times when you would like to enable or disable one or more rules in the configuration without having to do a
+\fBshorewall reload\fR
+or
+\fBshorewall restart\fR\&. This may be accomplished using the SWITCH column in
+\m[blue]\fBshorewall\-rules\fR\m[]\&\s-2\u[32]\d\s+2
+(5) or
+\m[blue]\fBshorewall6\-rules\fR\m[]\&\s-2\u[32]\d\s+2
+(5)\&. Using this column requires that your kernel and iptables include
+Condition Match Support
+and you must be running Shorewall 4\&.4\&.24 or later\&. See the output of
+\fBshorewall show capabilities\fR
+and
+\fBshorewall version\fR
+to determine if you can use this feature\&.
+.PP
+The SWITCH column contains the name of a
+switch\&.
+Each switch is initially in the
+\fBoff\fR
+position\&. You can turn on the switch named
+\fIswitch1\fR
+by:
+.RS 4
+\fBecho 1 >
+      /proc/net/nf_condition/switch1\fR
+.RE
+.PP
+You can turn it off again by:
+.RS 4
+\fBecho 0 >
+      /proc/net/nf_condition/switch1\fR
+.RE
+.PP
+If you simply include the switch name in the SWITCH column, then the rule is enabled only when the switch is
+\fBon\fR\&. If you precede the switch name with ! (e\&.g\&., !switch1), then the rule is enabled only when the switch is
+\fBoff\fR\&. Switch settings are retained over
+\fBshorewall reload\fR\&.
+.PP
+Shorewall requires that switch names:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+begin with a letter and be composed of letters, digits, underscore (\*(Aq_\*(Aq) or hyphen (\*(Aq\-\*(Aq); and
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+be 30 characters or less in length\&.
+.RE
+.PP
+Multiple rules can be controlled by the same switch\&.
+.PP
+Example:
+.PP
+Forward port 80 to dmz host $BACKUP if switch \*(Aqprimary_down\*(Aq is on\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+#ACTION     SOURCE          DEST        PROTO       DPORT        SPORT     ORIGDEST   RATE      USER      MARK    CONNLIMIT     TIME     HEADERS    SWITCH
+DNAT        net             dmz:$BACKUP tcp         80           \-         \-          \-         \-         \-       \-             \-        \-          \fBprimary_down\fR  
+.fi
+.if n \{\
+.RE
+.\}
+.SH "FILES"
+.PP
+/etc/shorewall[6]/*
+.SH "NOTES"
+.IP " 1." 4
+/etc/shorewall/shorewall.conf
+        and /etc/shorewall6/shorewall6.conf
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall.conf.html
+.RE
+.IP " 2." 4
+/etc/shorewall[6]/params
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-params.html
+.RE
+.IP " 3." 4
+/etc/shorewall[6]/zones
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-zones.html
+.RE
+.IP " 4." 4
+/etc/shorewall[6]/policy
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-policy.html
+.RE
+.IP " 5." 4
+/etc/shorewall[6]/interfaces
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-interfaces.html
+.RE
+.IP " 6." 4
+/etc/shorewall[6]/hosts
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-hosts.html
+.RE
+.IP " 7." 4
+/etc/shorewall[6]/masq
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-masq.html
+.RE
+.IP " 8." 4
+/etc/shorewall[6]/mangle
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-mangle.html
+.RE
+.IP " 9." 4
+/etc/shorewall[6]/rules
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-rules.html
+.RE
+.IP "10." 4
+/etc/shorewall[6]/nat
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-nat.html
+.RE
+.IP "11." 4
+/etc/shorewall6/proxyarp
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-proxyarp.html
+.RE
+.IP "12." 4
+/etc/shorewall6/proxyndp
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-proxyndp.html
+.RE
+.IP "13." 4
+/etc/shorewall[6]/tcrules
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-tcrules.html
+.RE
+.IP "14." 4
+/etc/shorewall[6]/tos
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-tos.html
+.RE
+.IP "15." 4
+/etc/shorewall[6]/tunnels
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-tunnels.html
+.RE
+.IP "16." 4
+/etc/shorewall[6]/blacklist
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-blacklist.html
+.RE
+.IP "17." 4
+/etc/shorewall/ecn
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-ecn.html
+.RE
+.IP "18." 4
+/etc/shorewall/accounting
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-accounting.html
+.RE
+.IP "19." 4
+/etc/shorewall[6]/actions
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-actions.html
+.RE
+.IP "20." 4
+/etc/shorewall[6]/providers
+.RS 4
+\%[set $man.base.url.for.relative.links]/???
+.RE
+.IP "21." 4
+/etc/shorewall[6]/rtrules
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-rtrules.html
+.RE
+.IP "22." 4
+/etc/shorewall[6]/tcdevices
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-tcdevices.html
+.RE
+.IP "23." 4
+/etc/shorewall[6]/tcclasses
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-tcclasses.html
+.RE
+.IP "24." 4
+/etc/shorewall[6]/tcfilters
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-tcfilters.html
+.RE
+.IP "25." 4
+/etc/shorewall[6]/tcinterfaces
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-tcinterfaces.html
+.RE
+.IP "26." 4
+/etc/shorewall[6]/tcpri
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-tcpri.html
+.RE
+.IP "27." 4
+/etc/shorewall[6]/secmarks
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-secmarks.html
+.RE
+.IP "28." 4
+/etc/shorewall[6]/vardir
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-vardir.html
+.RE
+.IP "29." 4
+/etc/shorewall/arprules
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-arprules.html
+.RE
+.IP "30." 4
+/etc/shorewall[6]/snat
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-snat.html
+.RE
+.IP "31." 4
+shorewall-params(5)
+.RS 4
+\%[set $man.base.url.for.relative.links]/manpages/shorewall-params.html
+.RE
+.IP "32." 4
+shorewall-rules
+.RS 4
+\%[set $man.base.url.for.relative.links]/manpages/shorewall-rules.html
+.RE

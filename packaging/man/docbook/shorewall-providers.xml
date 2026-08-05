@@ -1,0 +1,575 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-providers</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>providers</refname>
+
+    <refpurpose>Shorewall Providers file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/etc/shorewall/providers</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>This file is used to define additional routing tables. You will want
+    to define an additional table if:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>You have connections to more than one ISP or multiple
+        connections to the same ISP</para>
+      </listitem>
+
+      <listitem>
+        <para>You run Squid as a transparent proxy on a host other than the
+        firewall.</para>
+      </listitem>
+
+      <listitem>
+        <para>You have other requirements for policy routing.</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>Each entry in the file defines a single routing table.</para>
+
+    <para>If you wish to omit a column entry but want to include an entry in
+    the next column, use "-" for the omitted entry.</para>
+
+    <para>The columns in the file are as follows.</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><emphasis role="bold">NAME</emphasis> -
+        <emphasis>name</emphasis></term>
+
+        <listitem>
+          <para>The provider <emphasis>name</emphasis>. Must be a valid shell
+          variable name. The names 'local', 'main', 'default' and 'unspec' are
+          reserved and may not be used as provider names.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">NUMBER</emphasis> -
+        <emphasis>number</emphasis></term>
+
+        <listitem>
+          <para>The provider number -- a number between 1 and 15. Each
+          provider must be assigned a unique value.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">MARK</emphasis> (Optional) -
+        <emphasis>value</emphasis></term>
+
+        <listitem>
+          <para>A FWMARK <emphasis>value</emphasis> used in your <ulink
+          url="shorewall-mangle.html">shorewall-mangle(5)</ulink> file to
+          direct packets to this provider.</para>
+
+          <para>If PROVIDER_OFFSET is non-zero in <ulink
+          url="shorewall.conf.html">shorewall.conf(5)</ulink>, then the value
+          must be a multiple of 2^^PROVIDER_OFFSET. In all cases, the number
+          of significant bits may not exceed PROVIDER_OFFSET +
+          PROVIDER_BITS.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">DUPLICATE</emphasis> -
+        <emphasis>routing-table-name</emphasis></term>
+
+        <listitem>
+          <para>The name of an existing table to duplicate to create this
+          routing table. May be <option>main</option> or the name of a
+          previously listed provider. You may select only certain entries from
+          the table to copy by using the COPY column below. This column should
+          contain a dash ("-') when USE_DEFAULT_RT=Yes in <ulink
+          url="shorewall.conf.html">shorewall.conf(5)</ulink>.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">INTERFACE</emphasis> -
+        <emphasis>interface</emphasis>[:<emphasis>address</emphasis>]</term>
+
+        <listitem>
+          <para>The name of the network interface to the provider. Must be
+          listed in <ulink
+          url="shorewall-interfaces.html">shorewall-interfaces(5)</ulink>. In
+          general, that interface should not have the
+          <option>proxyarp</option> or <option>proxyndp</option> option
+          specified unless <option>loose</option> is given in the OPTIONS
+          column of this entry.</para>
+
+          <important>
+            <para>For IPv6, if the interface is an Ethernet device and an IP
+            address is supplied, it should be the upstream router's link-level
+            address, not its global address.</para>
+          </important>
+
+          <para>Where more than one provider is serviced through a single
+          interface, the <emphasis>interface</emphasis> must be followed by a
+          colon and the IP <emphasis>address</emphasis> of the interface that
+          is supplied by the associated provider.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">GATEWAY</emphasis> - {<emphasis
+        role="bold">-</emphasis>|<emphasis>address</emphasis>[,<emphasis>mac</emphasis>]|<emphasis
+        role="bold">detect|none</emphasis>}</term>
+
+        <listitem>
+          <para>The IP address of the provider's gateway router. Beginning
+          with Shorewall 4.6.2, you may also specify the MAC address of the
+          gateway when there are multiple providers serviced through the same
+          interface. When the MAC is not specified, Shorewall will detect the
+          MAC during firewall start or restart.</para>
+
+          <para>You can enter <emphasis role="bold">detect</emphasis> here and
+          Shorewall will attempt to detect the gateway automatically.</para>
+
+          <para>Beginning with Shorewall 5.0.6, you may also enter <emphasis
+          role="bold">none</emphasis>. This causes creation of a routing table
+          with no default route in it.</para>
+
+          <para>For PPP devices, you may omit this column.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">OPTIONS</emphasis> (Optional) - [<emphasis
+        role="bold">-</emphasis>|<emphasis>option</emphasis>[<emphasis
+        role="bold">,</emphasis><emphasis>option</emphasis>]...]</term>
+
+        <listitem>
+          <para>A comma-separated list selected from the following. The order
+          of the options is not significant but the list may contain no
+          embedded white-space.</para>
+
+          <variablelist>
+            <varlistentry>
+              <term>autosrc</term>
+
+              <listitem>
+                <para>Added in Shorewall 4.5.17. Causes a host route to the
+                provider's gateway router to be added to the provider's
+                routing table. This is the default behavior unless overridden
+                by a following <emphasis role="bold">noautosrc</emphasis>
+                option.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">track</emphasis></term>
+
+              <listitem>
+                <para>If specified, inbound connections on this interface are
+                to be tracked so that responses may be routed back out this
+                same interface.</para>
+
+                <para>You want to specify <option>track</option> if internet
+                hosts will be connecting to local servers through this
+                provider.</para>
+
+                <para>Beginning with Shorewall 4.4.3, <option>track</option>
+                defaults to the setting of the TRACK_PROVIDERS option in
+                <ulink url="shorewall.conf.html">shorewall.conf</ulink> (5).
+                If you set TRACK_PROVIDERS=Yes and want to override that
+                setting for an individual provider, then specify
+                <option>notrack</option> (see below).</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">balance[=<replaceable>weight</replaceable>]</emphasis></term>
+
+              <listitem>
+                <para>The providers that have <option>balance</option>
+                specified will get outbound traffic load-balanced among them.
+                By default, all interfaces with <option>balance</option>
+                specified will have the same weight (1). You can change the
+                weight of an interface by specifying
+                <option>balance=</option><replaceable>weight</replaceable>
+                where <replaceable>weight</replaceable> is the weight of the
+                route out of this interface.</para>
+
+                <para>Prior to Shorewall 5.1.1, when USE_DEFAULT_RT=Yes,
+                <option>balance=1</option> is assumed unless the
+                <option>fallback</option>, <option>loose</option>,
+                <option>load</option> or <option>tproxy</option> option is
+                specified. Beginning with Shorewall 5.1.1, when
+                BALANCE_PROVIDERS=Yes, <option>balance=1</option> is assumed
+                unless the <option>fallback</option>, <option>loose</option>,
+                <option>load</option> or <option>tproxy</option> option is
+                specified.I</para>
+
+                <caution>
+                  <para>In IPV6, the <option>balance</option> option does not
+                  cause balanced default routes to be created; it rather
+                  causes a sequence of default routes with different metrics
+                  to be created.</para>
+                </caution>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">loose</emphasis></term>
+
+              <listitem>
+                <para>Shorewall normally adds a routing rule for each IP
+                address on an interface which forces traffic whose source is
+                that IP address to be sent using the routing table for that
+                interface. Setting <option>loose</option> prevents creation of
+                such rules on this interface.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">load=<replaceable>probability</replaceable></emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 4.6.0. This option provides an
+                alternative method of load balancing based on probabilities.
+                Providers to be balanced are given a
+                <replaceable>probability</replaceable> (a number 0 &gt; n
+                &gt;= 1) with up to 8 digits to the right of the decimal
+                point. Beginning with Shorewall 4.6.10, a warning is issued if
+                the sum of the probabilities is not 1.00000000.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">noautosrc</emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 4.5.17. Prevents the addition of a
+                host route to the provider's gateway router from being added
+                to the provider's routing table. This option must be used with
+                caution as it can cause start and restart failures.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">notrack</emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 4.4.3. When specified, turns off
+                <option>track</option>.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">optional (deprecated for use with
+              providers that do not share an interface)</emphasis></term>
+
+              <listitem>
+                <para>If the interface named in the INTERFACE column is not up
+                and configured with an IPv4 address then ignore this provider.
+                If not specified, the value of the <option>optional</option>
+                option for the INTERFACE in <ulink
+                url="shorewall-interfaces.html">shorewall-interfaces(5)</ulink>
+                is assumed. Use of that option is preferred to this one,
+                unless an <replaceable>address</replaceable> is provider in
+                the INTERFACE column.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">primary</emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 4.6.6, <emphasis
+                role="bold">primary</emphasis> is equivalent to <emphasis
+                role="bold">balance=1</emphasis> and is preferred when the
+                remaining providers specify <emphasis
+                role="bold">fallback</emphasis> or <emphasis
+                role="bold">tproxy</emphasis>.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">src=</emphasis><replaceable>source-address</replaceable></term>
+
+              <listitem>
+                <para>Specifies the source address to use when routing to this
+                provider and none is known (the local client has bound to the
+                0 address). May not be specified when an
+                <replaceable>address</replaceable> is given in the INTERFACE
+                column. If this option is not used, Shorewall substitutes the
+                primary IP address on the interface named in the INTERFACE
+                column.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">mtu=</emphasis><replaceable>number</replaceable></term>
+
+              <listitem>
+                <para>Specifies the MTU when forwarding through this provider.
+                If not given, the MTU of the interface named in the INTERFACE
+                column is assumed.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">fallback[=<replaceable>weight</replaceable>]</emphasis></term>
+
+              <listitem>
+                <para>Indicates that a default route through the provider
+                should be added to the default routing table (table 253). If a
+                <replaceable>weight</replaceable> is given, a balanced route
+                is added with the weight of this provider equal to the
+                specified <replaceable>weight</replaceable>. If the option is
+                given without a <replaceable>weight</replaceable>, a separate
+                default route is added through the provider's gateway; the
+                route has a metric equal to the provider's NUMBER.</para>
+
+                <para>Prior to Shorewall 4.4.24, the option is ignored with a
+                warning message if USE_DEFAULT_RT=Yes in
+                <filename>shorewall.conf</filename>.</para>
+
+                <caution>
+                  <para>In IPV6, specifying the <option>fallback</option>
+                  option on multiple providers does not cause balanced
+                  fallback routes to be created; it rather causes a sequence
+                  of fallback routes with different metrics to be
+                  created.</para>
+                </caution>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">tproxy</emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 4.5.4. Used for supporting the TPROXY
+                action in shorewall-mangle(5). See <ulink
+                url="../Shorewall_Squid_Usage.html">https://shorewall.org/Shorewall_Squid_Usage.html</ulink>.
+                When specified, the MARK, DUPLICATE and GATEWAY columns should
+                be empty, INTERFACE should be set to 'lo' and
+                <option>tproxy</option> should be the only OPTION. Only one
+                <option>tproxy</option> provider is allowed.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">hostroute</emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 4.5.21. This is the default behavior
+                that results in a host route to the defined <emphasis
+                role="bold">GATEWAY</emphasis> being inserted into the main
+                routing table and into the provider's routing table. <emphasis
+                role="bold">hostroute</emphasis> is required for older
+                distributions but <emphasis role="bold">nohostroute</emphasis>
+                (below) is appropriate for recent distributions. <emphasis
+                role="bold">hostroute</emphasis> may interfere with Zebra's
+                ability to add routes on some distributions such as Debian 7.
+                This option defaults to on when BALANCE_PROVIDERS=Yes, in
+                <ulink
+                url="shorewall.conf.html">shorewall.conf(5)</ulink>.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">nohostroute</emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 4.5.21. nohostroute inhibits addition
+                of a host route to the defined <emphasis
+                role="bold">GATEWAY</emphasis> being inserted into the main
+                routing table and into the provider's routing table. <emphasis
+                role="bold">nohostroute</emphasis> is not appropriate for
+                older distributions but is appropriate for recent
+                distributions. <emphasis role="bold">nohostroute</emphasis>
+                allows Zebra's to correctly add routes on some distributions
+                such as Debian 7. This option defaults to off when
+                BALANCE_PROVIDERS=Yes, in <ulink
+                url="shorewall.conf.html">shorewall.conf(5)</ulink>.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">persistent</emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 5.0.2 and alters the behavior of the
+                <command>disable</command> command:</para>
+
+                <itemizedlist>
+                  <listitem>
+                    <para>The provider's routing table still contains the
+                    apprioriate default route.</para>
+                  </listitem>
+
+                  <listitem>
+                    <para>Unless the <option>noautosrc</option> option is
+                    specified, routing rules are generated to route traffic
+                    from the interfaces address(es) out of the provider's
+                    routing table.</para>
+                  </listitem>
+
+                  <listitem>
+                    <para>Persistent routing rules in <ulink
+                    url="shorewall-rtrules.html">shorewall-rtrules(5)</ulink>
+                    are present.</para>
+                  </listitem>
+                </itemizedlist>
+
+                <note>
+                  <para>The generated script will attempt to reenable a
+                  disabled persistent provider during execution of the
+                  <command>start</command>, <command>restart</command> and
+                  <command>reload</command> commands. When
+                  <option>persistent</option> is not specified, only the
+                  <command>enable</command> and <command>reenable</command>
+                  commands can reenable the provider.</para>
+                </note>
+
+                <important>
+                  <para>RESTORE_DEFAULT_ROUTE=Yes in shorewall[6].conf is not
+                  recommended when the <option>persistent</option> option is
+                  used, as restoring default routes to the main routing table
+                  can prevent link status monitors such as foolsm from
+                  correctly detecting non-working providers.</para>
+                </important>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">COPY</emphasis> -
+        [{<option>none</option>|<emphasis>interface</emphasis><emphasis
+        role="bold">[,</emphasis><emphasis>interface</emphasis>]...}]</term>
+
+        <listitem>
+          <para>A comma-separated list of other interfaces on your firewall.
+          Wildcards specified using an asterisk ("*") are permitted (e.g.,
+          tun* ). Usually used only when DUPLICATE is <option>main</option>.
+          Only copy routes through INTERFACE and through interfaces listed
+          here. If you only wish to copy routes through INTERFACE, enter
+          <option>none</option> in this column.</para>
+
+          <para>Beginning with Shorewall 4.5.17, blackhole, unreachable and
+          prohibit routes are no longer copied by default but may be copied by
+          including <emphasis role="bold">blackhole</emphasis>,<emphasis
+          role="bold">unreachable</emphasis> and <emphasis
+          role="bold">prohibit</emphasis> respectively in the COPY
+          list.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Examples</title>
+
+    <variablelist>
+      <varlistentry>
+        <term>IPv4 Example 1:</term>
+
+        <listitem>
+          <para>You run squid in your DMZ on IP address 192.168.2.99. Your DMZ
+          interface is eth2</para>
+
+          <programlisting>        #NAME   NUMBER  MARK DUPLICATE  INTERFACE GATEWAY       OPTIONS
+        Squid   1       1    -          eth2      192.168.2.99  -</programlisting>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>IPv4 Example 2:</term>
+
+        <listitem>
+          <para>eth0 connects to ISP 1. The IP address of eth0 is
+          206.124.146.176 and the ISP's gateway router has IP address
+          206.124.146.254.</para>
+
+          <para>eth1 connects to ISP 2. The IP address of eth1 is
+          130.252.99.27 and the ISP's gateway router has IP address
+          130.252.99.254.</para>
+
+          <para>eth2 connects to a local network.</para>
+
+          <programlisting>        #NAME NUMBER MARK DUPLICATE INTERFACE GATEWAY          OPTIONS            COPY
+        ISP1  1       1    main      eth0      206.124.146.254 track,balance      eth2
+        ISP2  2       2    main      eth1      130.252.99.254  track,balance      eth2</programlisting>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>IPv6 Example 1:</term>
+
+        <listitem>
+          <para>You run squid in your DMZ on IP address 2002:ce7c:92b4:1::2.
+          Your DMZ interface is eth2</para>
+
+          <programlisting>        #NAME   NUMBER  MARK DUPLICATE  INTERFACE GATEWAY              OPTIONS
+        Squid   1       1    -          eth2      2002:ce7c:92b4:1::2  -</programlisting>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>IPv6 Example 2:</term>
+
+        <listitem>
+          <para>eth0 connects to ISP 1. The ISP's gateway router has IP
+          address 2001:ce7c:92b4:1::2.</para>
+
+          <para>eth1 connects to ISP 2. The ISP's gateway router has IP
+          address 2001:d64c:83c9:12::8b.</para>
+
+          <para>eth2 connects to a local network.</para>
+
+          <programlisting>        #NAME NUMBER MARK DUPLICATE INTERFACE GATEWAY               OPTIONS    COPY
+        ISP1  1       1    main      eth0     2001:ce7c:92b4:1::2   track      eth2
+        ISP2  2       2    main      eth1     2001:d64c:83c9:12::8b track      eth2</programlisting>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall/providers</para>
+
+    <para>/etc/shorewall6/providers</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para><ulink
+    url="../MultiISP.html">https://shorewall.org/MultiISP.html</ulink></para>
+
+    <para><ulink
+    url="../configuration_file_basics.htm#Pairs">https://shorewall.org/configuration_file_basics.htm#Pairs</ulink></para>
+
+    <para>shorewall(8)</para>
+  </refsect1>
+</refentry>

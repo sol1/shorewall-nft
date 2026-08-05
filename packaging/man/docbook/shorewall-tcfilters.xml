@@ -1,0 +1,371 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-tcfilters</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>tcfilters</refname>
+
+    <refpurpose>Shorewall u32/basic classifier rules file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/etc/shorewall[6]/tcfilters</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>Entries in this file cause packets to be classified for traffic
+    shaping.</para>
+
+    <para>Beginning with Shorewall 4.4.15, the file may contain entries for
+    both IPv4 and IPv6. By default, all rules apply to IPv4 but that can be
+    changed by inserting a line as follows:</para>
+
+    <variablelist>
+      <varlistentry>
+        <term>IPV4</term>
+
+        <listitem>
+          <para>Following entries apply to IPv4.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>IPV6</term>
+
+        <listitem>
+          <para>Following entries apply to IPv6</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>ALL</term>
+
+        <listitem>
+          <para>Following entries apply to both IPv4 and IPv6. Each entry is
+          processed twice; once for IPv4 and once for IPv6.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+
+    <para>The columns in the file are as follows (where the column name is
+    followed by a different name in parentheses, the different name is used in
+    the alternate specification syntax).</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><emphasis role="bold">CLASS</emphasis> -
+        <emphasis>interface</emphasis><emphasis
+        role="bold">:</emphasis><emphasis>class</emphasis></term>
+
+        <listitem>
+          <para>The name or number of an <returnvalue>interface</returnvalue>
+          defined in <ulink
+          url="shorewall-tcdevices.html">shorewall-tcdevices</ulink>(5)
+          followed by a <replaceable>class</replaceable> number defined for
+          that interface in <ulink
+          url="shorewall-tcclasses.html">shorewall-tcclasses</ulink>(5).</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">SOURCE</emphasis> - {<emphasis
+        role="bold">-</emphasis>|<emphasis>address</emphasis>|+<replaceable>ipset</replaceable>}</term>
+
+        <listitem>
+          <para>Source of the packet. May be a host or network
+          <replaceable>address</replaceable>. DNS names are not allowed.
+          Beginning with Shorewall 4.6.0, an ipset name (prefixed with '+')
+          may be used if your kernel and ip6tables have the <firstterm>Basic
+          Ematch</firstterm> capability and you set BASIC_FILTERS=Yes in
+          <ulink url="shorewall.conf.html">shorewall.conf
+          (5)</ulink>. The ipset name may optionally be followed by a number
+          or a comma separated list of src and/or dst enclosed in square
+          brackets ([...]). See <ulink
+          url="shorewall-ipsets.html">shorewall-ipsets(5)</ulink>
+          for details.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">DEST</emphasis> - {<emphasis
+        role="bold">-</emphasis>|<emphasis>address</emphasis>|+<replaceable>ipset</replaceable>}</term>
+
+        <listitem>
+          <para>Destination of the packet. May be a host or network
+          <replaceable>address</replaceable>. DNS names are not allowed.
+          Beginning with Shorewall 4.6.0, an ipset name (prefixed with '+')
+          may be used if your kernel and ip6tables have the <firstterm>Basic
+          Ematch</firstterm> capability and you set BASIC_FILTERS=Yes in
+          <ulink url="shorewall.conf.html">shorewall.conf
+          (5)</ulink>. The ipset name may optionally be followed by a number
+          or a comma separated list of src and/or dst enclosed in square
+          brackets ([...]). See <ulink
+          url="shorewall-ipsets.html">shorewall-ipsets(5)</ulink>
+          for details.</para>
+
+          <para>You may exclude certain hosts from the set already defined
+          through use of an <emphasis>exclusion</emphasis> (see <ulink
+          url="shorewall-exclusion.html">shorewall-exclusion</ulink>(5)).</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">PROTO</emphasis> - {<emphasis
+        role="bold">-</emphasis>|{<emphasis>protocol-number</emphasis>|<emphasis>protocol-name</emphasis>|<emphasis
+        role="bold">all}[,...]}</emphasis></term>
+
+        <listitem>
+          <para>Protocol.</para>
+
+          <para>Beginning with Shorewall 4.5.12, this column can accept a
+          comma-separated list of protocols.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">DPORT</emphasis> - [<emphasis
+        role="bold">-</emphasis>|<emphasis>port-name-or-number</emphasis>]</term>
+
+        <listitem>
+          <para>Optional destination Ports. A Port name (from services(5)) or
+          a <emphasis>port number</emphasis>; if the protocol is <emphasis
+          role="bold">icmp</emphasis>, this column is interpreted as the
+          destination icmp-type(s).</para>
+
+          <para>This column was previously labelled DEST PORT(S).</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">SPORT</emphasis> - [<emphasis
+        role="bold">-</emphasis>|<emphasis>port-name-or-number</emphasis>]</term>
+
+        <listitem>
+          <para>Optional source port.</para>
+
+          <para>This column was previously labelled SOURCE PORT(S).</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">TOS</emphasis> (Optional) - [<emphasis
+        role="bold">-</emphasis>|<emphasis>tos</emphasis>]</term>
+
+        <listitem>
+          <para>Specifies the value of the TOS field. The
+          <replaceable>tos</replaceable> value can be any of the
+          following:</para>
+
+          <itemizedlist>
+            <listitem>
+              <para><option>tos-minimize-delay</option></para>
+            </listitem>
+
+            <listitem>
+              <para><option>tos-maximize-throughput</option></para>
+            </listitem>
+
+            <listitem>
+              <para><option>tos-maximize-reliability</option></para>
+            </listitem>
+
+            <listitem>
+              <para><option>tos-minimize-cost</option></para>
+            </listitem>
+
+            <listitem>
+              <para><option>tos-normal-service</option></para>
+            </listitem>
+
+            <listitem>
+              <para><replaceable>hex-number</replaceable></para>
+            </listitem>
+
+            <listitem>
+              <para><replaceable>hex-number</replaceable>/<replaceable>hex-number</replaceable></para>
+            </listitem>
+          </itemizedlist>
+
+          <para>The <replaceable>hex-number</replaceable>s must be exactly two
+          digits (e.g., 0x04)x.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">LENGTH</emphasis> - [<emphasis
+        role="bold">-</emphasis>|<emphasis>number</emphasis>]</term>
+
+        <listitem>
+          <para>Optional - Must be a power of 2 between 32 and 8192 inclusive.
+          Packets with a total length that is strictly less than the specified
+          <replaceable>number</replaceable> will match the rule.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">PRIORITY</emphasis> - [<emphasis
+        role="bold">-</emphasis>|<emphasis>priority</emphasis>]</term>
+
+        <listitem>
+          <para>Added in Shorewall 4.5.8. Specifies the rule
+          <replaceable>priority</replaceable>. The
+          <replaceable>priority</replaceable> value must be &gt; 0 and &lt;=
+          65535.</para>
+
+          <para>When a <replaceable>priority</replaceable> is not
+          given:</para>
+
+          <itemizedlist>
+            <listitem>
+              <para>For Shorewall versions prior to 4.5.8 - all filters have
+              priority 10.</para>
+            </listitem>
+
+            <listitem>
+              <para>For Shorewall 4.5.8 and later - for each device, the
+              compiler maintains a <firstterm>high-water priority</firstterm>
+              with an initial value of 0. When a filter has no
+              <replaceable>priority</replaceable>, the high-water priority is
+              incremented by 1 and assigned to the filter. When a
+              <replaceable>priority</replaceable> greater than the high-water
+              priority is entered in this column, the high-water priority is
+              set to the specified <replaceable>priority</replaceable>. An
+              attempt to assign a priority value greater than 65535
+              (explicitly or implicitly) raises an error.</para>
+            </listitem>
+          </itemizedlist>
+
+          <para>The default priority values used by other Shorewall-generated
+          filters are as follows:</para>
+
+          <itemizedlist>
+            <listitem>
+              <para>Classify by packet mark - ( <replaceable>class
+              priority</replaceable> &lt;&lt; 8 ) | 20.</para>
+            </listitem>
+
+            <listitem>
+              <para>Ingress policing - 10</para>
+            </listitem>
+
+            <listitem>
+              <para>Simple TC ACK packets - 1</para>
+            </listitem>
+
+            <listitem>
+              <para>Complex TC ACK packets - ( <replaceable>class
+              priority</replaceable> &lt;&lt; 8 ) | 10.</para>
+            </listitem>
+
+            <listitem>
+              <para>Classify by TOS - ( <replaceable>class
+              priority</replaceable> &lt;&lt; 8 ) | 15.</para>
+            </listitem>
+
+            <listitem>
+              <para>Class with 'occurs' - 65535</para>
+            </listitem>
+          </itemizedlist>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Example</title>
+
+    <variablelist>
+      <varlistentry>
+        <term>IPv4 Example 1:</term>
+
+        <listitem>
+          <para>Place all 'ping' traffic on interface 1 in class 10. Note that
+          ALL cannot be used because IPv4 ICMP and IPv6 ICMP are two different
+          protocols.</para>
+
+          <programlisting>       #CLASS    SOURCE    DEST         PROTO   DPORT
+
+       IPV4
+
+       1:10      0.0.0.0/0 0.0.0.0/0    icmp    echo-request
+       1:10      0.0.0.0/0 0.0.0.0/0    icmp    echo-reply
+
+       IPV6
+
+       1:10      ::/0      ::/0         icmp6   echo-request
+       1:10      ::/0      ::/0         icmp6   echo-reply</programlisting>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>IPv4 Example 2:</term>
+
+        <listitem>
+          <para>Add two filters with priority 10 (Shorewall 4.5.8 or
+          later).</para>
+
+          <programlisting>       #CLASS    SOURCE    DEST         PROTO   DPORT           PRIORITY
+
+       IPV4
+
+       1:10      0.0.0.0/0 0.0.0.0/0    icmp    echo-request    10
+       1:10      0.0.0.0/0 0.0.0.0/0    icmp    echo-reply      10</programlisting>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>IPv6 Example 1:</term>
+
+        <listitem>
+          <para>Add two filters with priority 10 (Shorewall 4.5.8 or
+          later).</para>
+
+          <programlisting>       #CLASS    SOURCE    DEST         PROTO   DPORT           PRIORITY
+
+       IPV6
+
+       1:10      ::/0      ::/0         icmp    echo-request    10
+       1:10      ::/0      ::/0         icmp    echo-reply      10</programlisting>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall/tcfilters</para>
+
+    <para>/etc/shorewall6/tcfilters</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para><ulink
+    url="../traffic_shaping.htm">https://shorewall.org/traffic_shaping.htm</ulink></para>
+
+    <para><ulink
+    url="../MultiISP.html">https://shorewall.org/MultiISP.html</ulink></para>
+
+    <para><ulink
+    url="../PacketMarking.html">https://shorewall.org/PacketMarking.html</ulink></para>
+
+    <para><ulink
+    url="../configuration_file_basics.htm#Pairs">https://shorewall.org/configuration_file_basics.htm#Pairs</ulink></para>
+
+    <para>shorewall(8)</para>
+  </refsect1>
+</refentry>

@@ -1,0 +1,613 @@
+'\" t
+.\"     Title: shorewall-tcclasses
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Configuration Files
+.\"    Source: Configuration Files
+.\"  Language: English
+.\"
+.TH "SHOREWALL\-TCCLASSES" "5" "08/05/2026" "Configuration Files" "Configuration Files"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+tcclasses \- Shorewall file to define HTB and HFSC classes
+.SH "SYNOPSIS"
+.HP \w'\fB/etc/shorewall[6]/tcclasses\fR\ 'u
+\fB/etc/shorewall[6]/tcclasses\fR
+.SH "DESCRIPTION"
+.PP
+A note on the
+\fIrate\fR/bandwidth definitions used in this file:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+don\*(Aqt use a space between the integer value and the unit: 30kbit is valid while 30 kbit is NOT\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+you can use one of the following units:
+.PP
+\fBkpbs\fR
+.RS 4
+Kilobytes per second\&.
+.RE
+.PP
+\fBmbps\fR
+.RS 4
+Megabytes per second\&.
+.RE
+.PP
+\fBgbps\fR
+.RS 4
+Gigabytes per second\&.
+.RE
+.PP
+\fBkbit\fR
+.RS 4
+Kilobits per second\&.
+.RE
+.PP
+\fBmbit\fR
+.RS 4
+Megabits per second\&.
+.RE
+.PP
+\fBgbit\fR
+.RS 4
+Gigabits per second\&.
+.RE
+.PP
+\fBbps\fR or \fBnumber\fR
+.RS 4
+Bytes per second\&.
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+if you want the values to be calculated for you depending on the output bandwidth setting defined for an interface in tcdevices, you can use expressions like the following:
+.PP
+full/3
+.RS 4
+causes the bandwidth to be calculated as 1/3 of the full outgoing speed that is defined\&.
+.RE
+.PP
+full*9/10
+.RS 4
+will set this bandwidth to 9/10 of the full bandwidth
+.RE
+.sp
+Note that in a sub\-class (a class that has a specified parent class), full refers to the RATE or CEIL of the parent class rather than to the OUT\-BANDWIDTH of the device\&.
+.sp
+DO NOT add a unit to the rate if it is calculated !
+.RE
+.PP
+The columns in the file are as follows\&.
+.PP
+\fBINTERFACE\fR \- \fIinterface\fR[[:\fIparent\fR]:\fIclass\fR]
+.RS 4
+Name of
+\fIinterface\fR\&.
+.sp
+You may specify the interface number rather than the interface name\&. If the
+\fBclassify\fR
+option is given for the interface in
+\m[blue]\fBshorewall\-tcdevices\fR\m[]\&\s-2\u[1]\d\s+2(5), then you must also specify an interface class (an integer that must be unique within classes associated with this interface)\&. If the classify option is not given, you may still specify a
+\fIclass\fR
+or you may have Shorewall generate a class number from the MARK value\&. Interface numbers and class numbers are always assumed to be specified in hex and class number 1 is reserved as the root class of the queuing discipline\&.
+.sp
+You may NOT specify wildcards here, e\&.g\&. if you have multiple ppp interfaces, you need to put them all in here!
+.sp
+Please note that you can only use interface names in here that have a bandwidth defined in the
+\m[blue]\fBshorewall\-tcdevices\fR\m[]\&\s-2\u[1]\d\s+2(5) file\&.
+.sp
+Normally, all classes defined here are sub\-classes of a root class that is implicitly defined from the entry in
+\m[blue]\fBshorewall\-tcdevices\fR\m[]\&\s-2\u[1]\d\s+2(5)\&. You can establish a class hierarchy by specifying a
+\fIparent\fR
+class \-\- the number of a class that you have previously defined\&. The sub\-class may borrow unused bandwidth from its parent\&.
+.RE
+.PP
+\fBMARK\fR \- {\-|\fIvalue\fR[:\fIpriority\fR]}
+.RS 4
+The mark
+\fIvalue\fR
+which is an integer in the range 1\-255\&. You set mark values in the
+\m[blue]\fBshorewall\-mangle\fR\m[]\&\s-2\u[2]\d\s+2(5) file, marking the traffic you want to fit in the classes defined in here\&. You can use the same marks for different interfaces\&.
+.sp
+The
+\fIpriority\fR, if specified, is an integer in the range 1\-65535 and determines the relative order in which the tc mark classification filter for this class is to be applied to packets being sent on the
+\fIinterface\fR\&. Filters are applied in ascending numerical order\&. If not supplied, the value is derived from the class priority (PRIORITY column value below): (\fIclass priority\fR
+<< 8) | 20\&.
+.RE
+.PP
+\fBRATE\fR \- {\-|\fIrate\fR[:\fIdmax\fR[:\fIumax\fR]]}
+.RS 4
+The minimum bandwidth this class should get, when the traffic load rises\&. If the sum of the rates in this column exceeds the INTERFACE\*(Aqs OUT\-BANDWIDTH, then the OUT\-BANDWIDTH limit may not be honored\&. Similarly, if the sum of the rates of sub\-classes of a class exceed the CEIL of the parent class, things don\*(Aqt work well\&.
+.sp
+When using the HFSC queuing discipline, this column specify the real\-time (RT) service curve\&. leaf classes may specify
+\fIdmax\fR, the maximum delay in milliseconds that the first queued packet for this class should experience\&. May be expressed as an integer, optionally followed by \*(Aqms\*(Aq with no intervening white\-space (e\&.g\&., 10ms)\&.
+.sp
+HFSC leaf classes may also specify
+\fIumax\fR, the largest packet expected in this class\&. May be expressed as an integer\&. The unit of measure is
+\fIbytes\fR
+and the integer may be optionally followed by \*(Aqb\*(Aq with no intervening white\-space (e\&.g\&., 800b)\&.
+\fIumax\fR
+may only be given if
+\fIdmax\fR
+is also given\&.
+.sp
+Beginning with Shorewall 4\&.5\&.6, HFSC classes may omit this column (e\&.g, \*(Aq\-\*(Aq in the column), provided that an
+\fIlsrate\fR
+is specified (see CEIL below)\&. These rates are used to arbitrate between classes of the same priority\&.
+.RE
+.PP
+\fBCEIL\fR \- [\fIlsrate\fR:]\fIrate\fR
+.RS 4
+The maximum bandwidth this class is allowed to use when the link is idle\&. Useful if you have traffic which can get full speed when more needed services (e\&.g\&. ssh) are not used\&.
+.sp
+You can use the value
+\fBfull\fR
+in here for setting the maximum bandwidth to the RATE of the parent class, or the OUT\-BANDWIDTH of the device if there is no parent class\&.
+.sp
+Beginning with Shorewall 4\&.5\&.6, you can also specify an
+\fIlsrate\fR
+(link sharing rate)\&.
+.RE
+.PP
+\fBPRIORITY\fR \- \fIpriority\fR
+.RS 4
+For HTB:
+The
+\fIpriority\fR
+in which classes will be serviced by the packet shaping scheduler and also the priority in which bandwidth in excess of the rate will be given to each class\&.
+.sp
+Higher priority classes will experience less delay since they are serviced first\&. Priority values are serviced in ascending order (e\&.g\&. 0 is higher priority than 1)\&.
+.sp
+Classes may be set to the same priority, in which case they will be serviced as equals\&.
+For both HTB and HFSC, the
+\fIpriority\fR
+is used to calculate the priority of following Shorewall\-generated classification filters that refer to the class:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Packet MARK
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBtcp\-ack\fR
+and the
+\fBtos\fR
+options (see below)
+.RE
+.sp
+The rules for classes with lower numeric priorities will appear before those with higher numeric priorities\&.
+.sp
+Beginning with Shorewall 4\&.5\&.8, the PRIORITY may be omitted from an HFSC class if you do not use the MARK column or the
+\fBtcp\-ack\fR
+or
+\fBtos\fR
+options\&. If you use any of those features and omit the PRIORITY, then you must specify a
+\fIpriority\fR
+along with the MARK or option\&.
+.RE
+.PP
+\fBOPTIONS\fR (Optional) \- [\fIoption\fR[\fB,\fR\fIoption\fR]\&.\&.\&.]
+.RS 4
+A comma\-separated list of options including the following:
+.PP
+\fBdefault\fR
+.RS 4
+This is the default class for that interface where all traffic should go, that is not classified otherwise\&.
+.sp
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+You must define
+\fBdefault\fR
+for exactly one class per interface\&.
+.sp .5v
+.RE
+.RE
+.PP
+\fBtos=0x\fR\fIvalue\fR[/0x\fImask\fR][:\fIpriority\fR] (mask defaults to 0xff)
+.RS 4
+This lets you define a classifier for the given
+\fIvalue\fR/\fImask\fR
+combination of the IP packet\*(Aqs TOS/Precedence/DiffSrv octet (aka the TOS byte)\&.
+.sp
+Beginning with Shorewall 4\&.5\&.8, the
+\fIvalue/mask\fR
+may be followed by a colon (":") and a
+\fIpriority\fR\&. This priority determines the order in which filter rules are processed during packet classification\&. If not specified, the value (\fIclass priority\fR
+<< 8) | 15) is used\&.
+.RE
+.PP
+\fBtos\-\fR\fItosname\fR[:\fIpriority\fR]
+.RS 4
+Aliases for the following TOS octet value and mask encodings\&. TOS encodings of the "TOS byte" have been deprecated in favor of diffserve classes, but programs like ssh, rlogin, and ftp still use them\&.
+.sp
+Beginning with Shorewall 4\&.5\&.8, the
+\fItos\-name\fR
+may be followed by a colon (":") and a
+\fIpriority\fR\&. This priority determines the order in which filter rules are processed during packet classification\&. If not specified, the value (\fIclass priority\fR
+<< 8) | 15) is used\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+        \fBtos\-minimize\-delay\fR       0x10/0x10
+        \fBtos\-maximize\-throughput\fR  0x08/0x08
+        \fBtos\-maximize\-reliability\fR 0x04/0x04
+        \fBtos\-minimize\-cost\fR        0x02/0x02
+        \fBtos\-normal\-service\fR       0x00/0x1e
+.fi
+.if n \{\
+.RE
+.\}
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+Each of these options is only valid for ONE class per interface\&.
+.sp .5v
+.RE
+.RE
+.PP
+\fBtcp\-ack[:\fR\fB\fIpriority\fR\fR\fB]\fR
+.RS 4
+If defined, causes a tc filter to be created that puts all tcp ack packets on that interface that have a size of <=64 Bytes to go in this class\&. This is useful for speeding up downloads\&. Please note that the size of the ack packets is limited to 64 bytes because we want only packets WITHOUT payload to match\&.
+.sp
+Beginning with Shorewall 4\&.5\&.8, the
+\fBtcp\-ack\fR
+may be followed by a colon (":") and a
+\fIpriority\fR\&. This priority determines the order in which filter rules are processed during packet classification\&. If not specified, the value (\fIclass priority\fR
+<< 8) | 10) is used\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+This option is only valid for ONE class per interface\&.
+.sp .5v
+.RE
+.RE
+.PP
+\fBoccurs\fR=\fInumber\fR
+.RS 4
+Typically used with an IPMARK entry in tcrules\&. Causes the rule to be replicated for a total of
+\fInumber\fR
+rules\&. Each rule has a successively class number and mark value\&.
+.sp
+When \*(Aqoccurs\*(Aq is used:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The associated device may not have the \*(Aqclassify\*(Aq option\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The class may not be the default class\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The class may not have any \*(Aqtos=\*(Aq options (including \*(Aqtcp\-ack\*(Aq)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The class should not specify a MARK value\&. If one is specified, it will be ignored with a warning message\&.
+.RE
+.sp
+The \*(AqRATE\*(Aq and \*(AqCEIL\*(Aq parameters apply to each instance of the class\&. So the total RATE represented by an entry with \*(Aqoccurs\*(Aq will be the listed RATE multiplied by
+\fInumber\fR\&. For additional information, see
+\m[blue]\fBshorewall\-tcrules\fR\m[]\&\s-2\u[3]\d\s+2
+(5)\&.
+.RE
+.PP
+flow=\fIkeys\fR
+.RS 4
+Shorewall attaches an SFQ queuing discipline to each leaf HTB class\&. SFQ ensures that each
+flow
+gets equal access to the interface\&. The default definition of a flow corresponds roughly to a Netfilter connection\&. So if one internal system is running BitTorrent, for example, it can have lots of \*(Aqflows\*(Aq and can thus take up a larger share of the bandwidth than a system having only a single active connection\&. The
+\fBflow\fR
+classifier (module cls_flow) works around this by letting you define what a \*(Aqflow\*(Aq is\&. The classifier must be used carefully or it can block off all traffic on an interface! The flow option can be specified for an HTB leaf class (one that has no sub\-classes)\&. We recommend that you use the following:
+.RS 4
+Shaping internet\-bound traffic:
+                  flow=nfct\-src
+.RE
+.RS 4
+Shaping traffic bound for your local net:
+                  flow=dst
+.RE
+These will cause a \*(Aqflow\*(Aq to consists of the traffic to/from each internal system\&.
+.sp
+When more than one key is give, they must be enclosed in parenthesis and separated by commas\&.
+.sp
+To see a list of the possible flow keys, run this command:
+\fBtc filter add flow help\fR
+Those that begin with "nfct\-" are Netfilter connection tracking fields\&. As shown above, we recommend flow=nfct\-src; that means that we want to use the source IP address
+\fIbefore NAT\fR
+as the key\&.
+.RE
+.PP
+pfifo
+.RS 4
+When specified for a leaf class, the pfifo queuing discipline is applied to the class rather than the sfq queuing discipline\&.
+.RE
+.PP
+limit=\fInumber\fR
+.RS 4
+Added in Shorewall 4\&.4\&.3\&. When specified for a leaf class, determines the maximum number of packets that may be queued within the class\&. The
+\fInumber\fR
+must be > 2 and <=128\&. If not specified, the value 127 is assumed\&.
+.RE
+.PP
+red=(\fIredoption\fR=\fIvalue\fR, \&.\&.\&.)
+.RS 4
+Added in Shorewall 4\&.5\&.6\&. When specified on a leaf class, causes the class to use the RED (Random Early Detection) queuing discipline rather than SFQ\&. See tc\-red (8) for additional information\&.
+.sp
+Allowable
+\fIredoptions\fR
+are:
+.PP
+min \fImin\fR
+.RS 4
+Average queue size at which marking becomes a possibility\&.
+.RE
+.PP
+max \fImax\fR
+.RS 4
+At this average queue size, the marking probability is maximal\&. Must be at least twice
+\fImin\fR
+to prevent synchronous retransmits, higher for low
+\fImin\fR\&.
+.RE
+.PP
+probability \fIprobability\fR
+.RS 4
+Maximum probability for marking, specified as a floating point number from 0\&.0 to 1\&.0\&. Suggested values are 0\&.01 or 0\&.02 (1 or 2%, respectively)\&.
+.RE
+.PP
+limit \fIlimit\fR
+.RS 4
+Hard limit on the real (not average) queue size in bytes\&. Further packets are dropped\&. Should be set higher than
+\fImax\fR+\fIburst\fR\&. It is advised to set this a few times higher than
+\fImax\fR\&. Shorewall requires that
+\fIlimit\fR
+be at least twice
+\fImin\fR\&.
+.RE
+.PP
+burst \fIburst\fR
+.RS 4
+Used for determining how fast the average queue size is influenced by the real queue size\&. Larger values make the calculation more sluggish, allowing longer bursts of traffic before marking starts\&. Real life experiments support the following guide\(hyline: (\fImin\fR+\fImin\fR+\fImax\fR)/(3*\fIavpkt\fR)\&.
+.RE
+.PP
+avpkt \fIavpkt\fR
+.RS 4
+Optional\&. Specified in bytes\&. Used with burst to determine the time constant for average queue size calculations\&. 1000 is a good value and is the Shorewall default\&.
+.RE
+.PP
+bandwidth \fIbandwidth\fR
+.RS 4
+Optional\&. This rate is used for calculating the average queue size after some idle time\&. Should be set to the bandwidth of your interface\&. Does not mean that RED will shape for you!
+.RE
+.PP
+ecn
+.RS 4
+RED can either \*(Aqmark\*(Aq or \*(Aqdrop\*(Aq\&. Explicit Congestion Notification allows RED to notify remote hosts that their rate exceeds the amount of bandwidth available\&. Non\-ECN capable hosts can only be notified by dropping a packet\&. If this parameter is specified, packets which indicate that their hosts honor ECN will only be marked and not dropped, unless the queue size hits
+\fIlimit\fR
+bytes\&. Recommended\&.
+.RE
+.RE
+.PP
+fq_codel[=(\fIcodeloption\fR=\fIvalue\fR, \&.\&.\&.)]
+.RS 4
+Added in Shorewall 4\&.5\&.12\&. When specified for a leaf class, causes the class to use the FQ_CODEL (Fair\-queuing Controlled Delay) queuing discipline rather than SFQ\&. See tc\-fq_codel (8) for additional information\&.
+.sp
+Allowable
+\fIcodeloptions\fR
+are:
+.PP
+limit
+.RS 4
+hard limit on the real queue size\&. When this limit is reached, incoming packets are dropped\&. If the value is lowered, packets are dropped so that the new limit is met\&. Default is 1000 packets\&.
+.RE
+.PP
+flows
+.RS 4
+is the number of flows into which the incoming packets are classified\&. Due to the stochastic nature of hashing, multiple flows may end up being hashed into the same slot\&. Newer flows have priority over older ones\&. This parameter can be set only at load time since memory has to be allocated for the hash table\&. Default value is 1024\&.
+.RE
+.PP
+target
+.RS 4
+is the acceptable minimum standing/persistent queue delay\&. This minimum delay is identified by tracking the local minimum queue delay that packets experience\&. Default and recommended value is 5ms\&.
+.RE
+.PP
+interval
+.RS 4
+is used to ensure that the measured minimum delay does not become too stale\&. The minimum delay must be experienced in the last epoch of length interval\&. It should be set on the order of the worst\-case RTT through the bottleneck to give endpoints sufficient time to react\&. Default value is 100ms\&.
+.RE
+.PP
+quantum
+.RS 4
+is the number of bytes used as \*(Aqdeficit\*(Aq in the fair queuing algorithm\&. Default is set to 1514 bytes which corresponds to the Ethernet MTU plus the hardware header length of 14 bytes\&.
+.RE
+.PP
+ecn | noecn
+.RS 4
+can be used to mark packets instead of dropping them\&. If ecn has been enabled, noecn can be used to turn it off and vice\-versa\&. By default, ecn is enabled\&.
+.RE
+.RE
+.RE
+.SH "EXAMPLES"
+.PP
+Example 1:
+.RS 4
+Suppose you are using PPP over Ethernet (DSL) and ppp0 is the interface for this\&. You have 4 classes here, the first you can use for voice over IP traffic, the second interactive traffic (e\&.g\&. ssh/telnet but not scp), the third will be for all unclassified traffic, and the forth is for low priority traffic (e\&.g\&. peer\-to\-peer)\&.
+.sp
+The voice traffic in the first class will be guaranteed a minimum of 100kbps and always be serviced first (because of the low priority number, giving less delay) and will be granted excess bandwidth (up to 180kbps, the class ceiling) first, before any other traffic\&. A single VoIP stream, depending upon codecs, after encapsulation, can take up to 80kbps on a PPPoE/DSL link, so we pad a little bit just in case\&. (TOS byte values 0xb8 and 0x68 are DiffServ classes EF and AFF3\-1 respectively and are often used by VOIP devices)\&.
+.sp
+Interactive traffic (tos\-minimum\-delay) and TCP acks (and ICMP echo traffic if you use the example in tcrules) and any packet with a mark of 2 will be guaranteed 1/4 of the link bandwidth, and may extend up to full speed of the link\&.
+.sp
+Unclassified traffic and packets marked as 3 will be guaranteed 1/4th of the link bandwidth, and may extend to the full speed of the link\&.
+.sp
+Packets marked with 4 will be treated as low priority packets\&. (The tcrules example marks p2p traffic as such\&.) If the link is congested, they\*(Aqre only guaranteed 1/8th of the speed, and even if the link is empty, can only expand to 80% of link bandwidth just as a precaution in case there are upstream queues we didn\*(Aqt account for\&. This is the last class to get additional bandwidth and the last to get serviced by the scheduler because of the low priority\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+        #INTERFACE  MARK  RATE    CEIL      PRIORITY    OPTIONS
+        ppp0        1     100kbit 180kbit   1           tos=0x68/0xfc,tos=0xb8/0xfc
+        ppp0        2     full/4  full      2           tcp\-ack,tos\-minimize\-delay
+        ppp0        3     full/4  full      3           default
+        ppp0        4     full/8  full*8/10 4
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.SH "FILES"
+.PP
+/etc/shorewall/tcclasses
+.PP
+/etc/shorewall6/tcclasses
+.SH "SEE ALSO"
+.PP
+\m[blue]\fBhttps://shorewall\&.org/traffic_shaping\&.htm\fR\m[]\&\s-2\u[4]\d\s+2
+.PP
+\m[blue]\fBhttps://shorewall\&.org/configuration_file_basics\&.htm#Pairs\fR\m[]\&\s-2\u[5]\d\s+2
+.PP
+tc\-hfsc(7)
+.PP
+tc\-red(8)
+.PP
+shorewall(8)
+.SH "NOTES"
+.IP " 1." 4
+shorewall-tcdevices
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-tcdevices.html
+.RE
+.IP " 2." 4
+shorewall-mangle
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-mangle.html
+.RE
+.IP " 3." 4
+shorewall-tcrules
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-tcrules.html
+.RE
+.IP " 4." 4
+https://shorewall.org/traffic_shaping.htm
+.RS 4
+\%[set $man.base.url.for.relative.links]/../traffic_shaping.htm
+.RE
+.IP " 5." 4
+https://shorewall.org/configuration_file_basics.htm#Pairs
+.RS 4
+\%[set $man.base.url.for.relative.links]/../configuration_file_basics.htm#Pairs
+.RE

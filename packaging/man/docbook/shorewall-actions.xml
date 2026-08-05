@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-actions</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>actions</refname>
+
+    <refpurpose>Shorewall action declaration file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/etc/shorewall[6]/actions</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>This file allows you to define new ACTIONS for use in rules (see
+    <ulink url="shorewall-rules.html">shorewall-rules(5)</ulink>). You define
+    the iptables rules to be performed in an ACTION in
+    /etc/shorewall/action.<emphasis>action-name</emphasis>.</para>
+
+    <para>Columns are:</para>
+
+    <variablelist>
+      <varlistentry>
+        <term>NAME</term>
+
+        <listitem>
+          <para>The name of the action. ACTION names should begin with an
+          upper-case letter to distinguish them from Shorewall-generated chain
+          names and be composed of letters, digits or numbers. If you intend
+          to log from the action then the name must be no longer than 11
+          characters in length if you use the standard LOGFORMAT.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>OPTIONS</term>
+
+        <listitem>
+          <para>Added in Shorewall 4.5.10. Available options are:</para>
+
+          <variablelist>
+            <varlistentry>
+              <term><option>audit</option></term>
+
+              <listitem>
+                <para>Added in Shorewall 5.0.7. When this option is specified,
+                the action is expected to have at least two parameters; the
+                first is a target and the second is either 'audit' or omitted.
+                If the second is 'audit', then the first must be an auditable
+                target (ACCEPT, DROP or REJECT).</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><option>builtin</option></term>
+
+              <listitem>
+                <para>Added in Shorewall 4.5.16. Defines the action as a rule
+                target that is supported by your iptables but is not directly
+                supported by Shorewall. The action may be used as the rule
+                target in an INLINE rule in <ulink
+                url="shorewall-rules.html">shorewall-rules</ulink>(5).</para>
+
+                <para>Beginning with Shorewall 4.6.0, the Netfilter table(s)
+                in which the <emphasis role="bold">builtin</emphasis> can be
+                used may be specified: <emphasis
+                role="bold">filter</emphasis>, <emphasis
+                role="bold">nat</emphasis>, <emphasis
+                role="bold">mangle</emphasis> and <emphasis
+                role="bold">raw</emphasis>. If no table name(s) are given,
+                then <emphasis role="bold">filter</emphasis> is assumed. The
+                table names follow <emphasis role="bold">builtin</emphasis>
+                and are separated by commas; for example, "FOOBAR
+                builtin,filter,mangle" would specify FOOBAR as a builtin
+                target that can be used in the filter and mangle
+                tables.</para>
+
+                <para>Beginning with Shorewall 4.6.4, you may specify the
+                <emphasis role="bold">terminating</emphasis> option with
+                <emphasis role="bold">builtin</emphasis> to indicate to the
+                Shorewall optimizer that the action is terminating (the
+                current packet will not be passed to the next rule in the
+                chain).</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><option>inline</option></term>
+
+              <listitem>
+                <para>Causes the action body (defined in
+                action.<replaceable>action-name</replaceable>) to be expanded
+                in-line like a macro rather than in its own chain. You can
+                list Shorewall Standard Actions in this file to specify the
+                <option>inline</option> option.</para>
+
+                <caution>
+                  <para>Some of the Shorewall standard actions cannot be used
+                  in-line and will generate a warning and the compiler will
+                  ignore <option>inline</option> if you try to use them that
+                  way:</para>
+
+                  <simplelist>
+                    <member>DropSmurfs</member>
+
+                    <member>IfEvent</member>
+
+                    <member>Invalid (Prior to Shorewall 4.5.13)</member>
+
+                    <member>NotSyn (Prior to Shorewall 4.5.13)</member>
+
+                    <member>RST (Prior to Shorewall 4.5.13)</member>
+
+                    <member>TCPFlags</member>
+                  </simplelist>
+                </caution>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><option>logjump</option></term>
+
+              <listitem>
+                <para>Added in Shorewall 5.0.8. Performs the same function as
+                <option>nolog</option> (below), with the addition that the
+                jump to the actions chain is logged if a log level is
+                specified on the action invocation. For inline actions, this
+                option is identical to <option>nolog</option>.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><option>mangle</option></term>
+
+              <listitem>
+                <para>Added in Shorewall 5.0.7. Specifies that this action is
+                to be used in <ulink
+                url="shorewall-mangle.html">shorewall-mangle(5)</ulink> rather
+                than <ulink
+                url="shorewall-rules.html">shorewall-rules(5)</ulink>.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><option>nat</option></term>
+
+              <listitem>
+                <para>Added in Shorewall 5.0.13. Specifies that this action is
+                to be used in <ulink
+                url="shorewall-snat.html">shorewall-snat(5)</ulink> rather
+                than <ulink
+                url="shorewall-rules.html">shorewall-rules(5)</ulink>. The
+                <option>mangle</option> and <option>nat</option> options are
+                mutually exclusive.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><option>noinline</option></term>
+
+              <listitem>
+                <para>Causes any later <option>inline</option> option for the
+                same action to be ignored with a warning.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><option>nolog</option></term>
+
+              <listitem>
+                <para>Added in Shorewall 4.5.11. When this option is
+                specified, the compiler does not automatically apply the log
+                level and/or tag from the invocation of the action to all
+                rules inside of the action. Rather, it simply sets the
+                $_loglevel and $_logtag shell variables which can be used
+                within the action body to apply those logging options only to
+                a subset of the rules.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><option>proto</option>=<replaceable>protocol</replaceable></term>
+
+              <listitem>
+                <para>Added in Shorewall 5.1.10. Specifies that the action is
+                only usable with the specified
+                <replaceable>protocol</replaceable> (name or number). When the
+                action is invoked with no protocol specified in the PROTO
+                column, or if the action is used as a Policy Action, the named
+                <replaceable>protocol</replaceable> will be assumed. If a
+                protocol is specified in the PROTO column of an invocation,
+                then it must match the named
+                <replaceable>protocol</replaceable>.</para>
+
+                <para>The <option>proto</option> option has no effect if the
+                <option>inline</option> or <option>builtin</option> option is
+                specified. A warning is issued if <option>proto</option> is
+                specified along with <option>builtin</option>.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><option>dport</option>=<replaceable>portorservice</replaceable></term>
+
+              <listitem>
+                <para>Added in Shorewall 5.2.6. Requires that the <emphasis
+                role="bold">proto</emphasis> option be previously given and
+                indicates that this action may only be applied to flows with
+                the specified <replaceable>protocol</replaceable> and
+                <replaceable>portorservice</replaceable>.
+                <replaceable>portorservice</replaceable> may be a valid port
+                number or the name of a service defined in /etc/services to be
+                usable with the specified <replaceable>protocol</replaceable>.
+                If a port or service is specified in the DPORT column of an
+                invocation, then it must match the named
+                <replaceable>portorservice</replaceable>.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><option>section</option></term>
+
+              <listitem>
+                <para>Added in Shorewall 5.1.1. When specified, this option
+                causes the rules file section name and a comma to be prepended
+                to the parameters passed to the action (if any). Note that
+                this means that the first parameter passed to the action by
+                the user is actually the second parameter to the action. If
+                the action is invoked out of the blrules file, 'BLACKLIST' is
+                used as the section name.</para>
+
+                <para>Given that neither the <filename>snat</filename> nor the
+                <filename>mangle</filename> file is sectioned, this parameter
+                has no effect when <option>mangle</option> or
+                <option>nat</option> is specified.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><option>state</option>={<option>UNTRACKED</option>|<option>NEW</option>|<option>ESTABLISHED</option>|<option>RELATED</option>|<option>INVALID</option>}</term>
+
+              <listitem>
+                <para>Added in Shorewall 5.0.7. Reserved for use by Shorewall
+                in <filename>actions.std</filename>.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><option>terminating</option></term>
+
+              <listitem>
+                <para>Added in Shorewall 4.6.4. When used with
+                <option>builtin</option>, indicates that the built-in action
+                is termiating (i.e., if the action is jumped to, the next rule
+                in the chain is not evaluated).</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall/actions</para>
+
+    <para>/etc/shorewall6/actions</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para><ulink
+    url="../Actions.html">https://shorewall.org/Actions.html</ulink></para>
+
+    <para>shorewall(8)</para>
+  </refsect1>
+</refentry>

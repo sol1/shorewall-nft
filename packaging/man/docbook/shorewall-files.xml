@@ -1,0 +1,967 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-files</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>files</refname>
+
+    <refpurpose>Shorewall Configuration Files</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/etc/shorewall[6]/*</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>The following are the Shorewall[6] configuration files:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para><ulink
+        url="shorewall.conf.html"><filename>/etc/shorewall/shorewall.conf</filename>
+        and <filename>/etc/shorewall6/shorewall6.conf</filename></ulink> -
+        used to set global firewall parameters.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename><ulink
+        url="shorewall-params.html">/etc/shorewall[6]/params</ulink></filename>
+        - use this file to set shell variables that you will expand in other
+        files. It is always processed by /bin/sh or by the shell specified
+        through SHOREWALL_SHELL in
+        <filename>/etc/shorewall/shorewall.conf.</filename></para>
+      </listitem>
+
+      <listitem>
+        <para><filename><ulink
+        url="shorewall-zones.html">/etc/shorewall[6]/zones</ulink></filename>
+        - partition the firewall's view of the world into zones.</para>
+      </listitem>
+
+      <listitem>
+        <para><ulink
+        url="shorewall-policy.html"><filename>/etc/shorewall[6]/policy</filename></ulink>
+        - establishes firewall high-level policy.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename>/etc/shorewall[6]/initdone</filename> - An optional
+        Perl script that will be invoked by the Shorewall rules compiler when
+        the compiler has finished it's initialization.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename><ulink
+        url="shorewall-interfaces.html">/etc/shorewall[6]/interfaces</ulink></filename>
+        - describes the interfaces on the firewall system.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename><ulink
+        url="shorewall-hosts.html">/etc/shorewall[6]/hosts</ulink></filename>
+        - allows defining zones in terms of individual hosts and
+        subnetworks.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename><ulink
+        url="shorewall-masq.html">/etc/shorewall[6]/masq</ulink></filename> -
+        directs the firewall where to use many-to-one (dynamic) Network
+        Address Translation (a.k.a. Masquerading) and Source Network Address
+        Translation (SNAT). Superseded by /etc/shorewall[6]/snat in Shorewall
+        5.0.14 and not supported in Shorewall 5.1.0 and later versions.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename><ulink
+        url="shorewall-mangle.html">/etc/shorewall[6]/mangle</ulink></filename>
+        - supersedes <filename>/etc/shorewall/tcrules</filename> in Shorewall
+        4.6.0. Contains rules for packet marking, TTL, TPROXY, etc.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename><ulink
+        url="shorewall-rules.html">/etc/shorewall[6]/rules</ulink></filename>
+        - defines rules that are exceptions to the overall policies
+        established in /etc/shorewall/policy.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename><ulink
+        url="shorewall-nat.html">/etc/shorewall[6]/nat</ulink></filename> -
+        defines one-to-one NAT rules.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename><ulink
+        url="shorewall-proxyarp.html">/etc/shorewall6/proxyarp</ulink></filename>
+        - defines use of Proxy ARP.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename><ulink
+        url="shorewall-proxyndp.html">/etc/shorewall6/proxyndp</ulink></filename>
+        - defines use of Proxy NDP.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename>/etc/shorewall[6]/routestopped</filename> - defines
+        hosts accessible when Shorewall is stopped. Superseded in Shorewall
+        4.6.8 by <filename>/etc/shorewall/stoppedrules</filename>. Not
+        supported in Shorewall 5.0.0 and later versions.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename><ulink
+        url="shorewall-tcrules.html">/etc/shorewall[6]/tcrules</ulink>
+        </filename>- The file has a rather unfortunate name because it is used
+        to define marking of packets for later use by both traffic
+        control/shaping and policy routing. This file is superseded by
+        <filename>/etc/shorewall/mangle</filename> in Shorewall 4.6.0. Not
+        supported in Shorewall 5.0.0 and later releases.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename><ulink
+        url="shorewall-tos.html">/etc/shorewall[6]/tos</ulink></filename> -
+        defines rules for setting the TOS field in packet headers. Superseded
+        in Shorewall 4.5.1 by the TOS target in
+        <filename>/etc/shorewall/tcrules</filename> (which file has since been
+        superseded by <filename>/etc/shorewall/mangle</filename>). Not
+        supported in Shorewall 5.0.0 and later versions.</para>
+      </listitem>
+
+      <listitem>
+        <para><ulink
+        url="shorewall-tunnels.html"><filename>/etc/shorewall[6]/tunnels</filename></ulink>
+        - defines tunnels (VPN) with end-points on the firewall system.</para>
+      </listitem>
+
+      <listitem>
+        <para><ulink
+        url="shorewall-blacklist.html"><filename>/etc/shorewall[6]/blacklist</filename></ulink>
+        - Deprecated in favor of <filename>/etc/shorewall/blrules</filename>.
+        Lists blacklisted IP/subnet/MAC addresses. Not supported in Shorewall
+        5.0.0 and later releases.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename>/etc/shorewall[6]/blrules</filename> — Added in
+        Shorewall 4.5.0. Define blacklisting and whitelisting. Supersedes
+        <filename>/etc/shorewall/blacklist</filename>.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename>/etc/shorewall[6]/init</filename> - shell commands
+        that you wish to execute at the beginning of a <quote>shorewall
+        start</quote>, "shorewall reload" or <quote>shorewall
+        restart</quote>.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename>/etc/shorewall[6]/start</filename> - shell commands
+        that you wish to execute near the completion of a <quote>shorewall
+        start</quote>, "shorewall reload" or <quote>shorewall
+        restart</quote></para>
+      </listitem>
+
+      <listitem>
+        <para><filename>/etc/shorewall[6]/started</filename> - shell commands
+        that you wish to execute after the completion of a <quote>shorewall
+        start</quote>, "shorewall reload" or <quote>shorewall
+        restart</quote></para>
+      </listitem>
+
+      <listitem>
+        <para><filename>/etc/shorewall[6]/stop </filename>- commands that you
+        wish to execute at the beginning of a <quote>shorewall
+        stop</quote>.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename>/etc/shorewall[6]/stopped</filename> - shell commands
+        that you wish to execute at the completion of a <quote>shorewall
+        stop</quote>.</para>
+      </listitem>
+
+      <listitem>
+        <para><ulink url="shorewall-ecn.html">/etc/shorewall/ecn</ulink> -
+        disable Explicit Congestion Notification (ECN - RFC 3168) to remote
+        hosts or networks. Superseded by ECN entries in
+        <filename>/etc/shorewall/mangle</filename> in Shorewall 5.0.6.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename><ulink
+        url="shorewall-accounting.html">/etc/shorewall/accounting</ulink></filename>
+        - define IP traffic accounting rules</para>
+      </listitem>
+
+      <listitem>
+        <para><filename><ulink
+        url="shorewall-actions.html">/etc/shorewall[6]/actions</ulink></filename>
+        and <filename>/usr/share/shorewall[6]/action.template</filename> allow
+        user-defined actions.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename><ulink
+        url="???">/etc/shorewall[6]/providers</ulink></filename> - defines
+        alternate routing tables.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename><ulink
+        url="shorewall-rtrules.html">/etc/shorewall[6]/rtrules</ulink></filename>
+        - Defines routing rules to be used in conjunction with the routing
+        tables defined in
+        <filename>/etc/shorewall/providers</filename>.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename><ulink
+        url="shorewall-tcdevices.html">/etc/shorewall[6]/tcdevices</ulink></filename>,
+        <filename><ulink
+        url="shorewall-tcclasses.html">/etc/shorewall[6]/tcclasses</ulink></filename>,
+        <filename><ulink
+        url="shorewall-tcfilters.html">/etc/shorewall[6]/tcfilters</ulink></filename>
+        - Define complex traffic shaping.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename><ulink
+        url="shorewall-tcrules.html">/etc/shorewall[6]/tcrules</ulink></filename>
+        - Mark or classify traffic for traffic shaping or multiple providers.
+        Deprecated in Shorewall 4.6.0 in favor of
+        <filename>/etc/shorewall/mangle</filename>. Not supported in Shorewall
+        5.0.0 and later releases.</para>
+      </listitem>
+
+      <listitem>
+        <para><ulink
+        url="shorewall-tcinterfaces.html"><filename>/etc/shorewall[6]/tcinterfaces</filename></ulink>
+        and <filename><ulink
+        url="shorewall-tcpri.html">/etc/shorewall[6]/tcpri</ulink></filename>
+        - Define simple traffic shaping.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename><ulink
+        url="shorewall-secmarks.html">/etc/shorewall[6]/secmarks</ulink></filename>
+        - Added in Shorewall 4.4.13. Attach an SELinux context to selected
+        packets.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename><ulink
+        url="shorewall-vardir.html">/etc/shorewall[6]/vardir</ulink></filename>
+        - Determines the directory where Shorewall maintains its state.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename><ulink
+        url="shorewall-arprules.html">/etc/shorewall/arprules</ulink></filename>
+        — Added in Shorewall 4.5.12. Allows specification of arptables
+        rules.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename><ulink
+        url="shorewall-mangle.html">/etc/shorewall/mangle</ulink></filename>
+        -- Added in Shorewall 4.6.0. Supersedes<filename>
+        /etc/shorewall/tcrules</filename>.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename><ulink
+        url="shorewall-snat.html">/etc/shorewall[6]/snat</ulink></filename> -
+        directs the firewall where to use many-to-one (dynamic) Network
+        Address Translation (a.k.a. Masquerading) and Source Network Address
+        Translation (SNAT). Superseded /etc/shorewall[6]/masq in Shorewall
+        5.0.14</para>
+      </listitem>
+
+      <listitem>
+        <para><filename>/usr/share/shorewall[6]/actions.std</filename> -
+        Actions defined by Shorewall.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename>/usr/share/shorewall[6]/action.*</filename> - Details
+        of actions defined by Shorewall.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename>/usr/share/shorewall[6]/macro.*</filename> - Details
+        of macros defined by Shorewall.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename>/usr/share/shorewall[6]/modules</filename> — Specifies
+        the kernel modules to be loaded during shorewall start/restart.</para>
+      </listitem>
+
+      <listitem>
+        <para><filename>/usr/share/shorewall[6]/helpers</filename> — Added in
+        Shorewall 4.4.7. Specifies the kernel modules to be loaded during
+        shorewall start/restart when LOAD_HELPERS_ONLY=Yes in
+        <filename>shorewall.conf</filename>.</para>
+      </listitem>
+    </itemizedlist>
+  </refsect1>
+
+  <refsect1>
+    <title>CONFIG_PATH</title>
+
+    <para>The CONFIG_PATH option in <ulink
+    url="???">shorewall[6].conf(5)</ulink> determines where the compiler
+    searches for configuration files. The default setting is
+    CONFIG_PATH=/etc/shorewall:/usr/share/shorewall which means that the
+    compiler first looks in /etc/shorewall and if it doesn't find the file, it
+    then looks in /usr/share/shorewall.</para>
+
+    <para>You can change this setting to have the compiler look in different
+    places. For example, if you want to put your own versions of standard
+    macros in /etc/shorewall/Macros, then you could set
+    CONFIG_PATH=/etc/shorewall:/etc/shorewall/Macros:/usr/share/shorewall and
+    the compiler will use your versions rather than the standard ones.</para>
+  </refsect1>
+
+  <refsect1>
+    <title>Comments</title>
+
+    <para>You may place comments in configuration files by making the first
+    non-whitespace character a pound sign (<quote>#</quote>). You may also
+    place comments at the end of any line, again by delimiting the comment
+    from the rest of the line with a pound sign.</para>
+
+    <example id="comment">
+      <title>Comments in a Configuration File</title>
+
+      <programlisting># This is a comment
+ACCEPT  net     $FW      tcp     www     #This is an end-of-line comment</programlisting>
+    </example>
+
+    <important>
+      <para>Except in <ulink
+      url="shorewall.conf.html">shorewall.conf(5)</ulink> and <ulink
+      url="shorewall-params.html">params(5)</ulink>, if a comment ends with a
+      backslash ("\"), the next line will also be treated as a comment. See
+      <link linkend="Continuation">Line Continuation</link> below.</para>
+    </important>
+  </refsect1>
+
+  <refsect1>
+    <title>Blank Lines</title>
+
+    <para>Most of the configuration files are organized into space-separated
+    columns. If you don't want to supply a value in a column but want to
+    supply a value in a following column, simply enter '-' to make the column
+    appear empty.</para>
+
+    <para>Example:<programlisting>#INTERFACE         BROADCAST            OPTIONS
+br0                -                    routeback</programlisting></para>
+  </refsect1>
+
+  <refsect1>
+    <title id="Continuation">Line Continuation</title>
+
+    <para>Lines may be continued using the usual backslash (<quote>\</quote>)
+    followed immediately by a new line character (Enter key).</para>
+
+    <programlisting>ACCEPT  net     $FW      tcp \↵
+smtp,www,pop3,imap  #Services running on the firewall</programlisting>
+
+    <important>
+      <para>What follows does NOT apply to <ulink
+      url="manpages/shorewall-params.html">shorewall-params(5)</ulink> and
+      <ulink url="shorewall.conf.html">shorewall.conf(5)</ulink>.</para>
+    </important>
+
+    <para>In certain cases, leading white space is ignored in continuation
+    lines:</para>
+
+    <orderedlist>
+      <listitem>
+        <para>The continued line ends with a colon (":")</para>
+      </listitem>
+
+      <listitem>
+        <para>The continued line ends with a comma (",")</para>
+      </listitem>
+    </orderedlist>
+
+    <para>Example (<filename>/etc/shorewall/rules</filename>):</para>
+
+    <programlisting>#ACTION     SOURCE          DEST            PROTO           DPORT
+ACCEPT      net:\
+            206.124.146.177,\
+            206.124.146.178,\
+            206.124.146.180\
+                            dmz             tcp             873</programlisting>
+
+    <para>The leading white space on the first through third continuation
+    lines is ignored so the SOURCE column effectively contains
+    "net:206.124.146.177,206.124.147.178,206.124.146.180". Because the third
+    continuation line does not end with a comma or colon, the leading white
+    space in the last line is not ignored.</para>
+
+    <important>
+      <para>A trailing backslash is not ignored in a comment. So the continued
+      rule above can be commented out with a single '#' as follows:</para>
+
+      <programlisting>#ACTION     SOURCE          DEST            PROTO           DPORT
+<emphasis role="bold">#</emphasis>ACCEPT     net:\
+            206.124.146.177,\
+            206.124.146.178,\
+            206.124.146.180\
+                            dmz             tcp             873</programlisting>
+    </important>
+  </refsect1>
+
+  <refsect1>
+    <title>Alternative Specification of Column Values</title>
+
+    <para>Some of the configuration files now have a large number of columns.
+    That makes it awkward to specify a value for one of the right-most columns
+    as you must have the correct number of intervening '-' columns.</para>
+
+    <para>This problem is addressed by allowing column values to be specified
+    as <replaceable>column-name</replaceable>/<replaceable>value</replaceable>
+    pairs.</para>
+
+    <para>There is considerable flexibility in how you specify the
+    pairs:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>At any point, you can enter a left curly bracket ('{') followed
+        by one or more specifications of the following forms:</para>
+
+        <simplelist>
+          <member><replaceable>column-name</replaceable>=<replaceable>value</replaceable></member>
+
+          <member><replaceable>column-name</replaceable>=<replaceable>&gt;value</replaceable></member>
+
+          <member><replaceable>column-name</replaceable>:<replaceable>value</replaceable></member>
+        </simplelist>
+
+        <para>The pairs must be followed by a right curly bracket
+        ("}").</para>
+
+        <para>The value may optionally be enclosed in double quotes.</para>
+
+        <para>The pairs must be separated by white space, but you can add a
+        comma adjacent to the <replaceable>values</replaceable> for
+        readability as in:</para>
+
+        <simplelist>
+          <member><emphasis role="bold">{ proto=&gt;udp, port=1024
+          }</emphasis></member>
+        </simplelist>
+      </listitem>
+
+      <listitem>
+        <para>You can also separate the pairs from columns by using a
+        semicolon:</para>
+
+        <simplelist>
+          <member><emphasis role="bold">; proto:udp,
+          port:1024</emphasis></member>
+        </simplelist>
+      </listitem>
+    </itemizedlist>
+
+    <para>In Shorewall 5.0.3, the sample configuration files and the man pages
+    were updated to use the same column names in both the column headings and
+    in the alternate specification format. The following table shows the
+    column names for each of the table-oriented configuration files.</para>
+
+    <note>
+      <para>Column names are <emphasis
+      role="bold">case-insensitive</emphasis>.</para>
+    </note>
+
+    <informaltable>
+      <tgroup cols="2">
+        <tbody>
+          <row>
+            <entry><emphasis role="bold">File</emphasis></entry>
+
+            <entry><emphasis role="bold">Column names</emphasis></entry>
+          </row>
+
+          <row>
+            <entry>accounting</entry>
+
+            <entry>action,chain, source, dest, proto, dport, sport, user,
+            mark, ipsec, headers</entry>
+          </row>
+
+          <row>
+            <entry>conntrack</entry>
+
+            <entry>action,source,dest,proto,dport,sport,user,switch</entry>
+          </row>
+
+          <row>
+            <entry>blacklist</entry>
+
+            <entry>networks,proto,port,options</entry>
+          </row>
+
+          <row>
+            <entry>blrules</entry>
+
+            <entry>action,source,dest,proto,dport,sport,origdest,rate,user,mark,connlimit,time,headers,switch,helper</entry>
+          </row>
+
+          <row>
+            <entry>ecn</entry>
+
+            <entry>interface,hosts. Beginning with Shorewall 4.5.4, 'host' is
+            a synonym for 'hosts'.</entry>
+          </row>
+
+          <row>
+            <entry>hosts</entry>
+
+            <entry>zone,hosts,options. Beginning with Shorewall 4.5.4, 'host'
+            is a synonym for 'hosts'.</entry>
+          </row>
+
+          <row>
+            <entry>interfaces</entry>
+
+            <entry>zone,interface,broadcast,options</entry>
+          </row>
+
+          <row>
+            <entry>maclist</entry>
+
+            <entry>disposition,interface,mac,addresses</entry>
+          </row>
+
+          <row>
+            <entry>mangle</entry>
+
+            <entry>action,source,dest,proto,dport,sport,user,test,length,tos,connbytes,helper,headers</entry>
+          </row>
+
+          <row>
+            <entry>masq</entry>
+
+            <entry>interface,source,address,proto,port,ipsec,mark,user,switch</entry>
+          </row>
+
+          <row>
+            <entry>nat</entry>
+
+            <entry>external,interface,internal,allints,local</entry>
+          </row>
+
+          <row>
+            <entry>netmap</entry>
+
+            <entry>type,net1,interface,net2,net3,proto,dport,sport</entry>
+          </row>
+
+          <row>
+            <entry>notrack</entry>
+
+            <entry>source,dest,proto,dport,sport,user</entry>
+          </row>
+
+          <row>
+            <entry>policy</entry>
+
+            <entry>source,dest,policy,loglevel,limit,connlimit</entry>
+          </row>
+
+          <row>
+            <entry>providers</entry>
+
+            <entry>table,number,mark,duplicate,interface,gateway,options,copy</entry>
+          </row>
+
+          <row>
+            <entry>proxyarp and proxyndp</entry>
+
+            <entry>address,interface,external,haveroute,persistent</entry>
+          </row>
+
+          <row>
+            <entry>rtrules</entry>
+
+            <entry>source,dest,provider,priority</entry>
+          </row>
+
+          <row>
+            <entry>routes</entry>
+
+            <entry>provider,dest,gateway,device</entry>
+          </row>
+
+          <row>
+            <entry>routestopped</entry>
+
+            <entry>interface,hosts,options,proto,dport,sport</entry>
+          </row>
+
+          <row>
+            <entry>rules</entry>
+
+            <entry>action,source,dest,proto,dport,sport,origdest,rate,user,mark,connlimit,time,headers,switch,helper</entry>
+          </row>
+
+          <row>
+            <entry>secmarks</entry>
+
+            <entry>secmark,chain,source,dest,proto,dport,sport,user,mark</entry>
+          </row>
+
+          <row>
+            <entry>tcclasses</entry>
+
+            <entry>interface,mark,rate,ceil,prio,options</entry>
+          </row>
+
+          <row>
+            <entry>tcdevices</entry>
+
+            <entry>interface,in_bandwidth,out_bandwidth,options,redirect</entry>
+          </row>
+
+          <row>
+            <entry>tcfilters</entry>
+
+            <entry>class,source,dest,proto,dport,sport,tos,length</entry>
+          </row>
+
+          <row>
+            <entry>tcinterfaces</entry>
+
+            <entry>interface,type,in_bandwidth,out_bandwidth</entry>
+          </row>
+
+          <row>
+            <entry>tcpri</entry>
+
+            <entry>band,proto,port,address,interface,helper</entry>
+          </row>
+
+          <row>
+            <entry>tcrules</entry>
+
+            <entry>mark,source,dest,proto,dport,sport,user,test,length,tos,connbytes,helper,headers.
+            Beginning with Shorewall 4.5.3, 'action' is a synonym for
+            'mark'.</entry>
+          </row>
+
+          <row>
+            <entry>tos</entry>
+
+            <entry>source,dest,proto,dport,sport,tos,mark</entry>
+          </row>
+
+          <row>
+            <entry>tunnels</entry>
+
+            <entry>type,zone,gateway,gateway_zone. Beginning with Shorewall
+            4.5.3, 'gateways' is a synonym for 'gateway'. Beginning with
+            Shorewall 4.5.4, 'gateway_zones' is a synonym for
+            'gateway_zone'.</entry>
+          </row>
+
+          <row>
+            <entry>zones</entry>
+
+            <entry>zone,type,options,in_options,out_options</entry>
+          </row>
+        </tbody>
+      </tgroup>
+    </informaltable>
+
+    <para>Example (rules file):</para>
+
+    <programlisting>#ACTION         SOURCE            DEST            PROTO   DPORT
+DNAT            net               loc:10.0.0.1    tcp     80    ; mark="88"</programlisting>
+
+    <para>Here's the same line in several equivalent formats:</para>
+
+    <programlisting>{ action=&gt;DNAT, source=&gt;net, dest=&gt;loc:10.0.0.1, proto=&gt;tcp, dport=&gt;80, mark=&gt;88 }
+; action:"DNAT" source:"net"  dest:"loc:10.0.0.1" proto:"tcp" dport:"80" mark:"88"
+DNAT { source=net dest=loc:10.0.0.1 proto=tcp dport=80 mark=88 }</programlisting>
+
+    <para>Beginning with Shorewall 5.0.11, ip[6]table comments can be attached
+    to individual rules using the <option>comment</option> keyword.</para>
+
+    <para>Example from the rules file:</para>
+
+    <programlisting>        ACCEPT net $FW { proto=tcp, dport=22, comment="Accept \"SSH\"" }</programlisting>
+
+    <para>As shown in that example, when the comment contains whitespace, it
+    must be enclosed in double quotes and any embedded double quotes must be
+    escaped using a backslash ("\").</para>
+  </refsect1>
+
+  <refsect1>
+    <title>Time Columns</title>
+
+    <para>Several of the files include a TIME column that allows you to
+    specify times when the rule is to be applied. Contents of this column is a
+    list of <replaceable>timeelement</replaceable>s separated by apersands
+    (&amp;).</para>
+
+    <para>Each <replaceable>timeelement</replaceable> is one of the
+    following:</para>
+
+    <variablelist>
+      <varlistentry>
+        <term>timestart=<replaceable>hh</replaceable>:<replaceable>mm</replaceable>[:<replaceable>ss</replaceable>]</term>
+
+        <listitem>
+          <para>Defines the starting time of day.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>timestop=<replaceable>hh</replaceable>:<replaceable>mm</replaceable>[:<replaceable>ss</replaceable>]</term>
+
+        <listitem>
+          <para>Defines the ending time of day.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>contiguous</term>
+
+        <listitem>
+          <para>Added in Shoreawll 5.0.12. When <emphasis
+          role="bold">timestop</emphasis> is smaller than <emphasis
+          role="bold">timestart</emphasis> value, match this as a single time
+          period instead of distinct intervals. See the Examples below.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>utc</term>
+
+        <listitem>
+          <para>Times are expressed in Greenwich Mean Time.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>localtz</term>
+
+        <listitem>
+          <para>Deprecated by the Netfilter team in favor of <emphasis
+          role="bold">kerneltz</emphasis>. Times are expressed in Local Civil
+          Time (default).</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>kerneltz</term>
+
+        <listitem>
+          <para>Added in Shorewall 4.5.2. Times are expressed in Local Kernel
+          Time (requires iptables 1.4.12 or later).</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>weekdays=ddd[,ddd]...</term>
+
+        <listitem>
+          <para>where <replaceable>ddd</replaceable> is one of
+          <option>Mon</option>, <option>Tue</option>, <option>Wed</option>,
+          <option>Thu</option>, <option>Fri</option>, <option>Sat</option> or
+          <option>Sun</option></para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>monthdays=dd[,dd],...</term>
+
+        <listitem>
+          <para>where <replaceable>dd</replaceable> is an ordinal day of the
+          month</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>datestart=<replaceable>yyyy</replaceable>[-<replaceable>mm</replaceable>[-<replaceable>dd</replaceable>[<option>T</option><replaceable>hh</replaceable>[:<replaceable>mm</replaceable>[:<replaceable>ss</replaceable>]]]]]</term>
+
+        <listitem>
+          <para>Defines the starting date and time.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>datestop=<replaceable>yyyy</replaceable>[-<replaceable>mm</replaceable>[-<replaceable>dd</replaceable>[<option>T</option><replaceable>hh</replaceable>[:<replaceable>mm</replaceable>[:<replaceable>ss</replaceable>]]]]]</term>
+
+        <listitem>
+          <para>Defines the ending date and time.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+
+    <para>Examples:</para>
+
+    <variablelist>
+      <varlistentry>
+        <term>To match on weekends, use:</term>
+
+        <listitem>
+          <para/>
+
+          <para>weekdays=Sat,Sun</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>Or, to match (once) on a national holiday block:</term>
+
+        <listitem>
+          <para/>
+
+          <para>datestart=2016-12-24&amp;datestop=2016-12-27</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>Since the stop time is actually inclusive, you would need the
+        following stop time to not match the first second of the new
+        day:</term>
+
+        <listitem>
+          <para/>
+
+          <para>datestart=2016-12-24T17:00&amp;datestop=2016-12-27T23:59:59</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>During Lunch Hour</term>
+
+        <listitem>
+          <para/>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>The fourth Friday in the month:</term>
+
+        <listitem>
+          <para/>
+
+          <para>weekdays=Fri&amp;monthdays=22,23,24,25,26,27,28</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>Matching across days might not do what is expected. For
+        instance,</term>
+
+        <listitem>
+          <para/>
+
+          <para>weekdays=Mon&amp;timestart=23:00&amp;timestop=01:00</para>
+
+          <para>Will match Monday, for one hour from midnight to 1 a.m., and
+          then again for another hour from 23:00 onwards. If this is unwanted,
+          e.g. if you would like 'match for two hours from Montay 23:00
+          onwards' you need to also specify the <emphasis
+          role="bold">contiguous</emphasis> option in the example
+          above.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Switches</title>
+
+    <para>here are times when you would like to enable or disable one or more
+    rules in the configuration without having to do a <command>shorewall
+    reload</command> or <command>shorewall restart</command>. This may be
+    accomplished using the SWITCH column in <ulink
+    url="manpages/shorewall-rules.html">shorewall-rules</ulink> (5) or <ulink
+    url="manpages/shorewall-rules.html">shorewall6-rules</ulink> (5). Using
+    this column requires that your kernel and iptables include
+    <firstterm>Condition Match Support</firstterm> and you must be running
+    Shorewall 4.4.24 or later. See the output of <command>shorewall show
+    capabilities</command> and <command>shorewall version</command> to
+    determine if you can use this feature.</para>
+
+    <para>The SWITCH column contains the name of a
+    <firstterm>switch.</firstterm> Each switch is initially in the <emphasis
+    role="bold">off</emphasis> position. You can turn on the switch named
+    <emphasis>switch1</emphasis> by:</para>
+
+    <simplelist>
+      <member><command>echo 1 &gt;
+      /proc/net/nf_condition/switch1</command></member>
+    </simplelist>
+
+    <para>You can turn it off again by:</para>
+
+    <simplelist>
+      <member><command>echo 0 &gt;
+      /proc/net/nf_condition/switch1</command></member>
+    </simplelist>
+
+    <para>If you simply include the switch name in the SWITCH column, then the
+    rule is enabled only when the switch is <emphasis
+    role="bold">on</emphasis>. If you precede the switch name with ! (e.g.,
+    !switch1), then the rule is enabled only when the switch is <emphasis
+    role="bold">off</emphasis>. Switch settings are retained over
+    <command>shorewall reload</command>.</para>
+
+    <para>Shorewall requires that switch names:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>begin with a letter and be composed of letters, digits,
+        underscore ('_') or hyphen ('-'); and</para>
+      </listitem>
+
+      <listitem>
+        <para>be 30 characters or less in length.</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>Multiple rules can be controlled by the same switch.</para>
+
+    <para>Example:</para>
+
+    <blockquote>
+      <para>Forward port 80 to dmz host $BACKUP if switch 'primary_down' is
+      on.</para>
+
+      <programlisting>#ACTION     SOURCE          DEST        PROTO       DPORT        SPORT     ORIGDEST   RATE      USER      MARK    CONNLIMIT     TIME     HEADERS    SWITCH
+DNAT        net             dmz:$BACKUP tcp         80           -         -          -         -         -       -             -        -          <emphasis
+          role="bold">primary_down</emphasis>  </programlisting>
+    </blockquote>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall[6]/*</para>
+  </refsect1>
+</refentry>

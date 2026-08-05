@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-tcinterfaces</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>tcinterfaces</refname>
+
+    <refpurpose>Shorewall file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/etc/shorewall[6]/tcinterfaces</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>This file lists the interfaces that are subject to simple traffic
+    shaping. Simple traffic shaping is enabled by setting TC_ENABLED=Simple in
+    <ulink
+    url="shorewall.conf.html">shorewall.conf</ulink>(5).</para>
+
+    <para>A note on the <emphasis>bandwidth</emphasis> definition used in this
+    file:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>don't use a space between the integer value and the unit: 30kbit
+        is valid while 30 kbit is not.</para>
+      </listitem>
+
+      <listitem>
+        <para>you can use one of the following units:</para>
+
+        <variablelist>
+          <varlistentry>
+            <term><emphasis role="bold">kbps</emphasis></term>
+
+            <listitem>
+              <para>Kilobytes per second.</para>
+            </listitem>
+          </varlistentry>
+
+          <varlistentry>
+            <term><emphasis role="bold">mbps</emphasis></term>
+
+            <listitem>
+              <para>Megabytes per second.</para>
+            </listitem>
+          </varlistentry>
+
+          <varlistentry>
+            <term><emphasis role="bold">gbps</emphasis></term>
+
+            <listitem>
+              <para>Gigabytes per second.</para>
+            </listitem>
+          </varlistentry>
+
+          <varlistentry>
+            <term><emphasis role="bold">kbit</emphasis></term>
+
+            <listitem>
+              <para>Kilobits per second.</para>
+            </listitem>
+          </varlistentry>
+
+          <varlistentry>
+            <term><emphasis role="bold">mbit</emphasis></term>
+
+            <listitem>
+              <para>Megabits per second.</para>
+            </listitem>
+          </varlistentry>
+
+          <varlistentry>
+            <term><emphasis role="bold">gbit</emphasis></term>
+
+            <listitem>
+              <para>Gigabits per second.</para>
+            </listitem>
+          </varlistentry>
+
+          <varlistentry>
+            <term><emphasis role="bold">bps</emphasis> or <emphasis
+            role="bold">number</emphasis></term>
+
+            <listitem>
+              <para>Bytes per second.</para>
+            </listitem>
+          </varlistentry>
+
+          <varlistentry>
+            <term>k or kb</term>
+
+            <listitem>
+              <para>Kilobytes.</para>
+            </listitem>
+          </varlistentry>
+
+          <varlistentry>
+            <term>m or mb</term>
+
+            <listitem>
+              <para>Megabytes.</para>
+            </listitem>
+          </varlistentry>
+
+          <varlistentry>
+            <term>g or gb</term>
+
+            <listitem>
+              <para>Gigabytes.</para>
+            </listitem>
+          </varlistentry>
+        </variablelist>
+      </listitem>
+
+      <listitem>
+        <para>Only whole integers are allowed.</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>The columns in the file are as follows (where the column name is
+    followed by a different name in parentheses, the different name is used in
+    the alternate specification syntax).</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><emphasis role="bold">INTERFACE</emphasis></term>
+
+        <listitem>
+          <para>The logical name of an interface. If you run both IPv4 and
+          IPv6 Shorewall firewalls, a given interface should only be listed in
+          one of the two configurations.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">TYPE</emphasis> - [<emphasis
+        role="bold">external</emphasis>|<emphasis
+        role="bold">internal</emphasis>]</term>
+
+        <listitem>
+          <para>Optional. If given specifies whether the interface is
+          <emphasis role="bold">external</emphasis> (facing toward the
+          Internet) or <emphasis role="bold">internal</emphasis> (facing
+          toward a local network) and enables SFQ flow classification.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">IN-BANDWIDTH (in_bandwidth)</emphasis> -
+        {-|<replaceable>bandwidth</replaceable>[:<replaceable>burst</replaceable>]|~<replaceable>bandwidth</replaceable>[:<replaceable>interval</replaceable>:<replaceable>decay_interval</replaceable>]}</term>
+
+        <listitem>
+          <para>The incoming <emphasis>bandwidth</emphasis> of that interface.
+          Please note that you are not able to do traffic shaping on incoming
+          traffic, as the traffic is already received before you could do so.
+          But this allows you to define the maximum traffic allowed for this
+          interface in total, if the rate is exceeded, the packets are
+          dropped. You want this mainly if you have a DSL or Cable connection
+          to avoid queuing at your providers side.</para>
+
+          <para>If you don't want any traffic to be dropped, set this to a
+          value to zero in which case Shorewall will not create an ingress
+          qdisc.Must be set to zero if the REDIRECTED INTERFACES column is
+          non-empty.</para>
+
+          <para>The optional burst option was added in Shorewall 4.4.18. The
+          default <replaceable>burst</replaceable> is 10kb. A larger
+          <replaceable>burst</replaceable> can help make the
+          <replaceable>bandwidth</replaceable> more accurate; often for fast
+          lines, the enforced rate is well below the specified
+          <replaceable>bandwidth</replaceable>.</para>
+
+          <para>What is described above creates a rate/burst policing filter.
+          Beginning with Shorewall 4.4.25, a rate-estimated policing filter
+          may be configured instead. Rate-estimated filters should be used
+          with Ethernet adapters that have Generic Receive Offload enabled by
+          default. See <ulink url="../FAQ.htm#faq97a">Shorewall FAQ
+          97a</ulink>.</para>
+
+          <para>To create a rate-estimated filter, precede the bandwidth with
+          a tilde ("~"). The optional interval and decay_interval determine
+          how often the rate is estimated and how many samples are retained
+          for estimating. Please see <ulink
+          url="http://ace-host.stuart.id.au/russell/files/tc/doc/estimators.txt">http://ace-host.stuart.id.au/russell/files/tc/doc/estimators.txt</ulink>
+          for details. If not specified, the default
+          <replaceable>interval</replaceable> is 250ms and the default
+          <replaceable>decay_interval</replaceable> is 4sec.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>OUT-BANDWIDTH (out_bandwidth) -
+        [<replaceable>rate</replaceable>[:[<replaceable>burst</replaceable>][:[<replaceable>latency</replaceable>][:[<replaceable>peek</replaceable>][:[<replaceable>minburst</replaceable>]]]]]]</term>
+
+        <listitem>
+          <para>Added in Shorewall 4.4.13. The terms are defined in
+          tc-tbf(8).</para>
+
+          <para>Shorewall provides defaults as follows:</para>
+
+          <simplelist>
+            <member><replaceable>burst</replaceable> - 10kb</member>
+
+            <member><replaceable>latency</replaceable> - 200ms</member>
+          </simplelist>
+
+          <para>The remaining options are defaulted by tc(8).</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall/tcinterfaces</para>
+
+    <para>/etc/shorewall6/tcinterfaces</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para><ulink
+    url="http://ace-host.stuart.id.au/russell/files/tc/doc/sch_tbf.txt">http://ace-host.stuart.id.au/russell/files/tc/doc/sch_tbf.txt</ulink></para>
+
+    <para><ulink
+    url="http://ace-host.stuart.id.au/russell/files/tc/doc/estimators.txt">http://ace-host.stuart.id.au/russell/files/tc/doc/estimators.txt</ulink></para>
+
+    <para>shorewall(8)</para>
+  </refsect1>
+</refentry>

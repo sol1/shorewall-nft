@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-addresses</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>addresses</refname>
+
+    <refpurpose>Specifying addresses within a Shorewall
+    configuration</refpurpose>
+  </refnamediv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>In both Shorewall and Shorewall6, there are two basic types of
+    addresses:</para>
+
+    <variablelist>
+      <varlistentry>
+        <term>Host Address</term>
+
+        <listitem>
+          <para>This address type refers to a single host.</para>
+
+          <para>In IPv4, the format is <emphasis>i.j.k.l</emphasis> where
+          <emphasis>i</emphasis> through <emphasis>l</emphasis> are decimal
+          numbers between 1 and 255.</para>
+
+          <para>In IPv6, the format is <emphasis>a:b:c:d:e:f:g:h</emphasis>
+          where <emphasis>a</emphasis> through <emphasis>h</emphasis> consist
+          of 1 to 4 hexadecimal digits (leading zeros may be omitted). a
+          single series of 0 addresses may be omitted. For example
+          2001:227:e857:1:0:0:0:0:1 may be written 2001:227:e857:1::1.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>Network Address</term>
+
+        <listitem>
+          <para>A network address refers to 1 or more hosts and consists of a
+          host address followed by a slash ("/") and a <firstterm>Variable
+          Length Subnet Mask</firstterm> (VLSM). This is known as
+          <firstterm>Classless Internet Domain Routing</firstterm> (CIDR)
+          notation.</para>
+
+          <para>The VLSM is a decimal number. For IPv4, it is in the range 0
+          through 32. For IPv6, the range is 0 through 128. The number
+          represents the number of leading bits in the address that represent
+          the network address; the remainder of the bits are a host address
+          and are generally given as zero.</para>
+
+          <para>Examples:</para>
+
+          <para>IPv4: 192.168.1.0/24</para>
+
+          <para>IPv6: 2001:227:e857:1:0:0:0:0:1/64</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+
+    <para>In the Shorewall documentation and manpages, we have tried to make
+    it clear which type of address is accepted in each specific case.</para>
+
+    <para>Because Shorewall uses a colon (":") as a separator in many
+    contexts, IPv6 addresses are best written using the standard convention in
+    which the address itself is enclosed in square brackets:</para>
+
+    <simplelist>
+      <member>[2001:227:e857:1::1]</member>
+
+      <member>[2001:227:e857:1::]/64</member>
+    </simplelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Specifying SOURCE and DEST</title>
+
+    <para>Entries in Shorewall configuration files often deal with the source
+    (SOURCE) and destination (DEST) of connections and Shorewall implements a
+    uniform way for specifying them.</para>
+
+    <para>A SOURCE or DEST consists of one to three parts separated by colons
+    (":"):</para>
+
+    <orderedlist>
+      <listitem>
+        <para>ZONE — The name of a zone declared in
+        <filename>/etc/shorewall/zones</filename> or
+        <filename>/etc/shorewall6/zones</filename>. This part is only
+        available in the rules file
+        (<filename>/etc/shorewall/rules</filename>,
+        <filename>/etc/shorewall/blrules</filename>,<filename>
+        /etc/shorewall6/rules</filename> and
+        <filename>/etc/shorewall6/blrules</filename>).</para>
+      </listitem>
+
+      <listitem>
+        <para>INTERFACE — The name of an interface that matches an entry in
+        <filename>/etc/shorewall/interfaces</filename>
+        (<filename>/etc/shorewall6/interfaces</filename>).</para>
+
+        <para>Beginning with Shorweall 5.2.1, the
+        <replaceable>interface</replaceable> may be preceded with '!' which
+        matches all interfaces except the one specified.</para>
+      </listitem>
+
+      <listitem>
+        <para>ADDRESS LIST — A list of one or more addresses (host or network)
+        or address ranges, separated by commas. In an IPv6 configuration, this
+        list must be included in square or angled brackets ("[...]" or
+        "&lt;...&gt;"). The list may have exclusion.</para>
+      </listitem>
+    </orderedlist>
+
+    <para>Examples.</para>
+
+    <orderedlist>
+      <listitem>
+        <para>All hosts in the <emphasis role="bold">net</emphasis> zone —
+        <emphasis role="bold">net</emphasis></para>
+      </listitem>
+
+      <listitem>
+        <para>Subnet 192.168.1.0/29 in the <emphasis
+        role="bold">loc</emphasis> zone — <emphasis
+        role="bold">loc:192.168.1.0/29</emphasis></para>
+      </listitem>
+
+      <listitem>
+        <para>All hosts in the net zone connecting through <filename
+        class="devicefile">ppp0</filename> — <emphasis
+        role="bold">net:ppp0</emphasis></para>
+      </listitem>
+
+      <listitem>
+        <para>All hosts interfaced by <filename
+        class="devicefile">eth3</filename> — <emphasis
+        role="bold">eth3</emphasis></para>
+      </listitem>
+
+      <listitem>
+        <para>Subnet 10.0.1.0/24 interfacing through <filename><filename
+        class="devicefile">eth2</filename></filename> — <emphasis
+        role="bold">eth2:10.0.1.0/24</emphasis></para>
+      </listitem>
+
+      <listitem>
+        <para>Host 2002:ce7c:92b4:1:a00:27ff:feb1:46a9 in the <emphasis
+        role="bold">loc</emphasis> zone — <emphasis
+        role="bold">loc:[2002:ce7c:92b4:1:a00:27ff:feb1:46a9]</emphasis></para>
+      </listitem>
+
+      <listitem>
+        <para>The primary IP address of eth0 in the $FW zone - <emphasis
+        role="bold">$FW:&amp;eth0</emphasis></para>
+      </listitem>
+
+      <listitem>
+        <para>All hosts in Vatican City - <emphasis
+        role="bold">net:^VA</emphasis> (Requires the <emphasis>GeoIP
+        Match</emphasis> capability).</para>
+      </listitem>
+    </orderedlist>
+  </refsect1>
+
+  <refsect1>
+    <title>IP Address Ranges</title>
+
+    <para>If you kernel and iptables have <emphasis>IP Range match
+    support</emphasis>, you may use IP address ranges in Shorewall
+    configuration file entries; IP address ranges have the syntax
+    &lt;<emphasis>low IP address</emphasis>&gt;-&lt;<emphasis>high IP
+    address</emphasis>&gt;.</para>
+
+    <para>Example: 192.168.1.5-192.168.1.12.</para>
+  </refsect1>
+
+  <refsect1>
+    <title/>
+
+    <para/>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para>For more information about addressing, see the<ulink
+    url="shorewall_setup_guide.htm#Addressing"> Setup Guide</ulink>.</para>
+  </refsect1>
+</refentry>

@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-ipsets</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>ipsets</refname>
+
+    <refpurpose>Specifying the name if an ipset in Shorewall configuration
+    files</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>+<replaceable>ipsetname</replaceable></command>
+    </cmdsynopsis>
+
+    <cmdsynopsis>
+      <command>+<replaceable>ipsetname</replaceable>[<replaceable>flag</replaceable>,...]</command>
+    </cmdsynopsis>
+
+    <cmdsynopsis>
+      <command>+[ipsetname,...]</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>Note: In the above syntax descriptions, the square brackets ("[]")
+    are to be taken literally rather than as meta-characters.</para>
+
+    <para>In most places where a network address may be entered, an ipset may
+    be substituted. Set names must be prefixed by the character "+", must
+    start with a letter and may be composed of alphanumeric characters, "-"
+    and "_".</para>
+
+    <para>Whether the set is matched against the packet source or destination
+    is determined by which column the set name appears (SOURCE or DEST). For
+    those set types that specify a tuple, two alternative syntaxes are
+    available:</para>
+
+    <simplelist>
+      <member>[<replaceable>number</replaceable>] - Indicates that 'src' or
+      'dst' should be repeated <replaceable>number</replaceable> times.
+      Example: myset[2].</member>
+
+      <member>[<replaceable>flag</replaceable>,...] where
+      <replaceable>flag</replaceable> is <option>src</option> or
+      <option>dst</option>. Example: myset[src,dst].</member>
+    </simplelist>
+
+    <para>In a SOURCE or SPORT column, the following pairs are
+    equivalent:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>+myset[2] and +myset[src,src]</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>In a DEST or DPORT column, the following pairs are
+    equivalent:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>+myset[2] and +myset[dst,dst]</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>Beginning with Shorewall 4.4.14, multiple source or destination
+    matches may be specified by enclosing the set names within +[...]. The set
+    names need not be prefixed with '+'. When such a list of sets is
+    specified, matching packets must match all of the listed sets.</para>
+
+    <para>For information about set lists and exclusion, see <ulink
+    url="shorewall-exclusion.html">shorewall-exclusion</ulink>
+    (5).</para>
+
+    <para>Beginning with Shorewall 4.5.16, you can increment one or more
+    nfacct objects each time a packet matches an ipset. You do that by listing
+    the objects separated by commas within parentheses.</para>
+
+    <para>Example:</para>
+
+    <simplelist>
+      <member>+myset[src](myobject)</member>
+    </simplelist>
+
+    <para>In that example, when the source address of a packet matches the
+    <emphasis role="bold">myset</emphasis> ipset, the <emphasis
+    role="bold">myobject</emphasis> nfacct counter will be incremented.</para>
+
+    <para>Beginning with Shorewall 4.6.0, an ipset name (and src/dst list, if
+    any) can be immediately be followed by a list of match options.</para>
+
+    <important>
+      <para>These additional match options are not available in <ulink
+      url="shorewall-tcfilters.html">shorewall-tcfilters(5)</ulink>.</para>
+    </important>
+
+    <para>Available options are:</para>
+
+    <variablelist>
+      <varlistentry>
+        <term>nomatch</term>
+
+        <listitem>
+          <para>If the set type supports the nomatch flag, then the matching
+          is reversed: a match with an element flagged with nomatch returns
+          true, while a match with a plain element returns false. This option
+          requires the 'Ipset Match nomatch' capability in your kernel and
+          ip[6]tables.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>no-update-counters</term>
+
+        <listitem>
+          <para>The packet and byte counters of the matching element in the
+          set won't be updated. By default, the packet and byte counters are
+          updated. This option and those that follow require the 'Ipset Match
+          counters' capability in your kernel and ip[6]tables.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>no-update-subcounters</term>
+
+        <listitem>
+          <para>The packet and byte counters of the matching element in the
+          member set of a list type of set won't be updated. Default the
+          packet and byte counters are updated.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>packets=<replaceable>value</replaceable></term>
+
+        <listitem>
+          <para>If the packet is matched an element in the set, match only if
+          the packet counter of the element matches the given
+          <replaceable>value</replaceable> also.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>packets&lt;<replaceable>value</replaceable></term>
+
+        <listitem>
+          <para>If the packet is matched an element in the set, match only if
+          the packet counter of the element is less than the given
+          <replaceable>value</replaceable> as well.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>packets&gt;<replaceable>value</replaceable></term>
+
+        <listitem>
+          <para>If the packet is matched an element in the set, match only if
+          the packet counter of the element is greater than the given
+          <replaceable>value</replaceable> as well.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>packets!=<replaceable>value</replaceable></term>
+
+        <listitem>
+          <para>If the packet is matched an element in the set, match only if
+          the packet counter of the element does not match the given
+          <replaceable>value</replaceable> also.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>bytes=<replaceable>value</replaceable></term>
+
+        <listitem>
+          <para>If the packet is matched an element in the set, match only if
+          the byte counter of the element matches the given
+          <replaceable>value</replaceable> also.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>bytes&lt;<replaceable>value</replaceable></term>
+
+        <listitem>
+          <para>If the packet is matched an element in the set, match only if
+          the byte counter of the element is less than the given
+          <replaceable>value</replaceable> as well.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>bytes&gt;<replaceable>value</replaceable></term>
+
+        <listitem>
+          <para>If the packet is matched an element in the set, match only if
+          the byte counter of the element is greater than the given
+          <replaceable>value</replaceable> as well.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>bytes&lt;&gt;<replaceable>value</replaceable></term>
+
+        <listitem>
+          <para>If the packet is matched an element in the set, match only if
+          the byte counter of the element does not match the given
+          <replaceable>value</replaceable> also.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Examples</title>
+
+    <para>In the examples that follow, <firstterm>myset</firstterm>,
+    <firstterm>myset1</firstterm> and <firstterm>myset2</firstterm> are ipsets
+    and <firstterm>myObject</firstterm> is an NFacct object name.</para>
+
+    <para>+myset</para>
+
+    <para>+myset[src]</para>
+
+    <para>+myset[2]</para>
+
+    <para>+[myset1,myset2[dst]]</para>
+
+    <para>+myset[src](myObject)</para>
+
+    <para>+myset[src,nomatch,packets&gt;100]</para>
+
+    <para>+myset[nomatch,no-update-counters](myObject)</para>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall/accounting</para>
+
+    <para>/etc/shorewall6/accounting</para>
+
+    <para>/etc/shorewall/blrules</para>
+
+    <para>/etc/shorewall6/blrules</para>
+
+    <para>/etc/shorewall/hosts -- <emphasis role="bold">Note:</emphasis>
+    Multiple matches enclosed in +[...] may not be used in this file.</para>
+
+    <para>/etc/shorewall6/hosts -- <emphasis role="bold">Note:</emphasis>
+    Multiple matches enclosed in +[...] may not be used in this file.</para>
+
+    <para>/etc/shorewall/maclist -- <emphasis role="bold">Note:</emphasis>
+    Multiple matches enclosed in +[...] may not be used in this file.</para>
+
+    <para>/etc/shorewall6/maclist -- <emphasis role="bold">Note:</emphasis>
+    Multiple matches enclosed in +[...] may not be used in this file.</para>
+
+    <para>/etc/shorewall/rules</para>
+
+    <para>/etc/shorewall6/rules</para>
+
+    <para>/etc/shorewall/secmarks</para>
+
+    <para>/etc/shorewall6/secmarks</para>
+
+    <para>/etc/shorewall/mangle</para>
+
+    <para>/etc/shorewall6/mangle</para>
+
+    <para>/etc/shorewall/snat</para>
+
+    <para>/etc/shorewall6/snat</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para>shorewall(8)</para>
+  </refsect1>
+</refentry>

@@ -1,0 +1,310 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-names</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>names</refname>
+
+    <refpurpose>Shorewall object names</refpurpose>
+  </refnamediv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>When you define an object in Shorewall (<ulink
+    url="manpages/shorewall-zones.html">Zone</ulink>, <link
+    linkend="Logical">Logical Interface</link>, <ulink
+    url="ipsets.html">ipsets</ulink>, <ulink
+    url="Actions.html">Actions</ulink>, etc., you give it a name. Shorewall
+    names start with a letter and consist of letters, digits or underscores
+    ("_"). Except for Zone names, Shorewall does not impose a limit on name
+    length.</para>
+
+    <para>When an ipset is referenced, the name must be preceded by a plus
+    sign ("+").</para>
+
+    <para>The last character of an interface may also be a plus sign to
+    indicate a wildcard name.</para>
+
+    <para>Physical interface names match names shown by 'ip link ls'; if the
+    name includes an at sign ("@"), do not include that character or any
+    character that follows. For example, "sit1@NONE" is referred to as simply
+    'sit1".</para>
+  </refsect1>
+
+  <refsect1>
+    <title>Zone and Chain Names</title>
+
+    <para>For a pair of zones, Shorewall creates two Netfilter chains; one for
+    connections in each direction. The names of these chains are formed by
+    separating the names of the two zones by either "2" or "-".</para>
+
+    <para>Example: Traffic from zone A to zone B would go through chain A2B
+    (think "A to B") or "A-B".</para>
+
+    <para>In Shorewall 4.6, the default separator is "-" but you can override
+    that by setting ZONE_SEPARATOR="2" in <ulink
+    url="manpages/shorewall.conf.html">shorewall.conf</ulink> (5).</para>
+
+    <note>
+      <para>Prior to Shorewall 4.6, the default separator was "2".</para>
+    </note>
+
+    <para>Zones themselves have names that begin with a letter and are
+    composed of letters, numerals, and "_". The maximum length of a name is
+    dependent on the setting of LOGFORMAT in <ulink
+    url="manpages/shorewall.conf.html">shorewall.conf</ulink> (5). See <ulink
+    url="manpages/shorewall-zones.html">shorewall-zones</ulink> (5) for
+    details.</para>
+  </refsect1>
+
+  <refsect1>
+    <title>Using DNS Names</title>
+
+    <caution>
+      <para>I personally recommend strongly against using DNS names in
+      Shorewall configuration files. If you use DNS names and you are called
+      out of bed at 2:00AM because Shorewall won't start as a result of DNS
+      problems then don't say that you were not forewarned.</para>
+    </caution>
+
+    <para>Host addresses in Shorewall configuration files may be specified as
+    either IP addresses or DNS Names.</para>
+
+    <para>DNS names in iptables rules aren't nearly as useful as they first
+    appear. When a DNS name appears in a rule, the iptables utility resolves
+    the name to one or more IP addresses and inserts those addresses into the
+    rule. So changes in the DNS-&gt;IP address relationship that occur after
+    the firewall has started have absolutely no effect on the firewall's rule
+    set.</para>
+
+    <para>For some sites, using DNS names is very risky. Here's an
+    example:</para>
+
+    <programlisting>teastep@ursa:~$ dig pop.gmail.com
+
+; &lt;&lt;&gt;&gt; DiG 9.4.2-P1 &lt;&lt;&gt;&gt; pop.gmail.com
+;; global options:  printcmd
+;; Got answer:
+;; -&gt;&gt;HEADER&lt;&lt;- opcode: QUERY, status: NOERROR, id: 1774
+;; flags: qr rd ra; QUERY: 1, ANSWER: 3, AUTHORITY: 7, ADDITIONAL: 0
+
+;; QUESTION SECTION:
+;pop.gmail.com.               IN A
+
+;; ANSWER SECTION:
+pop.gmail.com.          <emphasis role="bold">300</emphasis>   IN CNAME gmail-pop.l.google.com.
+gmail-pop.l.google.com. <emphasis role="bold">300</emphasis>   IN A     209.85.201.109
+gmail-pop.l.google.com. <emphasis role="bold">300</emphasis>   IN A     209.85.201.111</programlisting>
+
+    <para>Note that the TTL is 300 -- 300 seconds is only 5 minutes. So five
+    minutes later, the answer may change!</para>
+
+    <para>So this rule may work for five minutes then suddently stop
+    working:</para>
+
+    <programlisting>#ACTION        SOURCE               DEST              PROTO             DPORT
+POP(ACCEPT)    loc                  net:pop.gmail.com</programlisting>
+
+    <para>There are two options in <ulink
+    url="manpages/shorewall.conf.html">shorewall[6].conf(5)</ulink> that
+    affect the use of DNS names in Shorewall[6] config files:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>DEFER_DNS_RESOLUTION - When set to No, DNS names are resolved at
+        compile time; when set to Yes, DNS Names are resolved at
+        runtime.</para>
+      </listitem>
+
+      <listitem>
+        <para>AUTOMAKE - When set to Yes, <command>start</command>,
+        <command>restart</command> and <command>reload</command> only result
+        in compilation if one of the files on the CONFIG_PATH has changed
+        since the the last compilation.</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>So by setting AUTOMAKE=Yes, and DEFER_DNS_RESOLUTION=No, compilation
+    will only take place at boot time if a change had been make to the config
+    but no <command>restart</command> or <command>reload</command> had taken
+    place. This is clearly spelled out in the shorewall.conf manpage. So with
+    these settings, so long as a 'reload' or 'restart' takes place after the
+    Shorewall configuration is changes, there should be no DNS-related
+    problems at boot time.</para>
+
+    <important>
+      <para>When DEFER_DNS_RESOLUTION=No and AUTOMAKE=Yes and a DNS change
+      makes it necessary to recompile an existing firewall script, the
+      <option>-c</option> option must be used with the
+      <command>reload</command> or <command>restart</command> command to force
+      recompilation.</para>
+    </important>
+
+    <para>If your firewall rules include DNS names then, even if
+    DEFER_DNS_RESOLUTION=No and AUTOMAKE=Yes:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>If your <filename>/etc/resolv.conf </filename>is wrong then your
+        firewall may not start.</para>
+      </listitem>
+
+      <listitem>
+        <para>If your <filename>/etc/nsswitch.conf</filename> is wrong then
+        your firewall may not start.</para>
+      </listitem>
+
+      <listitem>
+        <para>If your Name Server(s) is(are) down then your firewall may not
+        start.</para>
+      </listitem>
+
+      <listitem>
+        <para>If your startup scripts try to start your firewall before
+        starting your DNS server then your firewall may not start.</para>
+      </listitem>
+
+      <listitem>
+        <para>Factors totally outside your control (your ISP's router is down
+        for example), can prevent your firewall from starting.</para>
+      </listitem>
+
+      <listitem>
+        <para>You must bring up your network interfaces prior to starting your
+        firewall, or the firewall may not start.</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>Each DNS name must be fully qualified and include a minimum of two
+    periods (although one may be trailing). This restriction is imposed by
+    Shorewall to insure backward compatibility with existing configuration
+    files.</para>
+
+    <example id="validdns">
+      <title>Valid DNS Names</title>
+
+      <itemizedlist>
+        <listitem>
+          <para>mail.shorewall.net</para>
+        </listitem>
+
+        <listitem>
+          <para>shorewall.net. (note the trailing period).</para>
+        </listitem>
+      </itemizedlist>
+    </example>
+
+    <example id="invaliddns">
+      <title>Invalid DNS Names</title>
+
+      <itemizedlist>
+        <listitem>
+          <para>mail (not fully qualified)</para>
+        </listitem>
+
+        <listitem>
+          <para>shorewall.net (only one period)</para>
+        </listitem>
+      </itemizedlist>
+    </example>
+
+    <para>DNS names may not be used as:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>The server address in a DNAT rule (/etc/shorewall/rules
+        file)</para>
+      </listitem>
+
+      <listitem>
+        <para>In the ADDRESS column of an entry in /etc/shorewall/masq.</para>
+      </listitem>
+
+      <listitem>
+        <para/>
+      </listitem>
+
+      <listitem>
+        <para>In the <filename>/etc/shorewall/nat</filename> file.</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>These restrictions are imposed by Netfilter and not by
+    Shorewall.</para>
+  </refsect1>
+
+  <refsect1>
+    <title id="Logical">Logical Interface Names</title>
+
+    <para>When dealing with a complex configuration, it is often awkward to
+    use physical interface names in the Shorewall configuration.</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>You need to remember which interface is which.</para>
+      </listitem>
+
+      <listitem>
+        <para>If you move the configuration to another firewall, the interface
+        names might not be the same.</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>Beginning with Shorewall 4.4.4, you can use logical interface names
+    which are mapped to the actual interface using the
+    <option>physical</option> option in <ulink
+    url="manpages/shorewall-interfaces.html">shorewall-interfaces</ulink>
+    (5).</para>
+
+    <para>Here is an example:</para>
+
+    <programlisting>#ZONE  INTERFACE  OPTIONS
+net    <emphasis role="bold">COM_IF </emphasis>    dhcp,blacklist,tcpflags,optional,upnp,routefilter=0,nosmurfs,logmartians=0,<emphasis
+        role="bold">physical=eth0</emphasis>
+net    <emphasis role="bold">EXT_IF</emphasis>     dhcp,blacklist,tcpflags,optional,routefilter=0,nosmurfs,logmartians=0,proxyarp=1,<emphasis
+        role="bold">physical=eth2</emphasis>
+loc    <emphasis role="bold">INT_IF </emphasis>    dhcp,logmartians=1,routefilter=1,tcpflags,nets=172.20.1.0/24,<emphasis
+        role="bold">physical=eth1</emphasis>
+dmz    <emphasis role="bold">VPS_IF </emphasis>    logmartians=1,routefilter=0,routeback,<emphasis
+        role="bold">physical=venet0</emphasis>
+loc    <emphasis role="bold">TUN_IF</emphasis>     <emphasis role="bold">physical=tun+</emphasis></programlisting>
+
+    <para>In this example, COM_IF is a logical interface name that refers to
+    Ethernet interface <filename class="devicefile">eth0</filename>, EXT_IF is
+    a logical interface name that refers to Ethernet interface <filename
+    class="devicefile">eth2</filename>, and so on.</para>
+
+    <para>Here are a couple of more files from the same configuration:</para>
+
+    <para><ulink url="manpages/shorewall-masq.html">shorewall-masq</ulink>
+    (5):</para>
+
+    <programlisting>#INTERFACE SOURCE                    ADDRESS
+
+COMMENT Masquerade Local Network
+<emphasis role="bold">COM_IF</emphasis>     0.0.0.0/0
+<emphasis role="bold">EXT_IF </emphasis>    !206.124.146.0/24         206.124.146.179:persistent</programlisting>
+
+    <para><ulink
+    url="manpages/shorewall-providers.html">shorewall-providers</ulink>
+    (5)</para>
+
+    <programlisting>#NAME   NUMBER   MARK    DUPLICATE  INTERFACE  GATEWAY         OPTIONS               COPY
+Avvanta 1        0x10000 main       <emphasis role="bold">EXT_IF </emphasis>    206.124.146.254 loose,fallback        <emphasis
+        role="bold">INT_IF,VPS_IF,TUN_IF</emphasis>
+Comcast 2        0x20000 main       <emphasis role="bold">COM_IF</emphasis>     detect          balance               <emphasis
+        role="bold">INT_IF,VPS_IF,TUN_IF</emphasis></programlisting>
+
+    <para>Note in particular that Shorewall translates TUN_IF to <filename
+    class="devicefile">tun*</filename> in the COPY column.</para>
+  </refsect1>
+</refentry>

@@ -1,0 +1,801 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<refentry>
+  <refmeta>
+    <refentrytitle>shorewall-accounting</refentrytitle>
+
+    <manvolnum>5</manvolnum>
+
+    <refmiscinfo>Configuration Files</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname>accounting</refname>
+
+    <refpurpose>Shorewall Accounting file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>/etc/shorewall[6]/accounting</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>Accounting rules exist simply to count packets and bytes in
+    categories that you define in this file. You may display these rules and
+    their packet and byte counters using the <command>shorewall show
+    accounting</command> command.</para>
+
+    <para>Beginning with Shorewall 4.4.18, the accounting structure can be
+    created with three root chains:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para><emphasis role="bold">accountin</emphasis>: Rules that are valid
+        in the <emphasis role="bold">INPUT</emphasis> chain (may not specify
+        an output interface).</para>
+      </listitem>
+
+      <listitem>
+        <para><emphasis role="bold">accountout</emphasis>: Rules that are
+        valid in the OUTPUT chain (may not specify an input interface or a MAC
+        address).</para>
+      </listitem>
+
+      <listitem>
+        <para><emphasis role="bold">accounting</emphasis>: Other rules.</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>The new structure is enabled by sectioning the accounting file in a
+    manner similar to the <ulink url="shorewall-rules.html">rules
+    file</ulink>. The sections are <emphasis role="bold">INPUT</emphasis>,
+    <emphasis role="bold">OUTPUT</emphasis> and <emphasis
+    role="bold">FORWARD</emphasis> and must appear in that order (although any
+    of them may be omitted). The first non-commentary record in the accounting
+    file must be a section header when sectioning is used.</para>
+
+    <warning>
+      <para>If sections are not used, the Shorewall rules compiler cannot
+      detect certain violations of netfilter restrictions. These violations
+      can result in run-time errors such as the following:</para>
+
+      <blockquote>
+        <para><emphasis role="bold">iptables-restore v1.4.13: Can't use -o
+        with INPUT</emphasis></para>
+      </blockquote>
+    </warning>
+
+    <para>Beginning with Shorewall 4.4.20, the ACCOUNTING_TABLE setting was
+    added to shorewall.conf and shorewall6.conf. That setting determines the
+    Netfilter table (filter or mangle) where the accounting rules are added.
+    When ACCOUNTING_TABLE=mangle is specified, the available sections are
+    <emphasis role="bold">PREROUTING</emphasis>, <emphasis
+    role="bold">INPUT</emphasis>, <emphasis role="bold">OUTPUT</emphasis>,
+    <emphasis role="bold">FORWARD</emphasis> and <emphasis
+    role="bold">POSTROUTING</emphasis>.</para>
+
+    <para>Section headers have the form:</para>
+
+    <para><option>?SECTION</option>
+    <replaceable>section-name</replaceable></para>
+
+    <para>When sections are enabled:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>A jump to a user-defined accounting chain must appear before
+        entries that add rules to that chain. This eliminates loops and
+        unreferenced chains.</para>
+      </listitem>
+
+      <listitem>
+        <para>An output interface may not be specified in the <emphasis
+        role="bold">PREROUTING</emphasis> and <emphasis
+        role="bold">INPUT</emphasis> sections.</para>
+      </listitem>
+
+      <listitem>
+        <para>In the <emphasis role="bold">OUTPUT</emphasis> and <emphasis
+        role="bold">POSTROUTING</emphasis> sections:</para>
+
+        <itemizedlist>
+          <listitem>
+            <para>An input interface may not be specified</para>
+          </listitem>
+
+          <listitem>
+            <para>Jumps to a chain defined in the <emphasis
+            role="bold">INPUT</emphasis> or <emphasis
+            role="bold">PREROUTING</emphasis> sections that specifies an input
+            interface are prohibited</para>
+          </listitem>
+
+          <listitem>
+            <para>MAC addresses may not be used</para>
+          </listitem>
+
+          <listitem>
+            <para>Jump to a chain defined in the <emphasis
+            role="bold">INPUT</emphasis> or <emphasis
+            role="bold">PREROUTING</emphasis> section that specifies a MAC
+            address are prohibited.</para>
+          </listitem>
+        </itemizedlist>
+      </listitem>
+
+      <listitem>
+        <para>The default value of the CHAIN column is:</para>
+
+        <itemizedlist>
+          <listitem>
+            <para><emphasis role="bold">accountin</emphasis> in the <emphasis
+            role="bold">INPUT</emphasis> section</para>
+          </listitem>
+
+          <listitem>
+            <para><emphasis role="bold">accountout</emphasis> in the <emphasis
+            role="bold">OUTPUT</emphasis> section</para>
+          </listitem>
+
+          <listitem>
+            <para><emphasis role="bold">accountfwd</emphasis> in the <emphasis
+            role="bold">FORWARD</emphasis> section</para>
+          </listitem>
+
+          <listitem>
+            <para><emphasis role="bold">accountpre</emphasis> in the <emphasis
+            role="bold">PREROUTING</emphasis> section</para>
+          </listitem>
+
+          <listitem>
+            <para><emphasis role="bold">accountpost</emphasis> in the
+            <emphasis role="bold">POSTROUTING</emphasis> section</para>
+          </listitem>
+        </itemizedlist>
+      </listitem>
+
+      <listitem>
+        <para>Traffic addressed to the firewall goes through the rules defined
+        in the INPUT section.</para>
+      </listitem>
+
+      <listitem>
+        <para>Traffic originating on the firewall goes through the rules
+        defined in the OUTPUT section.</para>
+      </listitem>
+
+      <listitem>
+        <para>Traffic being forwarded through the firewall goes through the
+        rules from the FORWARD sections.</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>The columns in the file are as follows (where the column name is
+    followed by a different name in parentheses, the different name is used in
+    the alternate specification syntax):</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><emphasis role="bold">ACTION</emphasis> - {<emphasis
+        role="bold">COUNT</emphasis>|<emphasis
+        role="bold">DONE</emphasis>|<emphasis>chain</emphasis>[:<emphasis
+        role="bold">{COUNT</emphasis>|JUMP}]|ACCOUNT(<replaceable>table</replaceable>,<replaceable>network</replaceable>)|[?]COMMENT
+        <emphasis>comment</emphasis>}</term>
+
+        <listitem>
+          <para>What to do when a matching packet is found.</para>
+
+          <variablelist>
+            <varlistentry>
+              <term><emphasis role="bold">COUNT</emphasis></term>
+
+              <listitem>
+                <para>Simply count the match and continue with the next
+                rule</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">DONE</emphasis></term>
+
+              <listitem>
+                <para>Count the match and don't attempt to match any other
+                accounting rules in the chain specified in the <emphasis
+                role="bold">CHAIN</emphasis> column.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis>chain</emphasis>[<emphasis
+              role="bold">:</emphasis><emphasis
+              role="bold">COUNT</emphasis>]</term>
+
+              <listitem>
+                <para>Where <emphasis>chain</emphasis> is the name of a chain;
+                shorewall will create the chain automatically if it doesn't
+                already exist. If a second chain is mentioned in the CHAIN
+                column, then a jump from this second chain to
+                <replaceable>chain</replaceable> is created. If no chain is
+                named in the CHAIN column, then a jump from the default chain
+                to <replaceable>chain</replaceable> is created. If <emphasis
+                role="bold">:COUNT</emphasis> is included, a counting rule
+                matching this entry will be added to
+                <emphasis>chain</emphasis>. The <emphasis>chain</emphasis> may
+                not exceed 29 characters in length and may be composed of
+                letters, digits, dash ('-') and underscore ('_').</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis>chain</emphasis>:JUMP</term>
+
+              <listitem>
+                <para>Like the previous option without the <emphasis
+                role="bold">:COUNT</emphasis> part.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">ACCOUNT(</emphasis><replaceable>table</replaceable>,<replaceable>network</replaceable><emphasis
+              role="bold">)</emphasis></term>
+
+              <listitem>
+                <para>This action implements per-IP accounting and was added
+                in Shorewall 4.4.17. Requires the <emphasis>ACCOUNT
+                Target</emphasis> capability in your iptables and kernel (see
+                the output of <command>shorewall show
+                capabilities</command>).</para>
+
+                <variablelist>
+                  <varlistentry>
+                    <term><replaceable>table</replaceable></term>
+
+                    <listitem>
+                      <para>is the name of an accounting table (you choose the
+                      name). All rules specifying the same name will have
+                      their per-IP counters accumulated in the same
+                      table.</para>
+                    </listitem>
+                  </varlistentry>
+
+                  <varlistentry>
+                    <term><replaceable>network</replaceable></term>
+
+                    <listitem>
+                      <para>is an IPv4 <emphasis
+                      role="bold">network</emphasis> in CIDR notation (e.g.,
+                      192.168.1.0/24). The network can be as large as a /8
+                      (class A).</para>
+                    </listitem>
+                  </varlistentry>
+                </variablelist>
+
+                <para>One nice feature of per-IP accounting is that the
+                counters survive <command>shorewall restart</command>. This
+                has a downside, however. If you change the network associated
+                with an accounting table, then you must <command>shorewall
+                stop; shorewall start</command> to have a successful restart
+                (counters will be cleared).</para>
+
+                <para>The counters in a <replaceable>table</replaceable> are
+                printed using the <command>iptaccount</command> utility. For a
+                command synopsis, type:</para>
+
+                <para><command>iptaccount --help</command></para>
+
+                <para>As of February 2011, the ACCOUNT Target capability and
+                the iptaccount utility are only available when <ulink
+                url="http://xtables-addons.sourceforge.net/">xtables-addons</ulink>
+                is installed. See <ulink
+                url="../Accounting.html#perIP">https://shorewall.org/Accounting.html#perIP</ulink>
+                for additional information.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">INLINE</emphasis></term>
+
+              <listitem>
+                <para>Added in Shorewall 4.5.16. Allows free form iptables
+                matches to be specified following a ';'. In the generated
+                iptables rule(s), the free form matches will follow any
+                matches that are generated by the column contents.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">NFACCT</emphasis>({<replaceable>object</replaceable>[!]}[,...])</term>
+
+              <listitem>
+                <para>Added in Shorewall 4.5.7. Provides a form of accounting
+                that survives <command>shorewall stop/shorewall</command>
+                start and <command>shorewall restart</command>. Requires the
+                NFaccnt Match capability in your kernel and iptables.
+                <replaceable>object</replaceable> names an nfacct object (see
+                man nfaccnt(8)). Multiple rules can specify the same
+                <replaceable>object</replaceable>; all packets that match any
+                of the rules increment the packet and bytes count of the
+                object.</para>
+
+                <para>Prior to Shorewall 4.5.16, only one
+                <replaceable>object</replaceable> could be specified.
+                Beginning with Shorewall 4.5.16, an arbitrary number of
+                objects may be given.</para>
+
+                <para>With Shorewall 4.5.16 or later, an nfacct
+                <replaceable>object</replaceable> in the list may optionally
+                be followed by <emphasis role="bold">!</emphasis> to indicate
+                that the nfacct <replaceable>object</replaceable> will be
+                incremented unconditionally for each packet. When <emphasis
+                role="bold">!</emphasis> is omitted, the
+                <replaceable>object</replaceable> will be incremented only if
+                all of the matches in the rule succeed.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">NFLOG</emphasis>[(nflog-parameters)]
+              - Added in Shorewall-4.4.20.</term>
+
+              <listitem>
+                <para>Causes each matching packet to be sent via the currently
+                loaded logging back-end (usually nfnetlink_log) where it is
+                available to accounting daemons through a netlink
+                socket.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">?COMMENT</emphasis></term>
+
+              <listitem>
+                <para>The remainder of the line is treated as a comment which
+                is attached to subsequent rules until another COMMENT line is
+                found or until the end of the file is reached. To stop adding
+                comments to rules, use a line with only the word
+                ?COMMENT.</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">CHAIN</emphasis> - {<emphasis
+        role="bold">-</emphasis>|<emphasis>chain</emphasis>}</term>
+
+        <listitem>
+          <para>The name of a <emphasis>chain</emphasis>. If specified as
+          <emphasis role="bold">-</emphasis> the <emphasis
+          role="bold">accounting</emphasis> chain is assumed when the file is
+          un-sectioned. When the file is sectioned, the default is one of
+          accountin, accountout, etc. depending on the section. This is the
+          chain where the accounting rule is added. The
+          <emphasis>chain</emphasis> will be created if it doesn't already
+          exist. The <emphasis>chain</emphasis> may not exceed 29 characters
+          in length.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">SOURCE</emphasis> - {<emphasis
+        role="bold">-</emphasis>|<emphasis
+        role="bold">any</emphasis>|<emphasis
+        role="bold">all</emphasis>|<emphasis>interface</emphasis>|<emphasis>interface</emphasis><emphasis
+        role="bold">:</emphasis><emphasis>address</emphasis>|<emphasis>address</emphasis>}</term>
+
+        <listitem>
+          <para>Packet Source.</para>
+
+          <para>The name of an <replaceable>interface</replaceable>, an
+          <replaceable>address</replaceable> (host or net) or an
+          <replaceable>interface</replaceable> name followed by ":" and a host
+          or net <replaceable>address</replaceable>. An ipset name is also
+          accepted as an <replaceable>address</replaceable>.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">DEST</emphasis> - {<emphasis
+        role="bold">-</emphasis>|<emphasis
+        role="bold">any</emphasis>|<emphasis
+        role="bold">all</emphasis>|<emphasis>interface</emphasis>|<emphasis>interface</emphasis><emphasis
+        role="bold">:</emphasis><emphasis>address</emphasis>|<emphasis>address</emphasis>}</term>
+
+        <listitem>
+          <para>This column was formerly named DESTINATION.</para>
+
+          <para>Packet Destination.</para>
+
+          <para>Format same as <emphasis role="bold">SOURCE</emphasis>
+          column.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">PROTO</emphasis> - {<emphasis
+        role="bold">-</emphasis>|<emphasis
+        role="bold">{any</emphasis>|<emphasis
+        role="bold">all</emphasis>|<emphasis>protocol-name</emphasis>|<emphasis>protocol-number</emphasis>|<emphasis
+        role="bold">ipp2p</emphasis>[<emphasis
+        role="bold">:</emphasis>{<emphasis
+        role="bold">udp</emphasis>|<emphasis
+        role="bold">all</emphasis>}]}[,...]}</term>
+
+        <listitem>
+          <para>This column was formerly named PROTOCOL</para>
+
+          <para>A <emphasis>protocol-name</emphasis> (from protocols(5)), a
+          <emphasis>protocol-number</emphasis>, <emphasis
+          role="bold">ipp2p</emphasis>, <emphasis
+          role="bold">ipp2p:udp</emphasis> or <emphasis
+          role="bold">ipp2p:all</emphasis></para>
+
+          <para>Beginning with Shorewall 4.5.12, this column can accept a
+          comma-separated list of protocols.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">DPORT</emphasis> - {<emphasis
+        role="bold">-</emphasis>|<emphasis
+        role="bold">any</emphasis>|<emphasis
+        role="bold">all</emphasis>|<emphasis>ipp2p-option</emphasis>|<emphasis>port-name-or-number</emphasis>[,<emphasis>port-name-or-number</emphasis>]...}</term>
+
+        <listitem>
+          <para>Destination Port number. Service name from services(5) or
+          <emphasis>port number</emphasis>. May only be specified if the
+          protocol is TCP (6), UDP (17), DCCP (33), SCTP (132) or UDPLITE
+          (136).</para>
+
+          <para>You may place a comma-separated list of port names or numbers
+          in this column if your kernel and iptables include multi-port match
+          support.</para>
+
+          <para>If the PROTOCOL is <emphasis role="bold">ipp2p</emphasis> then
+          this column must contain an <emphasis>ipp2p-option</emphasis>
+          ("iptables -m ipp2p --help") without the leading "--". If no option
+          is given in this column, <emphasis role="bold">ipp2p</emphasis> is
+          assumed.</para>
+
+          <para>This column was formerly named DEST PORT(S).</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">SPORT</emphasis> - {<emphasis
+        role="bold">-</emphasis>|<emphasis
+        role="bold">any</emphasis>|<emphasis
+        role="bold">all</emphasis>|<emphasis>port-name-or-number</emphasis>[,<emphasis>port-name-or-number</emphasis>]...}</term>
+
+        <listitem>
+          <para>Service name from services(5) or <emphasis>port
+          number</emphasis>. May only be specified if the protocol is TCP (6),
+          UDP (17), DCCP (33), SCTP (132) or UDPLITE (136).</para>
+
+          <para>You may place a comma-separated list of port numbers in this
+          column if your kernel and iptables include multi-port match
+          support.</para>
+
+          <para>Beginning with Shorewall 4.5.15, you may place '=' in this
+          column, provided that the DEST PORT(S) column is non-empty. This
+          causes the rule to match when either the source port or the
+          destination port in a packet matches one of the ports specified in
+          DPORT. Use of '=' requires multi-port match in your iptables and
+          kernel.</para>
+
+          <para>This column was formerly labelled SOURCE PORT(S).</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">USER</emphasis> - [<emphasis
+        role="bold">!</emphasis>][<emphasis>user-name-or-number</emphasis>][<emphasis
+        role="bold">:</emphasis><emphasis>group-name-or-number</emphasis>][<emphasis
+        role="bold">+</emphasis><emphasis>program-name</emphasis>]</term>
+
+        <listitem>
+          <para>This column was formerly named USER/GROUP and may only be
+          non-empty if the <emphasis role="bold">CHAIN</emphasis> is <emphasis
+          role="bold">OUTPUT</emphasis>.</para>
+
+          <para>When this column is non-empty, the rule applies only if the
+          program generating the output is running under the effective
+          <emphasis>user</emphasis> and/or <emphasis>group</emphasis>
+          specified (or is NOT running under that id if "!" is given).</para>
+
+          <para>Examples:</para>
+
+          <variablelist>
+            <varlistentry>
+              <term>joe</term>
+
+              <listitem>
+                <para>program must be run by joe</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>:kids</term>
+
+              <listitem>
+                <para>program must be run by a member of the 'kids'
+                group</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>!:kids</term>
+
+              <listitem>
+                <para>program must not be run by a member of the 'kids'
+                group</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term>+upnpd</term>
+
+              <listitem>
+                <para>#program named upnpd</para>
+
+                <important>
+                  <para>The ability to specify a program name was removed from
+                  Netfilter in kernel version 2.6.14.</para>
+                </important>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">MARK</emphasis> - [<emphasis
+        role="bold">!</emphasis>]<emphasis>value</emphasis>[/<emphasis>mask</emphasis>][<emphasis
+        role="bold">:C</emphasis>]</term>
+
+        <listitem>
+          <para>Defines a test on the existing packet or connection mark. The
+          rule will match only if the test returns true.</para>
+
+          <para>If you don't want to define a test but need to specify
+          anything in the following columns, place a "-" in this field.</para>
+
+          <variablelist>
+            <varlistentry>
+              <term>!</term>
+
+              <listitem>
+                <para>Inverts the test (not equal)</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis>value</emphasis></term>
+
+              <listitem>
+                <para>Value of the packet or connection mark.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis>mask</emphasis></term>
+
+              <listitem>
+                <para>A mask to be applied to the mark before testing.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">:C</emphasis></term>
+
+              <listitem>
+                <para>Designates a connection mark. If omitted, the packet
+                mark's value is tested.</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><emphasis role="bold">IPSEC - <emphasis>option-list</emphasis>
+        (Optional - Added in Shorewall 4.4.13 but broken until 4.5.4.1
+        )</emphasis></term>
+
+        <listitem>
+          <para>The option-list consists of a comma-separated list of options
+          from the following list. Only packets that will be encrypted or have
+          been decrypted via an SA that matches these options will have their
+          source address changed.</para>
+
+          <variablelist>
+            <varlistentry>
+              <term><emphasis
+              role="bold">reqid=</emphasis><emphasis>number</emphasis></term>
+
+              <listitem>
+                <para>where <emphasis>number</emphasis> is specified using
+                setkey(8) using the 'unique:<emphasis>number</emphasis> option
+                for the SPD level.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">spi=</emphasis>&lt;number&gt;</term>
+
+              <listitem>
+                <para>where <emphasis>number</emphasis> is the SPI of the SA
+                used to encrypt/decrypt packets.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">proto=</emphasis><emphasis
+              role="bold">ah</emphasis>|<emphasis
+              role="bold">esp</emphasis>|<emphasis
+              role="bold">ipcomp</emphasis></term>
+
+              <listitem>
+                <para>IPSEC Encapsulation Protocol</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">mss=</emphasis><emphasis>number</emphasis></term>
+
+              <listitem>
+                <para>sets the MSS field in TCP packets</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">mode=</emphasis><emphasis
+              role="bold">transport</emphasis>|<emphasis
+              role="bold">tunnel</emphasis></term>
+
+              <listitem>
+                <para>IPSEC mode</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">tunnel-src=</emphasis><emphasis>address</emphasis>[/<emphasis>mask</emphasis>]</term>
+
+              <listitem>
+                <para>only available with mode=tunnel</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis
+              role="bold">tunnel-dst=</emphasis><emphasis>address</emphasis>[/<emphasis>mask</emphasis>]</term>
+
+              <listitem>
+                <para>only available with mode=tunnel</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">strict</emphasis></term>
+
+              <listitem>
+                <para>Means that packets must match all rules.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">next</emphasis></term>
+
+              <listitem>
+                <para>Separates rules; can only be used with strict</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">yes</emphasis> or <emphasis
+              role="bold">ipsec</emphasis></term>
+
+              <listitem>
+                <para>When used by itself, causes all traffic that will be
+                encrypted/encapsulated or has been decrypted/un-encapsulated
+                to match the rule.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">no</emphasis> or <emphasis
+              role="bold">none</emphasis></term>
+
+              <listitem>
+                <para>When used by itself, causes all traffic that will not be
+                encrypted/encapsulated or has been decrypted/un-encapsulated
+                to match the rule.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">in</emphasis></term>
+
+              <listitem>
+                <para>May only be used in the FORWARD section and must be the
+                first or the only item the list. Indicates that matching
+                packets have been decrypted in input.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><emphasis role="bold">out</emphasis></term>
+
+              <listitem>
+                <para>May only be used in the FORWARD section and must be the
+                first or the only item in the list. Indicates that matching
+                packets will be encrypted on output.</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+
+          <para>If this column is non-empty and sections are not used,
+          then:</para>
+
+          <itemizedlist>
+            <listitem>
+              <para>A chain NAME appearing in the ACTION column must be a
+              chain branched either directly or indirectly from the <emphasis
+              role="bold">accipsecin</emphasis> or <emphasis
+              role="bold">accipsecout</emphasis> chain.</para>
+            </listitem>
+
+            <listitem>
+              <para>The CHAIN column must contain either <emphasis
+              role="bold">accipsecin</emphasis> or <emphasis
+              role="bold">accipsecout</emphasis> or a chain branched either
+              directly or indirectly from those chains.</para>
+            </listitem>
+
+            <listitem>
+              <para>These rules will NOT appear in the <emphasis
+              role="bold">accounting</emphasis> chain.</para>
+            </listitem>
+          </itemizedlist>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+
+    <para>In all of the above columns except <emphasis
+    role="bold">ACTION</emphasis> and <emphasis role="bold">CHAIN</emphasis>,
+    the values <emphasis role="bold">-</emphasis>, <emphasis
+    role="bold">any</emphasis> and <emphasis role="bold">all</emphasis> may be
+    used as wildcard'gs. Omitted trailing columns are also treated as
+    wildcard'g.</para>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+
+    <para>/etc/shorewall/accounting</para>
+
+    <para>/etc/shorewall6/accounting</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See ALSO</title>
+
+    <para><ulink
+    url="shorewall-logging.htm">shorewall-logging(5)</ulink></para>
+
+    <para><ulink
+    url="../configuration_file_basics.htm#Pairs">https://shorewall.org/configuration_file_basics.htm#Pairs</ulink></para>
+
+    <para>shorewall(8)</para>
+  </refsect1>
+</refentry>

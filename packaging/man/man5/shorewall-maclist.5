@@ -1,0 +1,115 @@
+'\" t
+.\"     Title: shorewall-maclist
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: 08/05/2026
+.\"    Manual: Configuration Files
+.\"    Source: Configuration Files
+.\"  Language: English
+.\"
+.TH "SHOREWALL\-MACLIST" "5" "08/05/2026" "Configuration Files" "Configuration Files"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+maclist \- Shorewall MAC Verification file
+.SH "SYNOPSIS"
+.HP \w'\fB/etc/shorewall[6]/maclist\fR\ 'u
+\fB/etc/shorewall[6]/maclist\fR
+.SH "DESCRIPTION"
+.PP
+This file is used to define the MAC addresses and optionally their associated IP addresses to be allowed to use the specified interface\&. The feature is enabled by using the
+\fBmaclist\fR
+option in the
+\m[blue]\fBshorewall\-interfaces\fR\m[]\&\s-2\u[1]\d\s+2(5) or
+\m[blue]\fBshorewall\-hosts\fR\m[]\&\s-2\u[2]\d\s+2(5) configuration file\&.
+.PP
+The columns in the file are as follows (where the column name is followed by a different name in parentheses, the different name is used in the alternate specification syntax)\&.
+.PP
+\fBDISPOSITION\fR \- {\fBACCEPT\fR|\fBDROP\fR|\fBREJECT\fR}[\fB:\fR\fIlog\-level\fR]
+.RS 4
+\fBACCEPT\fR
+or
+\fBDROP\fR
+(if MACLIST_TABLE=filter in
+\m[blue]\fBshorewall\&.conf\fR\m[]\&\s-2\u[3]\d\s+2(5), then REJECT is also allowed)\&. If specified, the
+\fIlog\-level\fR
+causes packets matching the rule to be logged at that level\&.
+.RE
+.PP
+\fBINTERFACE\fR \- \fIinterface\fR
+.RS 4
+Network
+\fIinterface\fR
+to a host\&.
+.RE
+.PP
+\fBMAC\fR \- \fIaddress\fR
+.RS 4
+MAC
+\fIaddress\fR
+of the host \-\- you do not need to use the Shorewall format for MAC addresses here\&. If
+\fBIP ADDRESSES\fR
+is supplied then
+\fBMAC\fR
+can be supplied as a dash (\fB\-\fR)
+.RE
+.PP
+\fBIP ADDRESSES\fR (addresses) \- [\fIaddress\fR[\fB,\fR\fIaddress\fR]\&.\&.\&.]
+.RS 4
+Optional \- if specified, both the MAC and IP address must match\&. This column can contain a comma\-separated list of host and/or subnet addresses\&. If your kernel and iptables have iprange match support then IP address ranges are also allowed\&. Similarly, if your kernel and iptables include ipset support than set names (prefixed by "+") are also allowed\&.
+.RE
+.SH "FILES"
+.PP
+/etc/shorewall/maclist
+.PP
+/etc/shorewall6/maclist
+.SH "SEE ALSO"
+.PP
+\m[blue]\fBhttps://shorewall\&.org/MAC_Validation\&.html\fR\m[]\&\s-2\u[4]\d\s+2
+.PP
+\m[blue]\fBhttps://shorewall\&.org/configuration_file_basics\&.htm#Pairs\fR\m[]\&\s-2\u[5]\d\s+2
+.PP
+shorewall(8)
+.SH "NOTES"
+.IP " 1." 4
+shorewall-interfaces
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-interfaces.html
+.RE
+.IP " 2." 4
+shorewall-hosts
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall-hosts.html
+.RE
+.IP " 3." 4
+shorewall.conf
+.RS 4
+\%[set $man.base.url.for.relative.links]/shorewall.conf.html
+.RE
+.IP " 4." 4
+https://shorewall.org/MAC_Validation.html
+.RS 4
+\%[set $man.base.url.for.relative.links]/../MAC_Validation.html
+.RE
+.IP " 5." 4
+https://shorewall.org/configuration_file_basics.htm#Pairs
+.RS 4
+\%[set $man.base.url.for.relative.links]/../configuration_file_basics.htm#Pairs
+.RE
