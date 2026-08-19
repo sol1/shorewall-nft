@@ -896,11 +896,15 @@ class Emitter:
         return _priority_token(spec, self.named_priority)
 
     def _nat_fam(self, ipkw):
-        """The family qualifier before a nat 'to' (e.g. 'ip ' or 'ip6 '),
-        kept where the nft accepts it and dropped on nft 0.9.0, which has no
-        'dnat ip to' form. Plain 'dnat to' loads on every nft. The netmap
-        prefix form keeps its qualifier and is gated separately."""
-        return f"{ipkw} " if self.nat_family else ""
+        """The optional family qualifier before a nat ``to``.
+
+        nft accepts ``dnat ip to`` for IPv4, but its NAT grammar has no
+        corresponding ``dnat ip6 to`` form.  IPv6 targets are unambiguous in
+        an ip6 table, so emit the portable plain ``dnat to``/``snat to`` form
+        there.  Old nft also needs the plain form for IPv4.  The netmap prefix
+        form is separate and keeps its required qualifier.
+        """
+        return "ip " if self.nat_family and ipkw == "ip" else ""
 
     def render(self):
         cfg = self.cfg
@@ -2291,7 +2295,15 @@ class Emitter:
             if d.origdest:
                 m.append(f"{ipkw} daddr "
                          f"{_addr_or_ifaddr(d.origdest, self.ifmap, self.sets)}")
-            if "," in d.proto:
+            proto = d.proto.lower()
+            if d.dport and proto in ("icmp", "1"):
+                icmp_type = ICMP_TYPES.get(d.dport.lower(), d.dport)
+                m.append(f"icmp type {icmp_type}")
+            elif d.dport and proto in ICMP6_PROTOS:
+                # Shorewall macros carry the ICMP type in their historical
+                # DEST PORT column. It is an ICMP type, not an L4 port.
+                m.append(f"icmpv6 type {d.dport.lower()}")
+            elif "," in d.proto:
                 protos = "{ " + ", ".join(d.proto.split(",")) + " }"
                 m.append(f"meta l4proto {protos}")
                 if d.dport:

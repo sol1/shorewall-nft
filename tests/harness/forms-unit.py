@@ -698,6 +698,28 @@ form_ok("rules: DNAT honours the RATE LIMIT column",
          "rules": "?SECTION NEW\nDNAT net loc:10.0.0.9 tcp 80 - - 10/min:5\n"},
         expect="limit rate 10/minute burst 5 packets dnat ip to 10.0.0.9")
 
+# nft's NAT grammar accepts the optional `ip` family qualifier but not an
+# `ip6` counterpart.  This surfaced with a Ping/DNAT macro because the parser
+# rejected `dnat ip6 to` after successfully parsing the ICMPv6 match.  Keep an
+# IPv4 twin here to ensure fixing IPv6 does not remove its supported qualifier.
+form_ok("rules: Ping/DNAT uses the valid unqualified IPv6 NAT form",
+        {"zones": "fw firewall\nnet ipv6\nlxbr0 ipv6\n",
+         "interfaces": "?FORMAT 2\nnet eth0\nlxbr0 lxbr0\n",
+         "policy": "$FW net ACCEPT\nnet all DROP\nall all REJECT\n",
+         "params": ('acme="[fc42:5009:ba4b:5ab0::202]"\n'
+                    'acmednat="[2407:3641:2298:1223::202]"\n'),
+         "rules": ("?SECTION NEW\n"
+                   "Ping/DNAT net lxbr0:$acme - - - $acmednat\n")},
+        family=6,
+        expect="icmpv6 type 128 dnat to fc42:5009:ba4b:5ab0::202")
+form_ok("rules: Ping/DNAT retains the valid IPv4 NAT family qualifier",
+        {"zones": "fw firewall\nnet ipv4\nloc ipv4\n",
+         "interfaces": "?FORMAT 2\nnet eth0\nloc eth1\n",
+         "params": ('server="10.0.0.202"\n'
+                    'public="192.0.2.202"\n'),
+         "rules": "?SECTION NEW\nPing/DNAT net loc:$server - - - $public\n"},
+        expect="icmp type echo-request dnat ip to 10.0.0.202")
+
 # --- conntrack: the stock /etc/shorewall/conntrack file ships on every
 # install. It is ?FORMAT 3 and assigns conntrack helpers, gated on the
 # AUTOHELPERS setting and the helper capabilities. Migrating any real system
