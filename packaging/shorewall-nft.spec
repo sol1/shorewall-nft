@@ -93,6 +93,8 @@ SBINDIR=%{_sbindir} DESTDIR=%{buildroot} packaging/install-lite.sh packaging/sho
 %dir %{_datadir}/shorewall6-lite
 %{_datadir}/shorewall-lite/version
 %{_datadir}/shorewall6-lite/version
+%{_datadir}/shorewall-lite/shorewallrc
+%{_datadir}/shorewall6-lite/shorewallrc
 %{_unitdir}/shorewall-lite.service
 %{_unitdir}/shorewall6-lite.service
 %config(noreplace) %{_sysconfdir}/shorewall-lite/shorewall-lite.conf
