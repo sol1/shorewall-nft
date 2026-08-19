@@ -24,9 +24,9 @@ compiler. Shorewall Lite runs on the target and is runtime only.
   systems, OpenWRT among them.
 - `shorecap` is a shell script run on the target that captures the target's
   capabilities, so the admin compiles against what the target actually has.
-- The admin deploys with `shorewall load <system>` and `shorewall reload
-  <system>`: compile, copy the script to the target, run it. Or you copy an
-  exported script by hand and run `shorewall-lite start`.
+- The admin deploys with `shorewall remote-start <system>` (and remote-reload,
+  remote-restart): compile, copy the script to the target, run it. Or you copy
+  an exported script by hand and run `shorewall-lite start`.
 
 ## Why we are most of the way there already
 
@@ -76,11 +76,15 @@ target package small and stable.
 
 ### 3. Remote deploy, admin side
 
-`shorewall load [system]` and `shorewall reload [system]` compile the
+`shorewall remote-start`, `remote-reload` and `remote-restart` compile the
 configuration to an export script, copy it to `system:/var/lib/shorewall-lite/
-firewall` over ssh, and run `shorewall-lite start` or `reload` there. Same
-verbs and meaning as upstream: `load` is the full first push, `reload`
-recompiles and reloads. Deployment is ssh and scp, as upstream does it.
+firewall` over ssh, and run `shorewall-lite start`, `reload` or `restart`
+there. These are upstream's names and meaning: `-r` gives the ssh user, the
+system is positional, and `-D` the local directory. `remote-getcaps` reads the
+target's capabilities (via `shorewall-lite show capabilities`) and
+`remote-getrc` its shorewallrc. `load` is kept as a deprecated alias for
+`remote-start`, which is what upstream renamed it to in 5.0.0. Deployment is
+ssh and scp, as upstream does it.
 
 Hand deployment stays supported: copy the `compile -e` output to the target and
 run `shorewall-lite start`.

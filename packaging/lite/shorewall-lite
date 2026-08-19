@@ -27,6 +27,7 @@ firewall="$VARDIR/firewall"
 
 usage() {
     echo "usage: $prog {start|stop|restart|reload|clear|check|status|version}" >&2
+    echo "       $prog show capabilities" >&2
     exit 2
 }
 
@@ -47,6 +48,16 @@ case "$verb" in
         SWNFT_STATE=${SWNFT_STATE:-/run/$prog}
         export SWNFT_VARDIR SWNFT_STATE
         exec "$firewall" "$verb" "$@"
+        ;;
+    show)
+        # `show capabilities` prints this kernel's capability profile, the
+        # command the admin system's remote-getcaps runs over ssh. shorecap
+        # ships with this package. A trailing -f (upstream's file flag) is
+        # accepted and ignored; the profile always goes to stdout.
+        if [ "${1:-}" = capabilities ]; then
+            exec shorecap
+        fi
+        usage
         ;;
     version)
         v=/usr/share/$prog/version

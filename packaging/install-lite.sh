@@ -36,6 +36,9 @@ for prog in shorewall-lite shorewall6-lite; do
 
     install -d "$DESTDIR$SHAREBASE/$prog"
     echo "$VERSION" > "$DESTDIR$SHAREBASE/$prog/version"
+    # The path config, so the admin system's remote-getrc can fetch it, the
+    # way it does from an upstream Shorewall Lite target.
+    install -m 0644 "$rc" "$DESTDIR$SHAREBASE/$prog/shorewallrc"
 done
 say "dispatcher -> $SBINDIR/shorewall-lite, $SBINDIR/shorewall6-lite"
 

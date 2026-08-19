@@ -56,29 +56,39 @@ out.
 .B safe-start\fR, \fBsafe-restart
 Like start and restart, but revert automatically unless confirmed.
 .TP
-.B load \fR[\fB--caps \fIfile\fR|\fB--capture\fR] \fIsystem\fR, \fBreload \fR[\fIsystem\fR]
+.B remote-start\fR, \fBremote-reload\fR, \fBremote-restart \fR[\fB-r \fIuser\fR] [\fB-s\fR] [\fB-D \fIdir\fR] [\fB--capture\fR|\fB--caps \fIfile\fR] \fIsystem
 Deploy to a Shorewall Lite target. Compile the local configuration to an
 export script, copy it to
 .I system
-over ssh, and run it there, so the target needs no Python.
+over ssh, and run
+.B shorewall-lite start
+(or reload, or restart) there, so the target needs no Python.
+.B -r \fIuser
+gives the ssh login user.
 .B --capture
-pulls the target's capabilities with shorecap first, so the ruleset
-matches the target's kernel;
+runs shorecap on the target and compiles against its kernel;
 .B --caps
-uses a profile captured earlier.
-.B reload
-with no system recompiles and reloads the local firewall.
+uses a profile fetched earlier.
+These are upstream's names; the pre-5.0 name
+.B load
+is kept as a deprecated alias for remote-start.
 .TP
-.B check \fR[\fIdirectory\fR] \fR[\fB-r \fIsystem\fR] \fR[\fB--capture\fR]
+.B remote-getcaps \fR[\fB-R\fR] [\fB-r \fIuser\fR] [\fB-D \fIdir\fR] \fIsystem
+Run
+.B shorewall-lite show capabilities
+on the target and write the profile to the local configuration directory,
+so a later remote-start compiles against it.
+.B -R
+copies the target's shorewallrc too.
+.TP
+.B remote-getrc \fR[\fB-c\fR] [\fB-r \fIuser\fR] [\fB-D \fIdir\fR] \fIsystem
+Copy the target's shorewallrc to the local configuration directory.
+.B -c
+copies its capabilities too.
+.TP
+.B check \fR[\fIdirectory\fR]
 Compile and validate a configuration without loading it. Reports
-anything unsupported. Reads only; changes nothing. With
-.B -r \fIsystem\fR
-the configuration is validated against a remote Shorewall Lite target's
-kernel: it is compiled here, copied to the target, and its check verb
-(\fBnft -c\fR) is run there, loading nothing.
-.B --capture
-pulls the target's capabilities with shorecap first, so the compile
-matches the target.
+anything unsupported. Reads only; changes nothing.
 .TP
 .B compile \fR[\fIdirectory\fR] \fB-o \fIfile
 Write the generated nftables ruleset to a file.
