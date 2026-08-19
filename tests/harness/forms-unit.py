@@ -720,6 +720,27 @@ form_ok("rules: Ping/DNAT retains the valid IPv4 NAT family qualifier",
          "rules": "?SECTION NEW\nPing/DNAT net loc:$server - - - $public\n"},
         expect="icmp type echo-request dnat ip to 10.0.0.202")
 
+# The IPv6 NAT-family fix is general, not only the ICMP macro that surfaced it.
+# Plain IPv6 DNAT and SNAT must use the unqualified form too, and IPv4 keeps
+# its `ip` qualifier both ways.
+_V6NAT = {"zones": "fw firewall\nnet ipv6\nloc ipv6\n",
+          "interfaces": "?FORMAT 2\nnet eth0\nloc eth1\n",
+          "policy": ("$FW net ACCEPT\nloc net ACCEPT\nnet all DROP\n"
+                     "all all REJECT\n")}
+form_ok("rules: a plain IPv6 TCP DNAT uses the unqualified NAT form",
+        {**_V6NAT, "rules": "?SECTION NEW\nDNAT net loc:[fc00::202] tcp 80\n"},
+        family=6, expect="tcp dport 80 dnat to fc00::202")
+form_ok("snat: an IPv6 SNAT uses the unqualified NAT form",
+        {**_V6NAT, "snat": "?FORMAT 2\nSNAT([2001:db8::1])\tfc00::/64\teth0\n"},
+        family=6, expect="snat to 2001:db8::1")
+form_ok("snat: an IPv4 SNAT retains the valid NAT family qualifier",
+        {"zones": "fw firewall\nnet ipv4\nloc ipv4\n",
+         "interfaces": "?FORMAT 2\nnet eth0\nloc eth1\n",
+         "policy": ("$FW net ACCEPT\nloc net ACCEPT\nnet all DROP\n"
+                    "all all REJECT\n"),
+         "snat": "?FORMAT 2\nSNAT(192.0.2.1)\t10.0.0.0/24\teth0\n"},
+        expect="snat ip to 192.0.2.1")
+
 # --- conntrack: the stock /etc/shorewall/conntrack file ships on every
 # install. It is ?FORMAT 3 and assigns conntrack helpers, gated on the
 # AUTOHELPERS setting and the helper capabilities. Migrating any real system
