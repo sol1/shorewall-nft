@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.3.0
+Version:        0.3.5
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -177,6 +177,14 @@ exit 0
 %systemd_postun shorewall6-lite.service
 
 %changelog
+* Thu Aug 20 2026 Dave Kempe <dave@sol1.com.au> - 0.3.5-1
+- Remote Shorewall Lite management follows upstream's commands: remote-start,
+  remote-reload, remote-restart, remote-getcaps and remote-getrc, with -r for
+  the ssh user and the system as a positional. load stays as a deprecated
+  alias for remote-start (#28).
+- IPv6 NAT emits the unqualified dnat/snat "to" form that nft accepts, instead
+  of the rejected "dnat ip6 to". This fixes all IPv6 DNAT and SNAT, and renders
+  a Ping/DNAT macro's ICMP type as icmp/icmpv6 type, not a port (#29).
 * Wed Aug 05 2026 Dave Kempe <dave@sol1.com.au> - 0.3.0-1
 - The configuration-file man pages, shorewall-rules(5) and the rest, are
   generated from Shorewall's own DocBook so they read like upstream, with

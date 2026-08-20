@@ -1,3 +1,16 @@
+shorewall-nft (0.3.5) unstable; urgency=medium
+
+  * Remote Shorewall Lite management follows upstream's commands: remote-start,
+    remote-reload, remote-restart, remote-getcaps and remote-getrc, with -r for
+    the ssh user and the system as a positional. load stays as a deprecated
+    alias for remote-start (#28).
+  * IPv6 NAT emits the unqualified dnat/snat "to" form that nft accepts,
+    instead of the rejected "dnat ip6 to". This fixes all IPv6 DNAT and SNAT,
+    and renders a Ping/DNAT macro's ICMP type as icmp/icmpv6 type, not a port
+    (#29).
+
+ -- Dave Kempe <dave@sol1.com.au>  Thu, 20 Aug 2026 09:41:59 +1000
+
 shorewall-nft (0.3.0) unstable; urgency=medium
 
   * The configuration-file man pages, shorewall-rules(5) and the rest, are
