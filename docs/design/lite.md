@@ -82,7 +82,10 @@ firewall` over ssh, and run `shorewall-lite start`, `reload` or `restart`
 there. These are upstream's names and meaning: `-r` gives the ssh user, the
 system is positional, and `-D` the local directory. `remote-getcaps` reads the
 target's capabilities (via `shorewall-lite show capabilities`) and
-`remote-getrc` its shorewallrc. `load` is kept as a deprecated alias for
+`remote-getrc` its shorewallrc. `remote-check` validates the configuration
+against the target's kernel without deploying it, a shorewall-nft addition
+with no upstream equivalent; it keeps parity by adding a command, not changing
+one. `load` is kept as a deprecated alias for
 `remote-start`, which is what upstream renamed it to in 5.0.0. Deployment is
 ssh and scp, as upstream does it.
 

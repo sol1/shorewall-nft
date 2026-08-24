@@ -73,6 +73,13 @@ These are upstream's names; the pre-5.0 name
 .B load
 is kept as a deprecated alias for remote-start.
 .TP
+.B remote-check \fR[\fB-r \fIuser\fR] [\fB-D \fIdir\fR] [\fB--capture\fR|\fB--caps \fIfile\fR] \fIsystem
+Validate the configuration against the target's kernel without deploying
+it: compile here, copy the firewall to a temporary path on the target, run
+its check verb (\fBnft -c\fR) there, and remove it. Loads nothing and does
+not touch the deployed firewall. This has no upstream equivalent; upstream
+validates only locally.
+.TP
 .B remote-getcaps \fR[\fB-R\fR] [\fB-r \fIuser\fR] [\fB-D \fIdir\fR] \fIsystem
 Run
 .B shorewall-lite show capabilities

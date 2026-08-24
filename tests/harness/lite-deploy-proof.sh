@@ -164,5 +164,30 @@ run "$DNAT" load fakehost >/dev/null 2>>"$OUT/err"
     && pass "load still deploys and warns it is deprecated" \
     || bad "load alias broken: $(cat "$OUT/err" 2>/dev/null)"
 
+# 5b. remote-check validates against the target kernel without deploying: it
+#     copies the firewall to a temp path and runs its check verb (nft -c)
+#     there, loading nothing and leaving the deployed firewall alone.
+nft delete table ip shorewall 2>/dev/null || :
+rm -f "$OUT/rsh.log"
+if run "$REPO/tests/corpus/0002-one-interface/config" remote-check fakehost \
+       >/dev/null 2>&1; then
+    pass "remote-check validates against the target and exits 0"
+else
+    bad "remote-check failed"
+fi
+grep -q "sh /tmp/shorewall-nft-check.* check" "$OUT/rsh.log" 2>/dev/null \
+    && pass "remote-check ran the check verb on the target" \
+    || bad "remote-check verb not run: $(cat "$OUT/rsh.log" 2>/dev/null)"
+nft list table ip shorewall >/dev/null 2>&1 \
+    && bad "remote-check loaded a ruleset (must be non-destructive)" \
+    || pass "remote-check loaded nothing on the target"
+
+# 6. an unknown option is a located error, not silently taken as the SYSTEM.
+if run "$DNAT" remote-reload -a fakehost >/dev/null 2>&1; then
+    bad "an unknown option was accepted"
+else
+    pass "an unknown option is rejected, not taken as the system"
+fi
+
 [ "$FAIL" = 0 ] && echo "lite-deploy-proof: all passed"
 exit "$FAIL"

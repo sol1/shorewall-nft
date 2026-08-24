@@ -1041,13 +1041,16 @@ def _rsh_dest(user, system):
     return f"{user}@{system}" if user else system
 
 
-def _parse_remote_args(args, family):
+def _parse_remote_args(args, family, cmd="remote-start"):
     """Options for the remote-* commands, matching upstream: -r root-user-name,
     -D directory, and the system as a positional. The single-letter pass-through
     options -n, -s, -c, -T, -i and -R are collected into a set for the command
     to read. --caps FILE and --capture choose the capability profile, a
-    shorewall-nft convenience over the two-step remote-getcaps. Returns
+    shorewall-nft convenience over the two-step remote-getcaps. An unknown
+    option is a located error, not a silent positional. Returns
     (system, ssh-destination, confdir, prog, caps, capture, flags)."""
+    usage = (f"usage: shorewall {cmd} [-r user] [-s] [-D dir] "
+             f"[--caps FILE|--capture] SYSTEM")
     user = None
     caps = None
     directory = None
@@ -1073,6 +1076,8 @@ def _parse_remote_args(args, family):
             capture = True; i += 1
         elif len(a) == 2 and a[0] == "-" and a[1] in "nsctTiR":
             flags.add(a[1]); i += 1
+        elif a.startswith("-"):
+            _fatal(f"{cmd}: unknown option {a}\n{usage}")
         else:
             pos.append(a); i += 1
     if directory is None and len(pos) == 2:
@@ -1080,8 +1085,7 @@ def _parse_remote_args(args, family):
     elif len(pos) == 1:
         system = pos[0]
     else:
-        _fatal("usage: shorewall remote-start [-r user] [-s] [-D dir] "
-               "[--caps FILE|--capture] SYSTEM")
+        _fatal(usage)
     if capture and caps:
         _fatal("--capture and --caps cannot be combined")
     prog = "shorewall6-lite" if family == 6 else "shorewall-lite"
@@ -1120,7 +1124,7 @@ def _remote_deploy(args, family, lite_verb):
     reboot; -s is accepted and needs nothing more, as do the pass-through
     options -n, -c, -T and -i."""
     system, dest, confdir, prog, caps, capture, flags = \
-        _parse_remote_args(args, family)
+        _parse_remote_args(args, family, f"remote-{lite_verb}")
     if not os.path.isdir(confdir):
         _fatal(f"no configuration at {confdir}")
     remote_firewall = f"/var/lib/{prog}/firewall"
@@ -1165,12 +1169,51 @@ def cmd_remote_restart(args, family):
     return _remote_deploy(args, family, "restart")
 
 
+def cmd_remote_check(args, family):
+    """Validate the local configuration against a remote Shorewall Lite
+    target's kernel without deploying it. Compile here, copy the firewall
+    script to a temp path on the target, run its check verb (nft -c) there,
+    and remove it. Nothing is loaded and the deployed firewall is left alone.
+    This has no upstream equivalent: upstream validates only locally, so a
+    kernel difference on the target is not caught until a start. It keeps
+    parity by adding a command, not changing an existing one."""
+    system, dest, confdir, prog, caps, capture, flags = \
+        _parse_remote_args(args, family, "remote-check")
+    if not os.path.isdir(confdir):
+        _fatal(f"no configuration at {confdir}")
+    with tempfile.TemporaryDirectory(prefix="shorewall-nft-check-") as d:
+        if capture:
+            print(f"Reading capabilities from {system}")
+            caps = _fetch_caps(dest, prog, os.path.join(d, "capabilities"))
+        elif caps is None and os.path.exists(os.path.join(confdir, "capabilities")):
+            caps = os.path.join(confdir, "capabilities")
+        if caps:
+            capabilities.load_profile(caps)
+        else:
+            capabilities.enable_probe(False)
+        script = os.path.join(d, "firewall")
+        try:
+            compile_config(confdir, script + ".nft", family, script_path=script)
+        except ConfigError as e:
+            _fatal(f"configuration does not compile: {e}")
+        remote = f"/tmp/shorewall-nft-check.{os.getpid()}"
+        print(f"Checking {confdir} against {system}")
+        if _rcp(script, dest, remote) != 0:
+            _fatal(f"could not copy the firewall to {system}")
+        rc = _rsh(dest, "sh", remote, "check")
+        _rsh(dest, "rm", "-f", remote)
+        if rc != 0:
+            _fatal(f"the ruleset does not load on {system}'s kernel")
+        print(f"Shorewall configuration in {confdir} verified against {system}")
+        return 0
+
+
 def cmd_remote_getcaps(args, family):
     """Read the target's capability profile to the local configuration
     directory, so a later remote-start compiles against it. With -R the
     target's shorewallrc is copied too, as upstream does."""
     system, dest, confdir, prog, caps, capture, flags = \
-        _parse_remote_args(args, family)
+        _parse_remote_args(args, family, "remote-getcaps")
     os.makedirs(confdir, exist_ok=True)
     out = _fetch_caps(dest, prog, os.path.join(confdir, "capabilities"))
     print(f"Wrote {system} capabilities to {out}")
@@ -1184,7 +1227,7 @@ def cmd_remote_getrc(args, family):
     """Copy the target's shorewallrc to the local configuration directory. With
     -c the target's capabilities are copied too, as upstream does."""
     system, dest, confdir, prog, caps, capture, flags = \
-        _parse_remote_args(args, family)
+        _parse_remote_args(args, family, "remote-getrc")
     os.makedirs(confdir, exist_ok=True)
     out = _fetch_rc(dest, prog, os.path.join(confdir, "shorewallrc"))
     print(f"Wrote {system} shorewallrc to {out}")
@@ -2077,6 +2120,7 @@ VERBS = {
     "remote-start": cmd_remote_start,
     "remote-reload": cmd_remote_reload,
     "remote-restart": cmd_remote_restart,
+    "remote-check": cmd_remote_check,
     "remote-getcaps": cmd_remote_getcaps,
     "remote-getrc": cmd_remote_getrc,
     "load": cmd_load,
