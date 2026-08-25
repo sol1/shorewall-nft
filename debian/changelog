@@ -1,3 +1,16 @@
+shorewall-nft (0.3.6) unstable; urgency=medium
+
+  * Site macros and actions are found through CONFIG_PATH and in the config
+    directory, so a custom macro.<name> under a directory like
+    /usr/local/share/shorewall is used without copying it into the shipped set
+    (#30).
+  * The remote commands reject an unknown option instead of taking it as the
+    system, and the usage message names the command in play. remote-check is
+    added: validate a configuration against a remote Shorewall Lite target's
+    kernel without deploying it (#28).
+
+ -- Dave Kempe <dave@sol1.com.au>  Tue, 25 Aug 2026 12:14:09 +1000
+
 shorewall-nft (0.3.5) unstable; urgency=medium
 
   * Remote Shorewall Lite management follows upstream's commands: remote-start,

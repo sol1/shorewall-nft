@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.3.5
+Version:        0.3.6
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -177,6 +177,15 @@ exit 0
 %systemd_postun shorewall6-lite.service
 
 %changelog
+* Tue Aug 25 2026 Dave Kempe <dave@sol1.com.au> - 0.3.6-1
+- Site macros and actions are found through CONFIG_PATH and in the config
+  directory, so a custom macro.<name> under a directory like
+  /usr/local/share/shorewall is used without copying it into the shipped set
+  (#30).
+- The remote commands reject an unknown option instead of taking it as the
+  system, and the usage message names the command in play. remote-check is
+  added: validate a configuration against a remote Shorewall Lite target's
+  kernel without deploying it (#28).
 * Thu Aug 20 2026 Dave Kempe <dave@sol1.com.au> - 0.3.5-1
 - Remote Shorewall Lite management follows upstream's commands: remote-start,
   remote-reload, remote-restart, remote-getcaps and remote-getrc, with -r for
