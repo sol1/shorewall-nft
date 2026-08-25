@@ -237,6 +237,13 @@ def load(confdir, family=4):
     macros.set_user_actions(confdir,
                             parsers.parse_actions(_path(confdir, "actions"),
                                                   variables))
+    # Site macros and actions are found in the config directory and the
+    # CONFIG_PATH directories, the way upstream finds them, so a macro.<name>
+    # under /usr/local/share/shorewall or similar is used without copying it
+    # into the shipped set.
+    macros.set_config_path(
+        [confdir] + [d.strip() for d in
+                     variables.get("CONFIG_PATH", "").split(":") if d.strip()])
 
     cfg.interfaces = parsers.parse_interfaces(_path(confdir, "interfaces"),
                                               variables)

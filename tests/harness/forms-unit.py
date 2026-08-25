@@ -1052,6 +1052,45 @@ except Exception as e:                                   # noqa: BLE001
 finally:
     shutil.rmtree(d)
 
+# --- a site macro.<name> in a CONFIG_PATH directory is found, not only the
+#     shipped macros, so a migrated config with custom macros in a directory
+#     like /usr/local/share/shorewall compiles (github #30) ---
+d = build({"rules": "?SECTION NEW\nFTPS(ACCEPT) net $FW\n"})
+try:
+    site = os.path.join(d, "sitemacros")
+    os.makedirs(site)
+    with open(os.path.join(site, "macro.FTPS"), "w") as f:
+        f.write("#ACTION\tSOURCE\tDEST\tPROTO\tDPORT\nACCEPT\t-\t-\ttcp\t990\n")
+    with open(os.path.join(d, "shorewall.conf"), "a") as f:
+        f.write(f'\nCONFIG_PATH="{site}"\n')
+    text = render(load(d, 4))
+    if "tcp dport 990 accept" in text:
+        ok("macros: a site macro in a CONFIG_PATH directory is found")
+    else:
+        bad("CONFIG_PATH macro", "the site macro was not expanded")
+except ConfigError as e:
+    bad("CONFIG_PATH macro", f"compile rejected it: {str(e)[:100]}")
+except Exception as e:                                   # noqa: BLE001
+    bad("CONFIG_PATH macro", f"{type(e).__name__}: {str(e)[:100]}")
+finally:
+    shutil.rmtree(d)
+
+# A site macro dropped in the config directory is found too, without a
+# CONFIG_PATH entry, since the config directory is always searched.
+d = build({"rules": "?SECTION NEW\nFTPS(ACCEPT) net $FW\n"})
+try:
+    with open(os.path.join(d, "macro.FTPS"), "w") as f:
+        f.write("ACCEPT\t-\t-\ttcp\t990\n")
+    text = render(load(d, 4))
+    if "tcp dport 990 accept" in text:
+        ok("macros: a site macro in the config directory is found")
+    else:
+        bad("confdir macro", "the site macro was not expanded")
+except Exception as e:                                   # noqa: BLE001
+    bad("confdir macro", f"{type(e).__name__}: {str(e)[:100]}")
+finally:
+    shutil.rmtree(d)
+
 # --- a clean install has no configuration. load must say so with a located
 #     ConfigError, not a FileNotFoundError traceback, so `shorewall check` on
 #     a fresh box prints a clean message and exits non-zero ---

@@ -29,11 +29,22 @@ MAX_DEPTH = 10
 _ACTION_DIR = None
 _ACTION_NAMES = set()
 
+# Directories searched for a site macro.<name> or action.<name>, from
+# CONFIG_PATH plus the config directory. A site file shadows the shipped
+# macros, matching upstream, which finds them through CONFIG_PATH. Set per
+# compile.
+_CONFIG_PATH = []
+
 
 def set_user_actions(action_dir, names):
     global _ACTION_DIR, _ACTION_NAMES
     _ACTION_DIR = action_dir
     _ACTION_NAMES = set(names)
+
+
+def set_config_path(dirs):
+    global _CONFIG_PATH
+    _CONFIG_PATH = list(dirs)
 
 
 @dataclass
@@ -48,10 +59,18 @@ class MacroRule:
 
 
 def _find(name, family):
-    """A declared user action shadows the shipped macros. Then family 6
-    macro overrides, then the shared macros."""
-    if name in _ACTION_NAMES and _ACTION_DIR:
-        path = os.path.join(_ACTION_DIR, f"action.{name}")
+    """Resolve a macro or action name to a file. A declared user action is
+    found as action.<name> in the config directory, then in the CONFIG_PATH
+    directories. A macro is found as macro.<name> in the CONFIG_PATH
+    directories, so a site macro shadows a shipped one, matching upstream, then
+    as the shipped family-6 override, then the shared shipped macro."""
+    if name in _ACTION_NAMES:
+        for d in ([_ACTION_DIR] if _ACTION_DIR else []) + _CONFIG_PATH:
+            path = os.path.join(d, f"action.{name}")
+            if os.path.isfile(path):
+                return path
+    for d in _CONFIG_PATH:
+        path = os.path.join(d, f"macro.{name}")
         if os.path.isfile(path):
             return path
     if family == 6:
