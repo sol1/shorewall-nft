@@ -101,10 +101,9 @@ SECTIONS = ("ALL", "ESTABLISHED", "RELATED", "INVALID", "UNTRACKED", "NEW")
 # Macro parameters take Name(PARAM) or the older Name/PARAM form. A
 # log level may carry a tag: ACTION:level:tag. A trailing modifier
 # -, + or ! follows the name: DNAT- omits the filter accept, ACCEPT+
-# excludes the connection from later NAT.
-ACTION_RE = re.compile(r"^(?P<name>[A-Za-z]\w*)(?P<mod>[-+!])?"
-                       r"(\((?P<param>[^)]*)\)|/(?P<sparam>[\w!]+))?"
-                       r"(:(?P<loglevel>\w+)(:(?P<logtag>[\w.-]+))?)?$")
+# excludes the connection from later NAT. Shared with macros.py, which
+# uses the same grammar for action-file body lines.
+ACTION_RE = macros.ACTION_RE
 
 
 # Zone types we handle. ip/ipv4/ipv6 are net zones, firewall is $FW.
@@ -410,17 +409,6 @@ def _disp_and_audit(param, default, line, name):
     return disp, audit
 
 
-def _autobl_rate(count, interval):
-    """The nft rate for count events in interval seconds. Clean intervals map
-    to an nft unit; others are scaled to per-minute with a burst so the window
-    is still honoured."""
-    units = {1: "second", 60: "minute", 3600: "hour", 86400: "day"}
-    if interval in units:
-        return f"{count}/{units[interval]}"
-    per_min = max(1, round(count * 60 / interval))
-    return f"{per_min}/minute burst {count} packets"
-
-
 def _audit_param(param, line, name):
     """A parameter that must be 'audit' or '-' (the fixed-disposition
     wrappers). Returns the audit flag."""
@@ -597,7 +585,7 @@ def _expand_action(line, name, param, src, dst, proto, dport, sport,
             raise line.error("AutoBL needs the nft dynamic-set and meter "
                              "support, added after nft 0.9.0; this nft "
                              "cannot express it")
-        rate = _autobl_rate(int(count), int(interval))
+        rate = macros.rate_for(int(count), int(interval))
         return [Rule(action=disp, source=src[0], dest=dst[0], saddr=src[1],
                      daddr=dst[1], proto=proto, dport=dport, sport=sport,
                      autobl=(event, rate, int(bltime)), origin=origin)]
@@ -608,6 +596,11 @@ def _expand_action(line, name, param, src, dst, proto, dport, sport,
         return [Rule(action="KNOCK", source=src[0], dest=dst[0],
                      saddr=src[1], daddr=dst[1], proto=proto, dport=dport,
                      sport=sport, knock=_parse_knock(name, param, line),
+                     origin=origin)]
+    if name in macros.EVENT_ACTIONS:
+        return [Rule(action="ACCEPT", source=src[0], dest=dst[0],
+                     saddr=src[1], daddr=dst[1], proto=proto, dport=dport,
+                     sport=sport, event=macros.parse_event(name, param, line),
                      origin=origin)]
     if name == "AllowICMPs":
         # A standard Shorewall action that accepts the ICMP types a network
@@ -629,7 +622,8 @@ def _expand_action(line, name, param, src, dst, proto, dport, sport,
             out.append(Rule(action=mr.action, source=szone, dest=dzone,
                             saddr=saddr, daddr=daddr, audit=mr.audit,
                             proto=mr.proto or proto, dport=mr.dport or dport,
-                            sport=mr.sport or sport, origin=origin))
+                            sport=mr.sport or sport, event=mr.event,
+                            origin=origin))
         return out
     raise line.error(f"unsupported action or macro {name}")
 
@@ -909,6 +903,8 @@ def parse_rules(path, variables, fw_zone, family=4, zones=None):
         if name in ("REDIRECT", "DNAT") and section != "NEW":
             raise line.error(f"{name} only allowed in the NEW section")
         if name in ("KNOCK", "KNOCKSEQUENCE") and section != "NEW":
+            raise line.error(f"{name} only allowed in the NEW section")
+        if name in macros.EVENT_ACTIONS and section != "NEW":
             raise line.error(f"{name} only allowed in the NEW section")
 
         if name == "REDIRECT":

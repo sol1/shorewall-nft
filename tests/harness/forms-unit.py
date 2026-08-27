@@ -591,6 +591,120 @@ finally:
 form_rejected("rules: mixed-case knocking action is not native",
               {"rules": "?SECTION NEW\nKnockSequence(7000,8000,tcp) "
                         "net $FW tcp 22\n"})
+# --- rules: SetEvent/ResetEvent/IfEvent, native events backed by nftables
+# dynamic sets (and a meter for a rate-tested IfEvent). Upstream spells
+# these mixed-case; the uppercase form is also accepted. ---
+form_ok("rules: SetEvent declares its event set and adds the source",
+        {"rules": "?SECTION NEW\nSetEvent(TESTEV) net $FW tcp 22\n"},
+        expect="set event_TESTEV {")
+form_ok("rules: SETEVENT (uppercase) is accepted the same as SetEvent",
+        {"rules": "?SECTION NEW\nSETEVENT(TESTEV) net $FW tcp 22\n"},
+        expect="add @event_TESTEV { ip saddr }")
+form_ok("rules: ResetEvent defaults to ACCEPT and deletes the source",
+        {"rules": "?SECTION NEW\nResetEvent(TESTEV) net $FW tcp 22\n"},
+        expect="delete @event_TESTEV { ip saddr } accept")
+form_ok("rules: IfEvent membership test gives the set a timeout",
+        {"rules": "?SECTION NEW\nIfEvent(TESTEV,ACCEPT,60) net $FW tcp 22\n"},
+        expect="flags dynamic, timeout;")
+form_ok("rules: IfEvent membership test matches set membership",
+        {"rules": "?SECTION NEW\nIfEvent(TESTEV,ACCEPT,60) net $FW tcp 22\n"},
+        expect="ip saddr @event_TESTEV accept")
+form_ok("rules: IfEvent without a duration declares an untimed set",
+        {"rules": "?SECTION NEW\nSetEvent(TESTEVB) net $FW tcp 22\n"},
+        expect="flags dynamic;")
+form_ok("rules: IfEvent hitcount>1 is a rate-tested meter",
+        {"rules": "?SECTION NEW\nIfEvent(TESTEV2,DROP,60,5) net $FW tcp 22\n"},
+        expect="limit rate over 5/minute")
+form_ok("rules: IfEvent command:reset deletes on a successful test",
+        {"rules": "?SECTION NEW\nIfEvent(TESTEV3,ACCEPT:info,60,1,src,reset) "
+                  "net $FW tcp 22\n"},
+        expect="ip saddr @event_TESTEV3 delete @event_TESTEV3 "
+               "{ ip saddr }")
+form_ok("rules: IfEvent command:update refreshes the event's entry",
+        {"rules": "?SECTION NEW\nIfEvent(TESTEV4,REJECT:warn:,2,1,-,update) "
+                  "net $FW tcp 22\n"},
+        expect="add @event_TESTEV4 { ip saddr timeout 2s }")
+form_ok("rules: the LOG event action is a COUNT-style no-op with logging",
+        {"rules": "?SECTION NEW\nResetEvent(TESTEV8,LOG:warn) net $FW tcp 22\n"},
+        expect="level warn")
+form_rejected("rules: an invalid event name is a located error",
+              {"rules": "?SECTION NEW\nSetEvent(1bad) net $FW tcp 22\n"})
+form_rejected("rules: IfEvent hitcount>1 needs an explicit duration",
+              {"rules": "?SECTION NEW\nIfEvent(TESTEV5,ACCEPT,,5) "
+                        "net $FW tcp 22\n"})
+form_rejected("rules: IfEvent reset cannot combine with hitcount>1",
+              {"rules": "?SECTION NEW\nIfEvent(TESTEV6,ACCEPT,60,5,src,reset) "
+                        "net $FW tcp 22\n"})
+form_rejected("rules: IfEvent ttl option is not supported yet",
+              {"rules": "?SECTION NEW\n"
+                        "IfEvent(TESTEV7,ACCEPT,60,1,src,check:ttl) "
+                        "net $FW tcp 22\n"})
+form_rejected("rules: a nested action name as an event action is rejected",
+              {"rules": "?SECTION NEW\n"
+                        "IfEvent(TESTEV9,SOMEACTION,60,5,src,check) "
+                        "net $FW tcp 22\n"})
+# --- action-body delegation: SetEvent/ResetEvent/IfEvent work inside a
+# user action file's body, not just directly in rules (github events doc,
+# the port-knock-with-reset worked example: a scan hitting 1599 then 1600
+# then 1601 resets rather than authorizing). ---
+form_ok("actions: a Knock action body reset-guards a real knock",
+        {"actions": "Knock\t\t\t#Port Knocking\n",
+         "action.Knock":
+             "IfEvent(SSH,ACCEPT:info,60,1,src,reset)\t-\t-\ttcp\t22\n"
+             "SetEvent(SSH,ACCEPT)\t-\t-\ttcp\t1600\n"
+             "ResetEvent(SSH,DROP:info)\t-\t-\ttcp\t1599,1601\n",
+         "rules": "?SECTION NEW\nKnock net $FW tcp 22,1599-1601\n"},
+        expect="set event_SSH {")
+form_ok("actions: the knock action's SetEvent line is scoped to port 1600",
+        {"actions": "Knock\t\t\t#Port Knocking\n",
+         "action.Knock":
+             "IfEvent(SSH,ACCEPT:info,60,1,src,reset)\t-\t-\ttcp\t22\n"
+             "SetEvent(SSH,ACCEPT)\t-\t-\ttcp\t1600\n"
+             "ResetEvent(SSH,DROP:info)\t-\t-\ttcp\t1599,1601\n",
+         "rules": "?SECTION NEW\nKnock net $FW tcp 22,1599-1601\n"},
+        expect="add @event_SSH { ip saddr timeout 60s } accept")
+form_ok("actions: the knock action's IfEvent line resets on success",
+        {"actions": "Knock\t\t\t#Port Knocking\n",
+         "action.Knock":
+             "IfEvent(SSH,ACCEPT:info,60,1,src,reset)\t-\t-\ttcp\t22\n"
+             "SetEvent(SSH,ACCEPT)\t-\t-\ttcp\t1600\n"
+             "ResetEvent(SSH,DROP:info)\t-\t-\ttcp\t1599,1601\n",
+         "rules": "?SECTION NEW\nKnock net $FW tcp 22,1599-1601\n"},
+        expect="ip saddr @event_SSH delete @event_SSH { ip saddr }")
+form_ok("actions: an SSH-limiter action body compiles (adapted from the "
+        "docs' SSHLIMIT/SSH_BLACKLIST example, without the nested action "
+        "reference IfEvent's action parameter does not support yet)",
+        {"actions": "SSHLIMIT\t\t\t#test\n",
+         "action.SSHLIMIT":
+             "IfEvent(SSH_COUNTER,REJECT,300,1)\t-\t-\ttcp\t22\n"
+             "IfEvent(SSH,DROP:warn,60,5,src,check)\t-\t-\ttcp\t22\n"
+             "IfEvent(SSH,REJECT:warn:,2,1,-,update)\t-\t-\ttcp\t22\n"
+             "ResetEvent(SSH_COUNTER,LOG:warn,-,Removed)\t-\t-\ttcp\t22\n"
+             "SetEvent(SSH,ACCEPT,src)\t-\t-\ttcp\t22\n",
+         "rules": "?SECTION NEW\nSSHLIMIT net $FW tcp 22\n"},
+        expect="limit rate over 5/minute")
+form_ok("actions: the SSH-limiter's two SSH durations both apply "
+        "correctly (2s membership set timeout, 60s meter window)",
+        {"actions": "SSHLIMIT\t\t\t#test\n",
+         "action.SSHLIMIT":
+             "IfEvent(SSH_COUNTER,REJECT,300,1)\t-\t-\ttcp\t22\n"
+             "IfEvent(SSH,DROP:warn,60,5,src,check)\t-\t-\ttcp\t22\n"
+             "IfEvent(SSH,REJECT:warn:,2,1,-,update)\t-\t-\ttcp\t22\n"
+             "ResetEvent(SSH_COUNTER,LOG:warn,-,Removed)\t-\t-\ttcp\t22\n"
+             "SetEvent(SSH,ACCEPT,src)\t-\t-\ttcp\t22\n",
+         "rules": "?SECTION NEW\nSSHLIMIT net $FW tcp 22\n"},
+        expect="add @event_SSH { ip saddr timeout 2s }")
+form_ok("actions: the SSH-limiter's Removed log override reaches the "
+        "generated ruleset",
+        {"actions": "SSHLIMIT\t\t\t#test\n",
+         "action.SSHLIMIT":
+             "IfEvent(SSH_COUNTER,REJECT,300,1)\t-\t-\ttcp\t22\n"
+             "IfEvent(SSH,DROP:warn,60,5,src,check)\t-\t-\ttcp\t22\n"
+             "IfEvent(SSH,REJECT:warn:,2,1,-,update)\t-\t-\ttcp\t22\n"
+             "ResetEvent(SSH_COUNTER,LOG:warn,-,Removed)\t-\t-\ttcp\t22\n"
+             "SetEvent(SSH,ACCEPT,src)\t-\t-\ttcp\t22\n",
+         "rules": "?SECTION NEW\nSSHLIMIT net $FW tcp 22\n"},
+        expect='Removed:" level warn')
 form_ok("rules: interface then included!excluded together",
         {"rules": "?SECTION NEW\n"
          "ACCEPT net:NET_IF:10.0.0.0/24!10.0.0.5 $FW tcp 22\n"},

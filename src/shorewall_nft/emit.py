@@ -857,6 +857,12 @@ class Emitter:
         self.sets = set()
         # A per-render counter so each AutoBL rule gets a unique meter name.
         self._autobl_n = 0
+        # A per-render counter so each rate-tested IfEvent gets a unique
+        # meter name.
+        self._event_n = 0
+        # event name -> set timeout in seconds (0 means no timeout), computed
+        # by _event_sets() before any rule referencing it renders.
+        self._event_timeouts = {}
         self._knock_names = {
             id(rule): f"knock_{number}"
             for number, rule in enumerate(
@@ -978,6 +984,7 @@ class Emitter:
         if self.sets:
             self.out("")
         self._autobl_sets()
+        self._event_sets()
         self._knock_sets()
         # Named counters for the monitor, declared before the chains that
         # reference them: t_<chain> for traffic through a zone-pair chain,
@@ -1561,6 +1568,49 @@ class Emitter:
             for match in matches:
                 self.out(f"{match} {auth} accept{comment}".strip(), 2)
             return
+        if rule.event:
+            (kind, name, disp, audit, loglevel, logtag, side, duration,
+             hitcount, rate, command, reap, logword) = rule.event
+            side_kw = "saddr" if side == "src" else "daddr"
+            tail = self._event_verdict_stmt(chain, disp, audit, loglevel,
+                                            logtag, logword)
+            for match in matches:
+                m = with_state(match)
+                if kind == "set":
+                    timeout = self._event_timeouts.get(name, 0)
+                    to = f" timeout {timeout}s" if timeout else ""
+                    mutate = f"add @event_{name} {{ {ipkw} {side_kw}{to} }}"
+                    self.out(f"{m} {mutate} {tail}{comment}".strip(), 2)
+                elif kind == "reset":
+                    mutate = f"delete @event_{name} {{ {ipkw} {side_kw} }}"
+                    self.out(f"{m} {mutate} {tail}{comment}".strip(), 2)
+                elif hitcount > 1:
+                    # A rate-tested IfEvent: the meter itself is both the
+                    # test and the sample, so check and update cannot be
+                    # told apart (parse_event already refuses reset/update
+                    # combined with hitcount > 1).
+                    self._event_n += 1
+                    meter = f"event_meter_{self._event_n}"
+                    test = (f"ct state new meter {meter} "
+                            f"{{ {ipkw} {side_kw} limit rate over {rate} }}")
+                    self.out(f"{m} {test} {tail}{comment}".strip(), 2)
+                else:
+                    test = f"{ipkw} {side_kw} @event_{name}"
+                    if command == "reset":
+                        mutate = (f"delete @event_{name} "
+                                 f"{{ {ipkw} {side_kw} }}")
+                        self.out(f"{m} {test} {mutate} {tail}{comment}"
+                                 .strip(), 2)
+                    elif command == "update":
+                        timeout = self._event_timeouts.get(name, 0)
+                        to = f" timeout {timeout}s" if timeout else ""
+                        mutate = (f"add @event_{name} "
+                                 f"{{ {ipkw} {side_kw}{to} }}")
+                        self.out(f"{m} {test} {mutate} {tail}{comment}"
+                                 .strip(), 2)
+                    else:
+                        self.out(f"{m} {test} {tail}{comment}".strip(), 2)
+            return
         verdict = _verdict(rule.action, rule.qparam)
         # Inline passthrough matches sit after the parsed matches and
         # before the verdict.
@@ -1645,6 +1695,53 @@ class Emitter:
             self.out("}", 1)
         if seen:
             self.out("")
+
+    def _event_sets(self):
+        """A dynamic set per named event that SetEvent/ResetEvent manage or
+        a membership-only (hitcount 1) IfEvent tests. The timeout is the
+        longest duration any such IfEvent tests it with, or no timeout (the
+        entry persists until reset) if none does. A rate-tested (hitcount >
+        1) IfEvent uses its own meter instead and needs no set of its own,
+        unless the same event name is also Set/Reset or tested for plain
+        membership elsewhere."""
+        addr_type = "ipv6_addr" if self.cfg.family == 6 else "ipv4_addr"
+        needed = set()
+        timeouts = {}
+        for r in self.cfg.rules:
+            if not r.event:
+                continue
+            kind, name = r.event[0], r.event[1]
+            duration, hitcount = r.event[7], r.event[8]
+            if kind in ("set", "reset"):
+                needed.add(name)
+            elif kind == "if" and hitcount == 1:
+                needed.add(name)
+                if duration:
+                    timeouts[name] = max(timeouts.get(name, 0), duration)
+        self._event_timeouts = timeouts
+        for name in sorted(needed):
+            flags = "dynamic, timeout" if timeouts.get(name) else "dynamic"
+            self.out(f"set event_{name} {{", 1)
+            self.out(f"type {addr_type}; flags {flags};", 2)
+            self.out("}", 1)
+        if needed:
+            self.out("")
+
+    def _event_verdict_stmt(self, chain, disp, audit, loglevel, logtag,
+                            logword):
+        """The log-prefix and verdict for an event action's own disposition.
+        COUNT (the doc's no-op action) has no verdict at all; the packet
+        falls through to the next rule, matching upstream."""
+        log = ""
+        if loglevel:
+            tag = f"{logtag}:" if logtag else ""
+            word = logword or disp
+            log = (f'log prefix "shorewall:{chain}:{word}:{tag}" '
+                   f"level {loglevel} ")
+        elif audit:
+            log = "log level audit "
+        verdict = "" if disp == "COUNT" else _verdict(disp)
+        return f"{log}{verdict}".strip()
 
     def _knock_set_names(self, rule):
         base = self._knock_names[id(rule)]
