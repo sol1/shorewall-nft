@@ -857,6 +857,10 @@ class Emitter:
         self.sets = set()
         # A per-render counter so each AutoBL rule gets a unique meter name.
         self._autobl_n = 0
+        self._knock_names = {
+            id(rule): f"knock_{number}"
+            for number, rule in enumerate(
+                (r for r in cfg.rules if r.knock), 1)}
         # Keep readable priority names where the local nft accepts them; fall
         # back to numbers on an old nft that lacks the names.
         self.named_priority = capabilities.lookup("NFT_NAMED_PRIORITY")
@@ -974,6 +978,7 @@ class Emitter:
         if self.sets:
             self.out("")
         self._autobl_sets()
+        self._knock_sets()
         # Named counters for the monitor, declared before the chains that
         # reference them: t_<chain> for traffic through a zone-pair chain,
         # d_<chain> for what its policy denies.
@@ -1005,6 +1010,7 @@ class Emitter:
         self._ecn_chains()
         self._default_action_chains()
         self._filter_chains()
+        self._knock_prerouting()
         self._nat()
         self._helpers()
         self._rule_helper_objects()
@@ -1543,6 +1549,18 @@ class Emitter:
                    f"level {rule.loglevel} ")
         elif rule.audit:
             log = "log level audit "
+        ipkw = "ip6" if self.cfg.family == 6 else "ip"
+        if rule.knock:
+            names = self._knock_set_names(rule)
+            final = names[-1]
+            auth = f"ct state new {ipkw} saddr @{final}"
+            if not rule.knock[2]:
+                auth += " " + self._knock_mutation(rule, names)
+            if rule.knock[3]:
+                auth += " " + self._knock_log(rule.knock)
+            for match in matches:
+                self.out(f"{match} {auth} accept{comment}".strip(), 2)
+            return
         verdict = _verdict(rule.action, rule.qparam)
         # Inline passthrough matches sit after the parsed matches and
         # before the verdict.
@@ -1555,7 +1573,6 @@ class Emitter:
                                 and rule.helper in IPV4_ONLY_HELPERS):
             proto = HELPER_PROTO.get(rule.helper, rule.proto or "udp")
             helper = f'ct helper set "{_helper_obj_name(rule.helper, proto)}" '
-        ipkw = "ip6" if self.cfg.family == 6 else "ip"
         for match in matches:
             if rule.autobl:
                 # Three rules: enforce (the disposition on an already-
@@ -1628,6 +1645,133 @@ class Emitter:
             self.out("}", 1)
         if seen:
             self.out("")
+
+    def _knock_set_names(self, rule):
+        base = self._knock_names[id(rule)]
+        if len(rule.knock[0]) == 1:
+            return (base,)
+        return tuple(f"{base}_{i}" for i in range(len(rule.knock[0])))
+
+    def _knock_sets(self):
+        """Declare the dynamic timed sets used by native knock actions."""
+        if not self._knock_names:
+            return
+        addr_type = "ipv6_addr" if self.cfg.family == 6 else "ipv4_addr"
+        for rule in self.cfg.rules:
+            if not rule.knock:
+                continue
+            for name in self._knock_set_names(rule):
+                self.out(f"set {name} {{", 1)
+                self.out(f"type {addr_type}; flags dynamic, timeout;", 2)
+                self.out("}", 1)
+        self.out("")
+
+    def _knock_log(self, knock):
+        prefix, group, snaplen, threshold = knock[3]
+        prefix = prefix or "shorewall:knock"
+        parts = [f'log prefix "{prefix}"', f"group {group}"]
+        if snaplen:
+            parts.append(f"snaplen {snaplen}")
+        if threshold:
+            parts.append(f"queue-threshold {threshold}")
+        return " ".join(parts)
+
+    def _knock_source_matches(self, rule):
+        """Return interface/address alternatives for a knock source zone."""
+        ipkw = "ip6" if self.cfg.family == 6 else "ip"
+        if rule.source in ("all", self.cfg.fw_zone):
+            out = []
+            if rule.saddr:
+                out.append(_match_addr(rule.saddr, "saddr", ipkw,
+                                       self.sets, self.ifmap))
+            return [" ".join(out)]
+        out = []
+        for iface, nets in self._zone_sources(rule.source):
+            parts = []
+            if iface != "+":
+                parts.append(_if_match("iifname", iface))
+            if nets:
+                parts.append(f"{ipkw} saddr {_addr_set(nets)}")
+            if rule.saddr:
+                parts.append(_match_addr(rule.saddr, "saddr", ipkw,
+                                         self.sets, self.ifmap))
+            out.append(" ".join(p for p in parts if p))
+        return out or [""]
+
+    def _knock_match(self, rule, step):
+        """Build the pre-DNAT packet match for one knock step."""
+        ipkw = "ip6" if self.cfg.family == 6 else "ip"
+        port, proto = step
+        parts = [p for p in self._knock_source_matches(rule) if p]
+        if rule.origdest:
+            parts.append(f"{ipkw} daddr "
+                         f"{_addr_or_ifaddr(rule.origdest, self.ifmap, self.sets)}")
+        parts += ["ct state new", f"{proto} dport {port}"]
+        return parts
+
+    def _knock_mutation(self, rule, deletes, add=None):
+        """Render set mutations for a source address in packet context."""
+        ipkw = "ip6" if self.cfg.family == 6 else "ip"
+        statements = [f"delete @{name} {{ {ipkw} saddr }}" for name in deletes]
+        if add:
+            name, timeout = add
+            statements.append(f"add @{name} {{ {ipkw} saddr timeout {timeout}s }}")
+        return " ".join(statements)
+
+    def _knock_prerouting(self):
+        """Emit knock state transitions before destination NAT."""
+        if not self._knock_names:
+            return
+        self.out("")
+        self.out("chain knock_prerouting {", 1)
+        self.out(f"type filter hook prerouting priority {self._prio('mangle')};",
+                 2)
+        for rule in self.cfg.rules:
+            if not rule.knock:
+                continue
+            steps, timeout, _reusable, nflog = rule.knock
+            names = self._knock_set_names(rule)
+            # The first knock always starts (or restarts) the sequence. This
+            # also gives 7000 after an out-of-order reset its fresh-start
+            # behavior without affecting unrelated ports.
+            first = self._knock_match(rule, steps[0])
+            body = self._knock_mutation(rule, names, (names[0], timeout))
+            if nflog:
+                body = self._knock_log(rule.knock) + " " + body
+            self.out(" ".join(first + [body, "drop"]), 2)
+            for index in range(1, len(steps)):
+                expected = self._knock_match(rule, steps[index])
+                expected.insert(0, f"ip saddr @{names[index - 1]}")
+                body = self._knock_mutation(
+                    rule, names[:index], (names[index], timeout))
+                if nflog:
+                    body = self._knock_log(rule.knock) + " " + body
+                self.out(" ".join(expected + [body, "drop"]), 2)
+
+            # A repeated completed step refreshes its stage. Other known
+            # sequence ports reset the state; the first port restarts it.
+            for index, (port, proto) in enumerate(steps):
+                current = self._knock_match(rule, (port, proto))
+                current.insert(0, f"ip saddr @{names[index]}")
+                body = self._knock_mutation(
+                    rule, names[:index] + names[index + 1:],
+                    (names[index], timeout))
+                if nflog:
+                    body = self._knock_log(rule.knock) + " " + body
+                self.out(" ".join(current + [body, "drop"]), 2)
+                for reset_port, reset_proto in steps:
+                    if reset_port == port and reset_proto == proto:
+                        continue
+                    reset = self._knock_match(rule, (reset_port, reset_proto))
+                    reset.insert(0, f"ip saddr @{names[index]}")
+                    add = (names[0], timeout) if reset_port == steps[0][0] \
+                        and reset_proto == steps[0][1] else None
+                    body = self._knock_mutation(rule, names, add)
+                    if nflog:
+                        body = self._knock_log(rule.knock) + " " + body
+                    self.out(" ".join(reset + [body, "drop"]), 2)
+        self.out("}", 1)
+        self.out("")
 
     def _rule_helper_objects(self):
         """ct helper objects for helpers a rule assigns with {HELPER=name}

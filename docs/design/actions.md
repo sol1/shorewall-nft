@@ -56,6 +56,10 @@ Every standard action falls into one of three groups.
    is the same per-source rate mechanism and could join it; today it points
    at the RATE LIMIT column.
 
+   `KNOCK` and `KNOCKSEQUENCE` are native nftables actions rather than
+   implementations of the general Shorewall Events interface. See
+   `docs/knocking.md` for their state-machine syntax and limitations.
+
 ## AllowICMPs
 
 The first native action, and the one bug #14 asked for. It accepts the ICMP
