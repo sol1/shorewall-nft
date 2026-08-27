@@ -46,9 +46,9 @@ Every standard action falls into one of three groups.
    is.
 
 3. Not expressible. Needs connection events, the ipset dynamic blacklist, or
-   an embedded Perl body: `IfEvent`, `SetEvent`, `ResetEvent`, `BLACKLIST`,
-   `DNSAmp`, `forwardUPnP`, `allowinUPnP`. These fail loud with a located
-   error naming the action, never a silently wrong ruleset.
+   an embedded Perl body: `BLACKLIST`, `DNSAmp`, `forwardUPnP`,
+   `allowinUPnP`. These fail loud with a located error naming the action,
+   never a silently wrong ruleset.
 
    `AutoBL` looked inexpressible because upstream builds it from the recent
    module and events, but nft expresses auto-blacklisting directly with a
@@ -59,6 +59,11 @@ Every standard action falls into one of three groups.
    `KNOCK` and `KNOCKSEQUENCE` are native nftables actions rather than
    implementations of the general Shorewall Events interface. See
    `docs/knocking.md` for their state-machine syntax and limitations.
+
+   `SetEvent`, `ResetEvent` and `IfEvent` (also `SETEVENT`/`RESETEVENT`/
+   `IFEVENT`) are now native too, backed by nftables dynamic sets and, for
+   a rate test, a meter. See `docs/events.md` for the syntax and the
+   documented divergences from upstream's `xt_recent`-based semantics.
 
 ## AllowICMPs
 
@@ -134,10 +139,11 @@ macro, also loads instead of producing an unloadable rule.
    0.9.0 (Debian 10) cannot parse the meter and dynamic-set add, so AutoBL is
    refused there with a located error, capability NFT_AUTOBL, the same as
    NETMAP and the ipsec match.
-7. The fail-loud audit for the rest of the not-expressible set (`allowinUPnP`,
-   `forwardUPnP`, `IfEvent`, `SetEvent`, `ResetEvent`, `DNSAmp`), each named
-   in a located error instead of the generic "unsupported action or macro",
-   and this doc's list kept in step with the code.
+7. Done. `KNOCK`/`KNOCKSEQUENCE` (docs/knocking.md) and `SetEvent`/
+   `ResetEvent`/`IfEvent` (docs/events.md) are native. The remaining
+   not-expressible set (`allowinUPnP`, `forwardUPnP`, `DNSAmp`) still fails
+   loud with a located error instead of the generic "unsupported action or
+   macro", and this doc's list is kept in step with the code.
 
 ## Comparison with upstream
 

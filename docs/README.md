@@ -21,6 +21,7 @@ Start with what you want to do.
 - [Multi-ISP failover](failover.md)
 - [GeoIP](geoip.md)
 - [Port knocking](knocking.md)
+- [Events (SetEvent/ResetEvent/IfEvent)](events.md)
 - [Raw nft passthrough](passthrough.md)
 
 ## Packaging and distros
