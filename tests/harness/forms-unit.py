@@ -550,6 +550,47 @@ try:
                   {"rules": "?SECTION NEW\n" + _AB})
 finally:
     capabilities.CAPABILITIES["NFT_AUTOBL"] = True
+    # --- rules: native port knocking. Knock packets are handled in an early
+    # prerouting chain and the protected service is gated in the zone chain. ---
+    form_ok("rules: TCP Knock declares and updates its state set",
+        {"rules": "?SECTION NEW\nKNOCK(7000,tcp,timeout=30) net $FW tcp 22\n"},
+        expect="set knock_1 {")
+    form_ok("rules: UDP Knock uses the knock protocol independently",
+        {"rules": "?SECTION NEW\nKNOCK(7000,udp,timeout=30) net $FW tcp 22\n"},
+        expect="udp dport 7000")
+    form_ok("rules: Knock gates the protected service",
+        {"rules": "?SECTION NEW\nKNOCK(7000,tcp,timeout=30) net $FW tcp 22\n"},
+        expect="tcp dport 22 ct state new ip saddr @knock_1 accept")
+    form_ok("rules: Knock reusable=no consumes authorization",
+        {"rules": "?SECTION NEW\nKNOCK(7000,tcp,timeout=30,reusable=no) "
+               "net $FW tcp 22\n"},
+        expect="delete @knock_1 { ip saddr }")
+    form_ok("rules: uniform TCP KnockSequence parses",
+        {"rules": "?SECTION NEW\nKNOCKSEQUENCE(7000,8000,9000,tcp,timeout=30) "
+               "net $FW tcp 22\n"},
+        expect="tcp dport 8000")
+    form_ok("rules: mixed TCP and UDP KnockSequence parses",
+        {"rules": "?SECTION NEW\nKNOCKSEQUENCE(7000,tcp,8000,udp,9000,tcp,"
+               "timeout=30) net $FW tcp 22\n"},
+        expect="udp dport 8000")
+    form_ok("rules: KnockSequence accepts a prefixed NFLOG",
+        {"rules": "?SECTION NEW\nKNOCKSEQUENCE(7000,8000,tcp,timeout=30,"
+               "nflog=security-knock:5:128:1) net $FW tcp 22\n"},
+        expect='log prefix "security-knock" group 5 snaplen 128 '
+               "queue-threshold 1")
+    form_ok("rules: Knock accepts an unprefixed NFLOG",
+        {"rules": "?SECTION NEW\nKNOCK(7000,tcp,timeout=30,nflog=5:128:1) "
+               "net $FW tcp 22\n"},
+        expect='log prefix "shorewall:knock" group 5 snaplen 128 '
+               "queue-threshold 1")
+    form_rejected("rules: incomplete mixed KNOCKSEQUENCE is rejected",
+              {"rules": "?SECTION NEW\nKNOCKSEQUENCE(7000,udp,8000,9000,tcp,"
+                "timeout=30) net $FW tcp 22\n"})
+    form_rejected("rules: KNOCK rejects an invalid protocol",
+              {"rules": "?SECTION NEW\nKNOCK(7000,icmp) net $FW tcp 22\n"})
+form_rejected("rules: mixed-case knocking action is not native",
+              {"rules": "?SECTION NEW\nKnockSequence(7000,8000,tcp) "
+                        "net $FW tcp 22\n"})
 form_ok("rules: interface then included!excluded together",
         {"rules": "?SECTION NEW\n"
          "ACCEPT net:NET_IF:10.0.0.0/24!10.0.0.5 $FW tcp 22\n"},

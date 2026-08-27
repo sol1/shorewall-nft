@@ -15,3 +15,4 @@ debian/shorewall-nft-lite/
 debian/*.debhelper
 debian/*.debhelper.log
 debian/*.substvars
+build/
