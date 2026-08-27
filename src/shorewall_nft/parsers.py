@@ -101,10 +101,9 @@ SECTIONS = ("ALL", "ESTABLISHED", "RELATED", "INVALID", "UNTRACKED", "NEW")
 # Macro parameters take Name(PARAM) or the older Name/PARAM form. A
 # log level may carry a tag: ACTION:level:tag. A trailing modifier
 # -, + or ! follows the name: DNAT- omits the filter accept, ACCEPT+
-# excludes the connection from later NAT.
-ACTION_RE = re.compile(r"^(?P<name>[A-Za-z]\w*)(?P<mod>[-+!])?"
-                       r"(\((?P<param>[^)]*)\)|/(?P<sparam>[\w!]+))?"
-                       r"(:(?P<loglevel>\w+)(:(?P<logtag>[\w.-]+))?)?$")
+# excludes the connection from later NAT. Shared with macros.py, which
+# uses the same grammar for action-file body lines.
+ACTION_RE = macros.ACTION_RE
 
 
 # Zone types we handle. ip/ipv4/ipv6 are net zones, firewall is $FW.
@@ -410,17 +409,6 @@ def _disp_and_audit(param, default, line, name):
     return disp, audit
 
 
-def _autobl_rate(count, interval):
-    """The nft rate for count events in interval seconds. Clean intervals map
-    to an nft unit; others are scaled to per-minute with a burst so the window
-    is still honoured."""
-    units = {1: "second", 60: "minute", 3600: "hour", 86400: "day"}
-    if interval in units:
-        return f"{count}/{units[interval]}"
-    per_min = max(1, round(count * 60 / interval))
-    return f"{per_min}/minute burst {count} packets"
-
-
 def _audit_param(param, line, name):
     """A parameter that must be 'audit' or '-' (the fixed-disposition
     wrappers). Returns the audit flag."""
@@ -597,10 +585,23 @@ def _expand_action(line, name, param, src, dst, proto, dport, sport,
             raise line.error("AutoBL needs the nft dynamic-set and meter "
                              "support, added after nft 0.9.0; this nft "
                              "cannot express it")
-        rate = _autobl_rate(int(count), int(interval))
+        rate = macros.rate_for(int(count), int(interval))
         return [Rule(action=disp, source=src[0], dest=dst[0], saddr=src[1],
                      daddr=dst[1], proto=proto, dport=dport, sport=sport,
                      autobl=(event, rate, int(bltime)), origin=origin)]
+    if name in ("KNOCK", "KNOCKSEQUENCE"):
+        if not proto or not dport:
+            raise line.error(f"{name} needs the protected service PROTO and "
+                             "DPORT columns")
+        return [Rule(action="KNOCK", source=src[0], dest=dst[0],
+                     saddr=src[1], daddr=dst[1], proto=proto, dport=dport,
+                     sport=sport, knock=_parse_knock(name, param, line),
+                     origin=origin)]
+    if name in macros.EVENT_ACTIONS:
+        return [Rule(action="ACCEPT", source=src[0], dest=dst[0],
+                     saddr=src[1], daddr=dst[1], proto=proto, dport=dport,
+                     sport=sport, event=macros.parse_event(name, param, line),
+                     origin=origin)]
     if name == "AllowICMPs":
         # A standard Shorewall action that accepts the ICMP types a network
         # needs: IPv6 neighbour discovery and router advertisement, IPv4 path
@@ -621,12 +622,106 @@ def _expand_action(line, name, param, src, dst, proto, dport, sport,
             out.append(Rule(action=mr.action, source=szone, dest=dzone,
                             saddr=saddr, daddr=daddr, audit=mr.audit,
                             proto=mr.proto or proto, dport=mr.dport or dport,
-                            sport=mr.sport or sport, origin=origin))
+                            sport=mr.sport or sport, event=mr.event,
+                            origin=origin))
         return out
     raise line.error(f"unsupported action or macro {name}")
 
 
 _SERVICE = re.compile(r"^[A-Za-z][A-Za-z0-9/+._-]*$")
+
+
+_KNOCK_PROTOCOLS = {"tcp", "udp"}
+
+
+def _parse_knock_nflog(value, line):
+    """Parse PREFIX:GROUP:SNAPLEN:QUEUE_THRESHOLD, with an optional prefix.
+
+    A numeric first component means that the prefix was omitted. Prefixes are
+    deliberately safe nft log-prefix text; their spelling has no reserved
+    meaning, so names such as 'stage' remain ordinary user labels.
+    """
+    parts = [p.strip() for p in value.split(":")]
+    prefix = ""
+    if parts and not parts[0].isdigit():
+        prefix = parts.pop(0)
+        if not prefix or '"' in prefix or "\\" in prefix:
+            raise line.error("NFLOG prefix contains an unsafe character")
+    if not 1 <= len(parts) <= 3 or not all(p.isdigit() for p in parts):
+        raise line.error("NFLOG must be [prefix:]group[:snaplen[:threshold]]")
+    numbers = [int(p) for p in parts]
+    if not 0 <= numbers[0] <= 65535:
+        raise line.error("NFLOG group must be 0 to 65535")
+    if len(numbers) > 1 and numbers[1] < 0:
+        raise line.error("NFLOG snaplen must not be negative")
+    if len(numbers) > 2 and numbers[2] < 0:
+        raise line.error("NFLOG queue threshold must not be negative")
+    return (prefix, numbers[0], numbers[1] if len(numbers) > 1 else 0,
+            numbers[2] if len(numbers) > 2 else 0)
+
+
+def _parse_knock(name, param, line):
+    """Parse a native KNOCK or KNOCKSEQUENCE action specification."""
+    parts = [p.strip() for p in param.split(",")] if param else []
+    options = {}
+    positional = []
+    for part in parts:
+        if not part:
+            raise line.error(f"{name} contains an empty parameter")
+        key, sep, value = part.partition("=")
+        if sep:
+            key = key.strip().lower()
+            if key in options:
+                raise line.error(f"{name} option {key} is repeated")
+            if key not in ("timeout", "reusable", "nflog"):
+                raise line.error(f"unsupported {name} option {key}")
+            options[key] = value.strip()
+        else:
+            positional.append(part.lower())
+
+    timeout = options.get("timeout", "30")
+    if not timeout.isdigit() or int(timeout) <= 0:
+        raise line.error(f"{name} timeout must be a positive number")
+    reusable = options.get("reusable", "yes").lower()
+    if reusable not in ("yes", "no"):
+        raise line.error(f"{name} reusable must be yes or no")
+
+    nflog = ()
+    if "nflog" in options:
+        nflog = _parse_knock_nflog(options["nflog"], line)
+
+    if name == "KNOCK":
+        if len(positional) < 1 or not positional[0].isdigit():
+            raise line.error("KNOCK needs a port number")
+        if len(positional) != 2 or positional[1] not in _KNOCK_PROTOCOLS:
+            raise line.error("KNOCK needs PORT,tcp or PORT,udp")
+        steps = ((int(positional[0]), positional[1]),)
+    else:
+        if len(positional) < 2:
+            raise line.error("KNOCKSEQUENCE needs at least two ports")
+        if all(p.isdigit() for p in positional[:-1]) and \
+                positional[-1] in _KNOCK_PROTOCOLS:
+            protocol = positional[-1]
+            ports = positional[:-1]
+            if not all(p.isdigit() and 1 <= int(p) <= 65535
+                       for p in ports):
+                raise line.error("KNOCKSEQUENCE ports must be 1 to 65535")
+            steps = tuple((int(p), protocol) for p in ports)
+        else:
+            if len(positional) % 2:
+                raise line.error("KNOCKSEQUENCE mixed syntax needs a protocol "
+                                 "after every port")
+            steps = []
+            for port, protocol in zip(positional[::2], positional[1::2]):
+                if not port.isdigit() or not 1 <= int(port) <= 65535:
+                    raise line.error("KNOCKSEQUENCE ports must be 1 to 65535")
+                if protocol not in _KNOCK_PROTOCOLS:
+                    raise line.error("KNOCKSEQUENCE protocol must be tcp or udp")
+                steps.append((int(port), protocol))
+            steps = tuple(steps)
+        if any(not 1 <= port <= 65535 for port, _ in steps):
+            raise line.error("KNOCKSEQUENCE ports must be 1 to 65535")
+    return (steps, int(timeout), reusable == "yes", nflog)
 
 
 def _redirect_port(to_port, line):
@@ -806,6 +901,10 @@ def parse_rules(path, variables, fw_zone, family=4, zones=None):
             return cols[n] if len(cols) > n and cols[n] != "-" else ""
 
         if name in ("REDIRECT", "DNAT") and section != "NEW":
+            raise line.error(f"{name} only allowed in the NEW section")
+        if name in ("KNOCK", "KNOCKSEQUENCE") and section != "NEW":
+            raise line.error(f"{name} only allowed in the NEW section")
+        if name in macros.EVENT_ACTIONS and section != "NEW":
             raise line.error(f"{name} only allowed in the NEW section")
 
         if name == "REDIRECT":

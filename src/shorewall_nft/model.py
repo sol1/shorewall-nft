@@ -72,6 +72,8 @@ class Rule:
     tcpflags: str = ""        # a raw tcp flags match, e.g. tcp flags & rst == rst
     helper: str = ""          # conntrack helper to assign, from {HELPER=name}
     autobl: tuple = ()        # AutoBL: (event, nft rate, blacklist seconds)
+    knock: tuple = ()         # KNOCK: (steps, timeout, reusable, nflog)
+    event: tuple = ()         # SetEvent/ResetEvent/IfEvent, see macros.parse_event
     section: str = "NEW"      # rules file section
     inline: str = ""          # raw nft appended after the matches
     inline_full: bool = False # inline is the whole body incl the verdict
