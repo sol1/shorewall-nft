@@ -591,6 +591,45 @@ finally:
 form_rejected("rules: mixed-case knocking action is not native",
               {"rules": "?SECTION NEW\nKnockSequence(7000,8000,tcp) "
                         "net $FW tcp 22\n"})
+
+# KNOCK and Events use dynamic sets, and a rate-tested IfEvent a meter, the
+# same nft support AutoBL needs, so they are refused on an nft too old for it.
+capabilities.CAPABILITIES["NFT_AUTOBL"] = False
+try:
+    form_rejected("rules: KNOCK is refused where nft lacks dynamic-set support",
+                  {"rules": "?SECTION NEW\nKNOCK(7000,tcp) net $FW tcp 22\n"})
+    form_rejected("rules: SetEvent is refused where nft lacks the support",
+                  {"rules": "?SECTION NEW\nSetEvent(EV) net $FW tcp 22\n"})
+finally:
+    capabilities.CAPABILITIES["NFT_AUTOBL"] = True
+
+# A knock is emitted with the family's address keyword: IPv6 uses ip6 saddr,
+# not ip saddr, so the ruleset loads in an ip6 table.
+form_ok("rules: an IPv6 KNOCK uses ip6 saddr and loads",
+        {"zones": "fw firewall\nnet ipv6\n",
+         "interfaces": "?FORMAT 2\nnet eth0\n",
+         "policy": "$FW net ACCEPT\nnet all DROP\nall all REJECT\n",
+         "rules": "?SECTION NEW\nKNOCKSEQUENCE(7000,8000,tcp) net $FW tcp 22\n"},
+        family=6, expect="ip6 saddr @knock_1_0")
+
+# A KNOCK from a source zone spanning several interfaces fans out to one rule
+# per interface, not one rule that ANDs the interfaces and matches nothing.
+d = build({"interfaces": "?FORMAT 2\nnet eth0\nnet eth1\n",
+           "rules": "?SECTION NEW\nKNOCK(7000,tcp) net $FW tcp 22\n"})
+try:
+    text = render(load(d, 4))
+    if 'iifname "eth0"' in text and 'iifname "eth1"' in text \
+            and text.count("dport 7000") >= 2:
+        ok("rules: a multi-interface KNOCK source fans out per interface")
+    else:
+        bad("multi-interface KNOCK", "did not fan out per interface")
+except Exception as e:                                   # noqa: BLE001
+    bad("multi-interface KNOCK", f"{type(e).__name__}: {str(e)[:80]}")
+finally:
+    shutil.rmtree(d)
+
+form_rejected("rules: a KNOCK port out of range is refused",
+              {"rules": "?SECTION NEW\nKNOCK(99999,tcp) net $FW tcp 22\n"})
 # --- rules: SetEvent/ResetEvent/IfEvent, native events backed by nftables
 # dynamic sets (and a meter for a rate-tested IfEvent). Upstream spells
 # these mixed-case; the uppercase form is also accepted. ---

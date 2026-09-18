@@ -593,11 +593,24 @@ def _expand_action(line, name, param, src, dst, proto, dport, sport,
         if not proto or not dport:
             raise line.error(f"{name} needs the protected service PROTO and "
                              "DPORT columns")
+        if not capabilities.lookup("NFT_AUTOBL"):
+            # KNOCK is a dynamic-timed-set state machine, the same nft support
+            # AutoBL needs, added after nft 0.9.0. Refuse rather than emit a
+            # ruleset that cannot load.
+            raise line.error(f"{name} needs the nft dynamic-set support, added "
+                             "after nft 0.9.0; this nft cannot express it")
         return [Rule(action="KNOCK", source=src[0], dest=dst[0],
                      saddr=src[1], daddr=dst[1], proto=proto, dport=dport,
                      sport=sport, knock=_parse_knock(name, param, line),
                      origin=origin)]
     if name in macros.EVENT_ACTIONS:
+        if not capabilities.lookup("NFT_AUTOBL"):
+            # Events are backed by a dynamic set, and a rate-tested IfEvent by
+            # a meter, the same nft support AutoBL needs. Refuse rather than
+            # emit a ruleset that cannot load.
+            raise line.error(f"{name} needs the nft dynamic-set and meter "
+                             "support, added after nft 0.9.0; this nft cannot "
+                             "express it")
         return [Rule(action="ACCEPT", source=src[0], dest=dst[0],
                      saddr=src[1], daddr=dst[1], proto=proto, dport=dport,
                      sport=sport, event=macros.parse_event(name, param, line),
@@ -695,6 +708,8 @@ def _parse_knock(name, param, line):
             raise line.error("KNOCK needs a port number")
         if len(positional) != 2 or positional[1] not in _KNOCK_PROTOCOLS:
             raise line.error("KNOCK needs PORT,tcp or PORT,udp")
+        if not 1 <= int(positional[0]) <= 65535:
+            raise line.error("KNOCK port must be 1 to 65535")
         steps = ((int(positional[0]), positional[1]),)
     else:
         if len(positional) < 2:
