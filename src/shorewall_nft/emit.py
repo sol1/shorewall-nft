@@ -1795,16 +1795,24 @@ class Emitter:
             out.append(" ".join(p for p in parts if p))
         return out or [""]
 
-    def _knock_match(self, rule, step):
-        """Build the pre-DNAT packet match for one knock step."""
+    def _knock_emit_rule(self, rule, step, prefix, body):
+        """Emit one prerouting rule per source-zone alternative for a knock
+        step. prefix is the leading saddr-set membership match ("" for the
+        first knock), body the set mutations. Fans out over a source zone that
+        spans several interfaces, rather than ANDing them into one dead rule."""
         ipkw = "ip6" if self.cfg.family == 6 else "ip"
         port, proto = step
-        parts = [p for p in self._knock_source_matches(rule) if p]
+        tail = []
         if rule.origdest:
-            parts.append(f"{ipkw} daddr "
-                         f"{_addr_or_ifaddr(rule.origdest, self.ifmap, self.sets)}")
-        parts += ["ct state new", f"{proto} dport {port}"]
-        return parts
+            tail.append(f"{ipkw} daddr "
+                        f"{_addr_or_ifaddr(rule.origdest, self.ifmap, self.sets)}")
+        tail += ["ct state new", f"{proto} dport {port}"]
+        if rule.knock[3]:
+            body = self._knock_log(rule.knock) + " " + body
+        for src in self._knock_source_matches(rule):
+            parts = ([prefix] if prefix else []) + \
+                    ([src] if src else []) + tail + [body, "drop"]
+            self.out(" ".join(parts), 2)
 
     def _knock_mutation(self, rule, deletes, add=None):
         """Render set mutations for a source address in packet context."""
@@ -1819,6 +1827,7 @@ class Emitter:
         """Emit knock state transitions before destination NAT."""
         if not self._knock_names:
             return
+        ipkw = "ip6" if self.cfg.family == 6 else "ip"
         self.out("")
         self.out("chain knock_prerouting {", 1)
         self.out(f"type filter hook prerouting priority {self._prio('mangle')};",
@@ -1826,47 +1835,33 @@ class Emitter:
         for rule in self.cfg.rules:
             if not rule.knock:
                 continue
-            steps, timeout, _reusable, nflog = rule.knock
+            steps, timeout, _reusable, _nflog = rule.knock
             names = self._knock_set_names(rule)
             # The first knock always starts (or restarts) the sequence. This
-            # also gives 7000 after an out-of-order reset its fresh-start
-            # behavior without affecting unrelated ports.
-            first = self._knock_match(rule, steps[0])
-            body = self._knock_mutation(rule, names, (names[0], timeout))
-            if nflog:
-                body = self._knock_log(rule.knock) + " " + body
-            self.out(" ".join(first + [body, "drop"]), 2)
+            # also gives the first port, after an out-of-order reset, its
+            # fresh-start behaviour without affecting unrelated ports.
+            self._knock_emit_rule(
+                rule, steps[0], "",
+                self._knock_mutation(rule, names, (names[0], timeout)))
             for index in range(1, len(steps)):
-                expected = self._knock_match(rule, steps[index])
-                expected.insert(0, f"ip saddr @{names[index - 1]}")
-                body = self._knock_mutation(
-                    rule, names[:index], (names[index], timeout))
-                if nflog:
-                    body = self._knock_log(rule.knock) + " " + body
-                self.out(" ".join(expected + [body, "drop"]), 2)
-
-            # A repeated completed step refreshes its stage. Other known
-            # sequence ports reset the state; the first port restarts it.
-            for index, (port, proto) in enumerate(steps):
-                current = self._knock_match(rule, (port, proto))
-                current.insert(0, f"ip saddr @{names[index]}")
-                body = self._knock_mutation(
-                    rule, names[:index] + names[index + 1:],
-                    (names[index], timeout))
-                if nflog:
-                    body = self._knock_log(rule.knock) + " " + body
-                self.out(" ".join(current + [body, "drop"]), 2)
-                for reset_port, reset_proto in steps:
-                    if reset_port == port and reset_proto == proto:
+                self._knock_emit_rule(
+                    rule, steps[index], f"{ipkw} saddr @{names[index - 1]}",
+                    self._knock_mutation(rule, names[:index],
+                                         (names[index], timeout)))
+            # A repeated completed step refreshes its stage. Any other known
+            # sequence port resets the state; the first port restarts it.
+            for index, step in enumerate(steps):
+                self._knock_emit_rule(
+                    rule, step, f"{ipkw} saddr @{names[index]}",
+                    self._knock_mutation(rule, names[:index] + names[index + 1:],
+                                         (names[index], timeout)))
+                for reset_step in steps:
+                    if reset_step == step:
                         continue
-                    reset = self._knock_match(rule, (reset_port, reset_proto))
-                    reset.insert(0, f"ip saddr @{names[index]}")
-                    add = (names[0], timeout) if reset_port == steps[0][0] \
-                        and reset_proto == steps[0][1] else None
-                    body = self._knock_mutation(rule, names, add)
-                    if nflog:
-                        body = self._knock_log(rule.knock) + " " + body
-                    self.out(" ".join(reset + [body, "drop"]), 2)
+                    add = (names[0], timeout) if reset_step == steps[0] else None
+                    self._knock_emit_rule(
+                        rule, reset_step, f"{ipkw} saddr @{names[index]}",
+                        self._knock_mutation(rule, names, add))
         self.out("}", 1)
         self.out("")
 
