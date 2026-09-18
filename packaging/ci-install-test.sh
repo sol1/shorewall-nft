@@ -28,15 +28,28 @@ if [ "$kind" = deb ]; then
             sed -i 's|http://security.ubuntu.com|http://old-releases.ubuntu.com|g' /etc/apt/sources.list ;;
     esac
     export DEBIAN_FRONTEND=noninteractive
-    apt-get update -qq
     # The build produces two packages: the compiler and the lite runtime.
     # apt resolves the dependencies; fall back to dpkg plus a fix-up for very
     # old apt that cannot install a local file.
     install_deb() {
         apt-get install -y "./$1" || { dpkg -i "$1" || true; apt-get install -y -f; }
     }
-    install_deb "$(ls dist/shorewall-nft_*_all.deb)"
-    install_deb "$(ls dist/shorewall-nft-lite_*_all.deb)"
+    # debian-security mirrors skew briefly after a point release: the refreshed
+    # Packages index names a .deb the hit CDN backend has not published yet, so
+    # a dependency fetch 404s. Refresh and retry; a later try lands on a synced
+    # backend. The skew is in the mirror, not our package.
+    n=0
+    until apt-get update -qq \
+            && install_deb "$(ls dist/shorewall-nft_*_all.deb)" \
+            && install_deb "$(ls dist/shorewall-nft-lite_*_all.deb)"; do
+        n=$((n + 1))
+        if [ "$n" -ge 4 ]; then
+            echo "apt install still failing after $n tries; giving up" >&2
+            exit 1
+        fi
+        echo "apt install attempt $n hit a transient mirror error; retrying" >&2
+        sleep 15
+    done
 else
     # Both rpms install together; they own different files and do not conflict.
     if command -v dnf >/dev/null 2>&1; then
