@@ -1091,6 +1091,22 @@ except Exception as e:                                   # noqa: BLE001
 finally:
     shutil.rmtree(d)
 
+# --- a params assignment with an inline # comment or a trailing ; must not
+#     leak the comment or semicolon into the value, the way a shell reads it.
+#     Shorewall on iptables sourced params through the shell (github #33) ---
+d = build({"params": 'PORTS="22,80" # web and ssh\nMORE="$PORTS,443"; # tls\n',
+           "rules": "?SECTION NEW\nACCEPT net $FW tcp $MORE\n"})
+try:
+    text = render(load(d, 4))
+    if "tcp dport { 22, 80, 443 } accept" in text:
+        ok("params: an inline comment and a trailing ; are stripped")
+    else:
+        bad("params comment", "the comment or semicolon leaked into the value")
+except Exception as e:                                   # noqa: BLE001
+    bad("params comment", f"{type(e).__name__}: {str(e)[:100]}")
+finally:
+    shutil.rmtree(d)
+
 # --- a clean install has no configuration. load must say so with a located
 #     ConfigError, not a FileNotFoundError traceback, so `shorewall check` on
 #     a fresh box prints a clean message and exits non-zero ---

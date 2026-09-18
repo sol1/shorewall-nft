@@ -256,6 +256,29 @@ def split_columns(text, path=None, lineno=None):
     return merged
 
 
+def _strip_shell_comment(text):
+    """Drop an inline # comment and a trailing semicolon from an assignment's
+    value, the way a shell reads it. A # starts a comment only outside quotes
+    and at the start of a word (preceded by whitespace), so a # inside quotes,
+    or joined to the value with no space, stays literal. A trailing ; that ends
+    the assignment is dropped too. Shorewall on iptables sourced these files
+    through the shell, so a config that relies on this keeps working."""
+    quote = ""
+    for i, c in enumerate(text):
+        if quote:
+            if c == quote:
+                quote = ""
+        elif c in "\"'":
+            quote = c
+        elif c == "#" and (i == 0 or text[i - 1].isspace()):
+            text = text[:i]
+            break
+    text = text.rstrip()
+    if text.endswith(";"):
+        text = text[:-1].rstrip()
+    return text
+
+
 def read_simple_vars(path, depth=0, variables=None):
     """Read KEY=VALUE lines from params or shorewall.conf. Sourcing
     lines (. or source) follow the referenced file by basename in the
@@ -287,7 +310,8 @@ def read_simple_vars(path, depth=0, variables=None):
             m = assign.match(line)
             if not m:
                 continue
-            key, value = m.group(1), m.group(2).strip()
+            key = m.group(1)
+            value = _strip_shell_comment(m.group(2).strip())
             if value[:1] in "\"'" and value[-1:] == value[:1]:
                 value = value[1:-1]
             variables[key] = VAR_RE.sub(sub, value)
