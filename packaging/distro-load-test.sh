@@ -15,6 +15,12 @@ case "$ID:$VERSION_CODENAME" in
     echo "deb http://archive.debian.org/debian ${VERSION_CODENAME} main" \
         > /etc/apt/sources.list
     echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no ;;
+  debian:bullseye)
+    # Bullseye reached end of life; its bullseye-security suite was removed
+    # and those .debs now 404. The main suite still serves, so drop -security
+    # and resolve the deps from bullseye main.
+    sed -i '/security/d' /etc/apt/sources.list
+    echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no ;;
 esac
 apt-get update -qq >/dev/null 2>&1
 # netbase provides /etc/protocols; old nft resolves ipv6-icmp through it, and
