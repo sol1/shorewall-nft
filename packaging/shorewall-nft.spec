@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.3.6
+Version:        0.3.7
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -177,6 +177,19 @@ exit 0
 %systemd_postun shorewall6-lite.service
 
 %changelog
+* Sat Sep 19 2026 Dave Kempe <dave@sol1.com.au> - 0.3.7-1
+- Port knocking is implemented natively. KNOCK and KNOCKSEQUENCE record a
+  source's progress through a port sequence in nftables dynamic timed sets,
+  and gate the protected service on the final port. An IPv6 knock matches on
+  ip6 saddr, a knock listening on several interfaces fans out one rule per
+  interface, and a knock port outside 1 to 65535 is a located error (#31).
+- Events are implemented natively. SetEvent, ResetEvent and IfEvent record and
+  test a source in a dynamic set, and an IfEvent with a hitcount above one
+  becomes a rate-tested meter. Knocking and events are refused where nft has no
+  dynamic-set support, instead of emitting a ruleset that will not load (#31).
+- A params or shorewall.conf setting has an inline comment and a trailing
+  semicolon stripped from its value, so a commented-out fragment no longer
+  leaks into the compiled ruleset (#33).
 * Tue Aug 25 2026 Dave Kempe <dave@sol1.com.au> - 0.3.6-1
 - Site macros and actions are found through CONFIG_PATH and in the config
   directory, so a custom macro.<name> under a directory like

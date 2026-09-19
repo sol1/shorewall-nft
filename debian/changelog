@@ -1,3 +1,21 @@
+shorewall-nft (0.3.7) unstable; urgency=medium
+
+  * Port knocking is implemented natively. KNOCK and KNOCKSEQUENCE record a
+    source's progress through a port sequence in nftables dynamic timed sets,
+    and gate the protected service on the final port. An IPv6 knock matches on
+    ip6 saddr, a knock listening on several interfaces fans out one rule per
+    interface, and a knock port outside 1 to 65535 is a located error (#31).
+  * Events are implemented natively. SetEvent, ResetEvent and IfEvent record
+    and test a source in a dynamic set, and an IfEvent with a hitcount above
+    one becomes a rate-tested meter. Knocking and events are refused where nft
+    has no dynamic-set support, instead of emitting a ruleset that will not
+    load (#31).
+  * A params or shorewall.conf setting has an inline comment and a trailing
+    semicolon stripped from its value, so a commented-out fragment no longer
+    leaks into the compiled ruleset (#33).
+
+ -- Dave Kempe <dave@sol1.com.au>  Sat, 19 Sep 2026 14:49:54 +1000
+
 shorewall-nft (0.3.6) unstable; urgency=medium
 
   * Site macros and actions are found through CONFIG_PATH and in the config
