@@ -51,6 +51,25 @@ sw status >/dev/null && bad "status must be nonzero when the table is gone" \
     || ok "status nonzero when started but table missing"
 sw start >/dev/null 2>&1 || bad "restart after the table was removed"
 
+# Verbosity, like upstream: the default prints the main steps, -q is silent,
+# and -v adds the detail steps.
+vout=$(sw restart 2>/dev/null || true)
+if echo "$vout" | grep -q "Restarting Shorewall" \
+   && echo "$vout" | grep -q "Setting up routing" \
+   && echo "$vout" | grep -q "done."; then
+    ok "restart prints progress at the default verbosity"
+else
+    bad "restart default verbosity progress"
+fi
+echo "$vout" | grep -q "nft list table ip shorewall" \
+    && ok "restart hints how to show the ruleset" \
+    || bad "restart ruleset hint"
+vout=$(sw -q restart 2>/dev/null || true)
+[ -z "$vout" ] && ok "-q restart is quiet" || bad "-q restart is quiet"
+vout=$(sw -v restart 2>/dev/null || true)
+echo "$vout" | grep -q "Setting up proxy ARP" \
+    && ok "-v restart adds the detail steps" || bad "-v restart detail steps"
+
 sw show | grep -q "chain net2fw" && ok show || bad show
 sw show capabilities | grep -q NAT_ENABLED && ok "show capabilities" \
     || bad "show capabilities"

@@ -20,6 +20,7 @@ from . import __version__, capabilities, chunk
 from .compile import compile_config
 from .emit import table_for
 from .errors import ConfigError
+from .reader import read_simple_vars
 
 
 def _family():
@@ -84,20 +85,75 @@ def _compile_to(confdir, family, script_path):
     compile_config(confdir, ruleset, family, script_path=script_path)
 
 
+# Progress verbosity. Mirrors upstream: the shorewall.conf VERBOSITY (default
+# 1) sets the base, -v/-q nudge it and -vN sets it, clamped to -1..2. 1 shows
+# the main steps, 2 adds detail, 0 and below stay quiet. A lifecycle command
+# calls _set_verbosity before it reports anything or runs the script.
+_VERBOSITY = 1
+_V_EXPLICIT = None
+_V_DELTA = 0
+
+
+def _parse_verbosity_flags(flags):
+    """Record -v/-q/-vN from the command line, applied on top of the
+    shorewall.conf VERBOSITY in _set_verbosity."""
+    global _V_EXPLICIT, _V_DELTA
+    _V_EXPLICIT, _V_DELTA = None, 0
+    for f in flags:
+        m = re.fullmatch(r"-v(\d+)", f)
+        if m:
+            _V_EXPLICIT = int(m.group(1))
+        elif f == "-v":
+            _V_DELTA += 1
+        elif f == "-q":
+            _V_DELTA -= 1
+
+
+def _set_verbosity(confdir, family):
+    """Set the effective verbosity from shorewall.conf and the command flags."""
+    global _VERBOSITY
+    base = 1
+    conf = "shorewall6.conf" if family == 6 else "shorewall.conf"
+    try:
+        raw = read_simple_vars(os.path.join(confdir, conf)).get("VERBOSITY")
+        if raw not in (None, ""):
+            base = int(raw)
+    except (OSError, ValueError, ConfigError):
+        pass
+    level = _V_EXPLICIT if _V_EXPLICIT is not None else base + _V_DELTA
+    _VERBOSITY = max(-1, min(2, level))
+    return _VERBOSITY
+
+
+def _say(level, message):
+    """Print a progress message when the verbosity is at least level."""
+    if _VERBOSITY >= level:
+        print(message, flush=True)
+
+
 def _run_script(script_path, *verb):
-    r = subprocess.run([script_path, *verb])
-    return r.returncode
+    env = dict(os.environ)
+    env["SW_VERBOSITY"] = str(_VERBOSITY)
+    return subprocess.run([script_path, *verb], env=env).returncode
 
 
-def _apply(confdir, family, vardir, keep_previous=True):
-    """Compile and start. Returns 0 on success."""
+def _apply(confdir, family, vardir, keep_previous=True, action="Starting"):
+    """Compile and start. Returns 0 on success. action names the step for the
+    progress line: Starting, Restarting or Reloading."""
+    _set_verbosity(confdir, family)
+    product = "Shorewall6" if family == 6 else "Shorewall"
     script = _script_path(vardir)
     if keep_previous and os.path.exists(script):
         shutil.copy2(script, script + ".prev")
+    _say(1, f"Compiling {product} configuration...")
     _compile_to(confdir, family, script)
+    _say(2, f"Compiled to {script}")
+    _say(1, f"{action} {product}...")
     rc = _run_script(script, "start")
     if rc == 0:
         _state(vardir, "Started")
+        _say(1, "done.")
+        _say(1, f"Run 'nft list table {table_for(family)}' to see the ruleset.")
     return rc
 
 
@@ -270,16 +326,20 @@ def cmd_compile(args, family):
 def cmd_start(args, family):
     args = [a for a in args if a != "-f"]
     confdir = args[0] if args else _confdir(family)
-    return _apply(confdir, family, _vardir(family))
+    return _apply(confdir, family, _vardir(family), action="Starting")
 
 
 def cmd_reload(args, family):
-    return cmd_start(args, family)
+    args = [a for a in args if a != "-f"]
+    confdir = args[0] if args else _confdir(family)
+    return _apply(confdir, family, _vardir(family), action="Reloading")
 
 
 def cmd_stop(args, family):
     vardir = _vardir(family)
     script = _script_path(vardir)
+    _set_verbosity(_confdir(family), family)
+    _say(1, f"Stopping {'Shorewall6' if family == 6 else 'Shorewall'}...")
     # A package upgrade can change stopped-state lifecycle semantics while an
     # older generated wrapper remains in /var/lib. Compile a fresh wrapper
     # before stopping so `stop` uses the installed implementation just as
@@ -308,6 +368,7 @@ def cmd_stop(args, family):
     rc = _run_script(script, "stop")
     if rc == 0:
         _state(vardir, "Stopped")
+        _say(1, "done.")
     return rc
 
 
@@ -369,7 +430,9 @@ def cmd_safe_start(args, family):
 
 
 def cmd_restart(args, family):
-    return cmd_start(args, family)
+    args = [a for a in args if a != "-f"]
+    confdir = args[0] if args else _confdir(family)
+    return _apply(confdir, family, _vardir(family), action="Restarting")
 
 
 def cmd_safe_restart(args, family):
@@ -2131,8 +2194,15 @@ VERBS = {
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     family = _family()
-    while argv and argv[0] in ("trace", "debug", "-q", "-v"):
-        argv.pop(0)
+    # Global options before the command, as upstream takes them: trace and
+    # debug are accepted and ignored; -v/-q/-vN set the progress verbosity.
+    vflags = []
+    while argv and (argv[0] in ("trace", "debug")
+                    or re.fullmatch(r"-[qv]\d*", argv[0])):
+        a = argv.pop(0)
+        if a not in ("trace", "debug"):
+            vflags.append(a)
+    _parse_verbosity_flags(vflags)
     if not argv:
         print("usage: shorewall-nft COMMAND [ARGS]", file=sys.stderr)
         print("commands: " + " ".join(sorted(VERBS)), file=sys.stderr)

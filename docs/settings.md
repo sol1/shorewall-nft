@@ -27,6 +27,7 @@ These are read and acted on.
 | ADMINISABSENTMINDED | Affects the stopped-state policy. |
 | REQUIRE_IPSETS | Yes (default): an unsupported ipset is a compile error. No: warn and skip it, so one odd set does not fail the whole ruleset. |
 | REQUIRE_SECURE_CONFIG | No (default): warn if /etc/shorewall is group- or world-writable, or (when run as root) not owned by root. Yes: make it a compile error. A less-privileged user who can edit the config can have their input run as root at start. This is a shorewall-nft addition; upstream did not check. |
+| VERBOSITY | Progress detail for start, restart, reload and stop: 0 and below are quiet, 1 (default) shows the main steps, 2 adds detail. The command options -v, -q and -vN override it. |
 
 ## Rejected loud if set to a non-default value
 
@@ -66,7 +67,7 @@ PROVIDER_OFFSET, TC_BITS, ZONE_BITS, MASK_BITS, DONT_LOAD.
 
 Logging format and verbosity: LOG_LEVEL, LOGFORMAT, LOGLIMIT, LOG_ZONE,
 LOGTAGONLY, LOGALLNEW, LOG_BACKEND, LOG_VERBOSITY, USE_NFLOG_SIZE,
-VERBOSITY, VERBOSE_MESSAGES, and the per-feature *_LOG_LEVEL settings
+VERBOSE_MESSAGES, and the per-feature *_LOG_LEVEL settings
 (BLACKLIST_LOG_LEVEL, INVALID_LOG_LEVEL, RELATED_LOG_LEVEL,
 UNTRACKED_LOG_LEVEL, MACLIST_LOG_LEVEL, RPFILTER_LOG_LEVEL,
 SFILTER_LOG_LEVEL, SMURF_LOG_LEVEL, TCP_FLAGS_LOG_LEVEL as a level).

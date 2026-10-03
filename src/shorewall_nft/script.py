@@ -498,6 +498,16 @@ VARDIR=${{SWNFT_VARDIR:-{vardir_default}}}
 # preserved across a reload, a stop and a reboot.
 DYNSETS="{dynsets}"
 
+# Progress messages, gated by the verbosity the wrapper passes (shorewall
+# -v/-q, or VERBOSITY in shorewall.conf): 1 shows the main steps, 2 adds
+# detail, 0 and below stay quiet. A direct run of this script defaults to 1.
+VERBOSITY=${{SW_VERBOSITY:-1}}
+vmsg() {{
+    [ "$VERBOSITY" -ge "$1" ] 2>/dev/null || return 0
+    shift
+    echo "$@"
+}}
+
 save_dynamic_sets() {{
     [ -n "$DYNSETS" ] || return 0
     mkdir -p "$VARDIR/sets"
@@ -664,6 +674,7 @@ case "$1" in
         # Capture externally-filled sets before the table is replaced,
         # then reload them after, so live entries survive a reload.
         save_dynamic_sets
+        vmsg 1 "Preparing nftables ruleset"
         load_ruleset || {{ echo "$0: ruleset load failed" >&2; exit 1; }}
         # Fill the &interface address sets from the live interfaces, so the
         # rules that reference them match the current primary addresses.
@@ -671,6 +682,7 @@ case "$1" in
         # Enable forwarding and the per-interface sysctls only after the
         # filter is loaded, so there is never a window with forwarding on
         # and no ruleset.
+        vmsg 2 "Applying system parameters"
         apply_sysctls
         for gf in "$VARDIR"/geoip/*.nft; do
             [ -e "$gf" ] || continue
@@ -684,8 +696,11 @@ case "$1" in
         for sf in "$VARDIR"/sets/*.nft; do
             [ -e "$sf" ] && nft -f "$sf" 2>/dev/null || :
         done
+        vmsg 1 "Setting up routing"
         setup_routing
+        vmsg 1 "Setting up traffic shaping"
         setup_tc
+        vmsg 2 "Setting up proxy ARP"
         setup_proxyarp
         run_start
         run_started

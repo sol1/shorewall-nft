@@ -3,8 +3,8 @@
 shorewall \- Shorewall firewall for nftables
 .SH SYNOPSIS
 .B shorewall
-.RI [ command ]
 .RI [ options ]
+.RI [ command ]
 .SH DESCRIPTION
 .B shorewall-nft
 is a drop-in replacement for Shorewall that compiles an
@@ -24,6 +24,26 @@ and validated first with
 so a bad configuration never partly loads. The compiler fails loud on
 anything it does not support, naming the file and line, and never
 silently produces a weaker firewall.
+.SH OPTIONS
+Global options come before the command.
+.TP
+.B \-v
+Raise the progress verbosity by one. Repeatable.
+.TP
+.B \-q
+Lower the progress verbosity by one. Repeatable.
+.TP
+.BI \-v N
+Set the progress verbosity to
+.IR N ,
+from \-1 to 2. 0 and below are quiet, 1 (the default) prints the main steps of
+start, restart, reload and stop, and 2 adds detail. Overrides
+.B VERBOSITY
+in
+.BR shorewall.conf (5).
+.TP
+.BR trace ", " debug
+Accepted for compatibility with Shorewall and ignored.
 .SH COMMANDS
 .TP
 .B init \fR[\fItopology\fR]
