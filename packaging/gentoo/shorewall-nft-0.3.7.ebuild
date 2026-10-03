@@ -14,7 +14,12 @@ KEYWORDS="~amd64 ~arm64 ~x86"
 # The compiler is pure Python; the firewall it generates is POSIX sh loaded
 # with nft -f. Runtime needs a Python interpreter, the nftables userspace and
 # iproute2. Nothing is compiled, so there are no build dependencies.
+#
+# shorewall-nft installs /usr/sbin/shorewall and the shorewall man pages, the
+# same files net-firewall/shorewall owns, so the two cannot be merged at once.
+# The strong blocker makes Portage refuse up front rather than collide (#35).
 RDEPEND="
+	!!net-firewall/shorewall
 	>=dev-lang/python-3.7:*
 	net-firewall/nftables
 	sys-apps/iproute2
