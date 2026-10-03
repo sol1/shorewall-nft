@@ -1,3 +1,20 @@
+shorewall-nft (0.3.8) unstable; urgency=medium
+
+  * A params file is always sourced through bash, the way upstream sources it,
+    so shell logic works: an export, a conditional assignment, a loop, command
+    substitution, or a sourced helper. The previous heuristic read some of
+    these line by line and silently dropped the assignments (#34).
+  * start, restart, reload and stop report their progress, driven by VERBOSITY
+    in shorewall.conf and the -v, -q and -vN options. A successful start also
+    prints how to list the loaded ruleset.
+  * shorewall init writes annotated starter files, each naming the file and
+    pointing at its man page, the way upstream's shipped configuration files
+    do.
+  * The Gentoo ebuild blocks installing alongside net-firewall/shorewall,
+    which owns the same files, matching the deb and rpm (#35).
+
+ -- Dave Kempe <dave@sol1.com.au>  Sat, 03 Oct 2026 13:29:51 +1000
+
 shorewall-nft (0.3.7) unstable; urgency=medium
 
   * Port knocking is implemented natively. KNOCK and KNOCKSEQUENCE record a
