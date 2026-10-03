@@ -1313,6 +1313,31 @@ LAN_OPTS = "tcpflags,nosmurfs,routefilter,logmartians"
 RFC1918 = "10.0.0.0/8,169.254.0.0/16,172.16.0.0/12,192.168.0.0/16"
 
 
+# Header blocks for the files 'shorewall init' writes, in the style of the
+# annotated files upstream ships: a line naming the file and a pointer to its
+# man page, which is shorewall-nft's own copy of the upstream page.
+_INIT_HEADERS = {
+    "zones": ("the network zones", "shorewall-zones"),
+    "interfaces": ("the zone on each network interface",
+                   "shorewall-interfaces"),
+    "policy": ("the default policy for connections between zones",
+               "shorewall-policy"),
+    "rules": ("the exceptions to the policies, a connection at a time",
+              "shorewall-rules"),
+    "snat": ("source NAT out the internet interface", "shorewall-snat"),
+}
+
+
+def _annotate(name, body):
+    """Prepend an annotated header naming the file and pointing at its man
+    page, the way upstream's shipped configuration files do."""
+    blurb, page = _INIT_HEADERS[name]
+    rule = "#" * 74
+    return (f"#\n# shorewall-nft {name}: {blurb}.\n#\n"
+            f"# See 'man {page}' for the columns and options.\n#\n{rule}\n"
+            + body)
+
+
 def _init_files(topology, net, loc, dmz, ssh_zones):
     """The starter config files for a topology, keyed by filename. Interfaces
     are named by their real device, per the init design."""
@@ -1339,7 +1364,7 @@ def _init_files(topology, net, loc, dmz, ssh_zones):
 
     # A minimal safe rule set. SSH to the firewall is always allowed from the
     # chosen zones so bootstrapping over ssh cannot lock the box out.
-    rules = "?SECTION NEW\n"
+    rules = "?SECTION NEW\n#ACTION\tSOURCE\tDEST\tPROTO\tDPORT\n"
     for zone in ssh_zones:
         rules += f"SSH(ACCEPT)\t{zone}\t$FW\n"
     if loc:
@@ -1356,7 +1381,9 @@ def _init_files(topology, net, loc, dmz, ssh_zones):
     if gateway:
         files["snat"] = ("?FORMAT 2\n#ACTION\tSOURCE\tDEST\n"
                          f"MASQUERADE\t{RFC1918}\t{net}\n")
-    return files
+    # Annotate each table file; shorewall.conf already carries its own header.
+    return {name: _annotate(name, body) if name in _INIT_HEADERS else body
+            for name, body in files.items()}
 
 
 _VIRTUAL_IFACES = ("lo", "veth", "docker", "br-", "virbr", "vnet", "tun",

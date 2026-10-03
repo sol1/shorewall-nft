@@ -38,6 +38,13 @@ has 'IP_FORWARDING=Off' "$d/shorewall.conf" \
 [ ! -f "$d/snat" ] && pass "standalone: no NAT" || bad "standalone: unexpected snat"
 has 'net[[:space:]]+eth0' "$d/interfaces" \
     && pass "standalone: interface named by its device" || bad "standalone: interface"
+# The generated files carry an annotated header pointing at the man page.
+if has 'man shorewall-zones' "$d/zones" && has 'man shorewall-rules' "$d/rules"
+then
+    pass "standalone: files carry an annotated header"
+else
+    bad "standalone: no annotated header"
+fi
 
 # --- gateway: two interfaces, NAT out the uplink, forwarding on, SSH from LAN ---
 d="$OUT/g"
