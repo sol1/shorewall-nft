@@ -318,75 +318,49 @@ def read_simple_vars(path, depth=0, variables=None):
     return variables
 
 
-# Bash constructs that the simple reader cannot evaluate: a for/while/if block,
-# a bash builtin, or command substitution. A params file using any of these is
-# sourced through bash instead, the way upstream sources it.
-_NEEDS_SHELL = re.compile(r"(^|\s)(for|while|if|case|declare|local|typeset)\s"
-                          r"|\$\(|`|\bBASH_SOURCE\b|\[\[")
-
-
-def needs_shell(path):
-    """True if a variable file uses shell logic beyond KEY=VALUE and simple
-    sourcing, so it must be sourced through bash rather than read line by line.
-    A file it also sources is followed, since the logic may live there."""
-    seen = set()
-
-    def scan(p):
-        if p in seen or not os.path.exists(p) or len(seen) > 20:
-            return False
-        seen.add(p)
-        try:
-            with open(p) as f:
-                text = f.read()
-        except OSError:
-            return False
-        for line in text.splitlines():
-            s = line.strip()
-            if not s or s.startswith("#"):
-                continue
-            if _NEEDS_SHELL.search(s):
-                return True
-            m = re.match(r"^(?:\.|source)\s+(\S+)", s)
-            if m:
-                nxt = os.path.join(os.path.dirname(p),
-                                   os.path.basename(m.group(1).strip("\"'")))
-                if scan(nxt):
-                    return True
-        return False
-
-    return scan(path)
-
-
 def read_shell_vars(path, confdir, seed=None):
     """Source a variable file through bash, the way upstream sources params, so
     a file that uses shell logic (loops, includes, bash builtins) works.
     g_confdir is set as shorewall sets it, and seed variables (from
     shorewall.conf, already read) are exported so the file may reference them.
-    Returns the variables the file introduces, found by diffing the shell's
-    variable list, or None if bash is missing or sourcing fails so the caller
-    can fall back to the line reader. The caller must have checked the file's
-    permissions first, since this executes it."""
+    Returns the variables the file introduces or changes, found by diffing the
+    shell's variables against the state before sourcing: a name that is new, or
+    a seed whose value the file reassigned, the way upstream lets params
+    override a shorewall.conf setting. Returns None only if bash is missing or
+    cannot run the file, so the caller can fall back to the line reader. The
+    caller must have checked the file's permissions first, since this executes
+    it."""
     if not os.path.exists(path):
         return {}
     bash = shutil.which("bash") or (
         "/bin/bash" if os.path.exists("/bin/bash") else None)
     if not bash:
         return None
+    # $3 is the seed names. A var is reported if it is absent before sourcing,
+    # or if it is a seed whose value the file changed. A bash volatile (RANDOM,
+    # SECONDS, ...) is present before and is not a seed, so it is never reported.
     script = (
         'g_confdir=$1\n'
+        'declare -A __seed\n'
+        'for __s in $3; do __seed[$__s]=${!__s}; done\n'
         '__b=" $(compgen -v | tr "\\n" " ") "\n'
-        '. "$2" || exit 3\n'
+        '. "$2"\n'
         'for __v in $(compgen -v); do\n'
-        '  case "$__b" in *" $__v "*) continue;; esac\n'
+        '  case "$__b" in *" $__v "*)\n'
+        '    if [ -z "${__seed[$__v]+x}" ] || '
+        '[ "${__seed[$__v]}" = "${!__v}" ]; then continue; fi;;\n'
+        '  esac\n'
         '  printf "%s=%s\\0" "$__v" "${!__v}"\n'
         'done\n')
     env = {"PATH": os.environ.get("PATH", "/usr/sbin:/usr/bin:/sbin:/bin")}
+    seed_names = []
     for k, v in (seed or {}).items():
         if re.fullmatch(r"[A-Za-z_]\w*", k):
             env[k] = str(v)
+            seed_names.append(k)
     try:
         r = subprocess.run([bash, "--norc", "--noprofile", "-c", script,
-                            "bash", confdir, path],
+                            "bash", confdir, path, " ".join(seed_names)],
                            capture_output=True, text=True, timeout=30, env=env)
     except (OSError, subprocess.SubprocessError):
         return None

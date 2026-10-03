@@ -849,6 +849,23 @@ form_ok("params: command substitution with backticks is evaluated",
         {"params": "PORTVAR=`echo 2255`\n",
          "rules": "?SECTION NEW\nACCEPT net $FW tcp $PORTVAR\n"},
         expect="tcp dport 2255")
+# params is always sourced through bash, the way upstream sources it, so a
+# plain export and a conditional assignment with a single-bracket test both
+# set variables rather than being silently dropped by a line reader
+# (github #34, shorewall-users).
+form_ok("params: an export assignment is sourced",
+        {"params": "export PORTVAR=2277\n",
+         "rules": "?SECTION NEW\nACCEPT net $FW tcp $PORTVAR\n"},
+        expect="tcp dport 2277")
+form_ok("params: a single-bracket conditional assignment is sourced",
+        {"params": '[ -n "yes" ] && PORTVAR=2288\n',
+         "rules": "?SECTION NEW\nACCEPT net $FW tcp $PORTVAR\n"},
+        expect="tcp dport 2288")
+# A false test as the last line must not discard the variables set above it.
+form_ok("params: a trailing false test keeps the earlier variables",
+        {"params": 'PORTVAR=2299\n[ -n "" ] && SKIP=1\n',
+         "rules": "?SECTION NEW\nACCEPT net $FW tcp $PORTVAR\n"},
+        expect="tcp dport 2299")
 # ?INCLUDE is the directive spelling of INCLUDE; upstream accepts either.
 form_ok("rules: ?INCLUDE pulls in another file",
         {"rules": "?SECTION NEW\n?INCLUDE rules.extra\n",

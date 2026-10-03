@@ -5,7 +5,7 @@ import sys
 
 from . import emit, ipsets, macros, parsers, script
 from .errors import ConfigError
-from .reader import read_file, read_simple_vars, needs_shell, read_shell_vars
+from .reader import read_file, read_simple_vars, read_shell_vars
 
 # Files consumed as variables or deliberately not part of the start
 # ruleset. stoppedrules only matters for the stopped state.
@@ -192,18 +192,18 @@ def load(confdir, family=4):
     variables["SHAREDIR"] = "/usr/share/shorewall-nft"
     conf = "shorewall6.conf" if family == 6 else "shorewall.conf"
     read_simple_vars(_path(confdir, conf), variables=variables)
-    # Check permissions before reading params: a params file that uses shell
-    # logic is sourced through bash, so an insecure one must be warned about,
-    # or refused under REQUIRE_SECURE_CONFIG, before it is executed.
+    # Check permissions before reading params: it is sourced through bash, the
+    # way upstream sources it, so an insecure one must be warned about, or
+    # refused under REQUIRE_SECURE_CONFIG, before it is executed.
     _check_config_security(confdir, variables)
     params = _path(confdir, "params")
-    if needs_shell(params):
-        pv = read_shell_vars(params, confdir, seed=variables)
-        if pv is None:                 # bash missing or sourcing failed
-            pv = read_simple_vars(params)
-        variables.update(pv)
-    else:
-        variables.update(read_simple_vars(params))
+    # Always source params through bash, so shell logic (loops, conditionals,
+    # command substitution, export, a sourced helper) works the way upstream
+    # sources it. The line reader is only a fallback for a host without bash.
+    pv = read_shell_vars(params, confdir, seed=variables)
+    if pv is None:                     # no bash available
+        pv = read_simple_vars(params, variables=dict(variables))
+    variables.update(pv)
 
     cfg.zones = parsers.parse_zones(_path(confdir, "zones"), variables)
     fw = [z.name for z in cfg.zones if z.type == "firewall"]
