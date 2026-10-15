@@ -11,6 +11,7 @@ import os
 import re
 import select
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -136,6 +137,10 @@ def _run_script(script_path, *verb):
     env["SW_VERBOSITY"] = str(_VERBOSITY)
     return subprocess.run([script_path, *verb], env=env).returncode
 
+def _copy_script(src, dst):
+    """Copy a firewall script without preserving SELinux extended attributes."""
+    shutil.copyfile(src, dst)
+    os.chmod(dst, stat.S_IMODE(os.stat(src).st_mode))
 
 def _apply(confdir, family, vardir, keep_previous=True, action="Starting"):
     """Compile and start. Returns 0 on success. action names the step for the
@@ -144,7 +149,7 @@ def _apply(confdir, family, vardir, keep_previous=True, action="Starting"):
     product = "Shorewall6" if family == 6 else "Shorewall"
     script = _script_path(vardir)
     if keep_previous and os.path.exists(script):
-        shutil.copy2(script, script + ".prev")
+        _copy_script(script, script + ".prev")
     _say(1, f"Compiling {product} configuration...")
     _compile_to(confdir, family, script)
     _say(2, f"Compiled to {script}")
@@ -162,7 +167,7 @@ def _revert(vardir, family):
     if os.path.exists(prev):
         rc = _run_script(prev, "start")
         if rc == 0:
-            shutil.copy2(prev, _script_path(vardir))
+            _copy_script(prev, _script_path(vardir))
             _state(vardir, "Started")
         return rc
     subprocess.run([_nft(), "destroy", "table", *table_for(family).split()],
@@ -968,7 +973,7 @@ def cmd_save(args, family):
     script = _script_path(vardir)
     if not os.path.exists(script):
         _fatal("no compiled firewall to save; start the firewall first")
-    shutil.copy2(script, os.path.join(vardir, name))
+    _copy_script(script, os.path.join(vardir, name))
     print(f"Configuration saved to {os.path.join(vardir, name)}")
     return 0
 
@@ -981,7 +986,7 @@ def cmd_restore(args, family):
         _fatal(f"restore file {saved} does not exist")
     rc = _run_script(saved, "start")
     if rc == 0:
-        shutil.copy2(saved, _script_path(vardir))
+        _copy_script(saved, _script_path(vardir))
         _state(vardir, "Started")
     return rc
 
