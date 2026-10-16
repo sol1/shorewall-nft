@@ -39,7 +39,9 @@ def build(overrides):
     d = tempfile.mkdtemp(prefix="shorewall-nft-forms-")
     shutil.copytree(BASE, d, dirs_exist_ok=True)
     for name, text in overrides.items():
-        with open(os.path.join(d, name), "w") as f:
+        pathname = os.path.join(d, name)
+        os.makedirs(os.path.dirname(pathname), exist_ok=True)
+        with open(pathname, "w") as f:
             f.write(text)
     return d
 
@@ -871,6 +873,36 @@ form_ok("rules: ?INCLUDE pulls in another file",
         {"rules": "?SECTION NEW\n?INCLUDE rules.extra\n",
          "rules.extra": "ACCEPT net $FW tcp 2222\n"},
         expect="tcp dport 2222")
+
+# A globbed include is a shorewall-nft extension for Puppet-style fragment
+# directories. It is deliberately read by Python rather than a shell. The
+# legacy `SHELL cat <glob>` form is a narrow compatibility bridge to it.
+_zone_fragments = {
+    "params": "ZONE_FRAGMENTS=zones.d/*.zone\n",
+    "zones.d/20-loc.zone": "loc ipv4\n",
+    "zones.d/10-net.zone": "net ipv4\n",
+}
+form_ok("zones: ?INCLUDE_GLOB loads a fragment directory",
+        {**_zone_fragments,
+         "zones": "fw firewall\n?INCLUDE_GLOB $ZONE_FRAGMENTS\n"})
+form_ok("zones: legacy SHELL cat glob is a safe compatibility bridge",
+        {**_zone_fragments,
+         "zones": "fw firewall\nSHELL cat $ZONE_FRAGMENTS\n"})
+form_ok("rules: legacy SHELL cat glob works outside zones",
+        {"params": "RULE_FRAGMENTS=rules.d/*.rules\n",
+         "rules": "SHELL cat $RULE_FRAGMENTS\n",
+         "rules.d/10-ssh.rules": "?SECTION NEW\nACCEPT net $FW tcp 2222\n"},
+        expect="tcp dport 2222")
+d = build({**_zone_fragments,
+           "zones": "fw firewall\n?INCLUDE_GLOB $ZONE_FRAGMENTS\n"})
+try:
+    _names = [z.name for z in load(d, 4).zones]
+    if _names == ["fw", "net", "loc"]:
+        ok("zones: ?INCLUDE_GLOB reads fragments in lexical order")
+    else:
+        bad("zones: ?INCLUDE_GLOB order", repr(_names))
+finally:
+    shutil.rmtree(d)
 
 # The generated lifecycle script must fill the set from the live interface.
 _d = build({"rules": "?SECTION NEW\nACCEPT net:&NET_IF $FW tcp 22\n"})

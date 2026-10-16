@@ -108,6 +108,31 @@ references common in a CONFIG_PATH value expand: CONFDIR defaults to the
 parent of the configuration directory, and either may be set in
 shorewall.conf or params.
 
+## Including fragment directories
+
+`?INCLUDE` (and `INCLUDE`) takes one exact file name. To read every regular
+file matching a pattern, shorewall-nft provides `?INCLUDE_GLOB`; matches are
+read in lexical path order and are relative to the including file unless the
+pattern is absolute. For example:
+
+```
+?INCLUDE_GLOB zones.d/*.zone
+```
+
+Use one directive for each fragment directory. Directives are processed in
+file order, and matches within each directive are read in lexical path order:
+
+```
+?INCLUDE_GLOB zones.d/*.zone
+?INCLUDE_GLOB site-zones.d/*.zone
+```
+
+This directive does not execute a shell. As a migration bridge, the exact
+legacy form `SHELL cat zones.d/*.zone` is accepted with the same semantics.
+Other `SHELL` commands are rejected; use `?INCLUDE_GLOB` in new
+configuration. `?INCLUDE_GLOB` is a shorewall-nft extension, not legacy
+Shorewall syntax.
+
 ## The IP_FORWARDING check
 
 The setting most likely to matter. On forces forwarding on, Off forces

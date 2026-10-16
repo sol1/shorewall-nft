@@ -3,9 +3,11 @@
 Reproduces the parts of Shorewall's line model the corpus needs:
 comments, continuation lines, $variable expansion, ?FORMAT and
 ?SECTION directives, and INCLUDE (also spelled ?INCLUDE, as upstream
-accepts either). Unsupported directives raise ConfigError so nothing is
+accepts either). ?INCLUDE_GLOB is a shorewall-nft extension for a sorted
+set of fragments. Unsupported directives raise ConfigError so nothing is
 dropped silently.
 """
+import glob
 import os
 import re
 import shutil
@@ -99,6 +101,58 @@ def resolve_include(inc, path, variables):
     return None
 
 
+def resolve_include_glob(pattern, path):
+    """Return the regular files matched by an INCLUDE_GLOB pattern.
+
+    Patterns are relative to the including file, unless absolute. Python's
+    glob is used deliberately rather than a shell, so a configuration cannot
+    execute commands while it is being compiled. The lexical sort matches the
+    order a normal shell glob produces.
+    """
+    glob_pattern = (pattern if os.path.isabs(pattern)
+                    else os.path.join(os.path.dirname(path), pattern))
+    matches = sorted(glob.glob(glob_pattern))
+    if not matches:
+        return []
+    if any(not os.path.isfile(match) for match in matches):
+        return None
+    return matches
+
+
+def _read_include_glob(pattern, path, lineno, variables, max_format,
+                       directive):
+    matches = resolve_include_glob(pattern, path)
+    if matches is None:
+        raise ConfigError(f"{directive} matched a non-regular file: {pattern}",
+                          path, lineno)
+    if not matches:
+        raise ConfigError(f"{directive} matched no files: {pattern}",
+                          path, lineno)
+    for inc_path in matches:
+        yield from read_file(inc_path, variables, max_format)
+
+
+def _legacy_shell_glob(text, variables, path, lineno):
+    """Parse the one legacy SHELL form we can implement without a shell.
+
+    Legacy Shorewall configurations often use ``SHELL cat path/*.suffix`` to
+    splice a directory of fragments into a configuration file. Supporting
+    just that form gives managed configurations a migration path while
+    refusing arbitrary root-time command execution.
+    """
+    words = text.split()
+    if len(words) != 2 or words[0] != "cat":
+        raise ConfigError("unsupported SHELL directive; use ?INCLUDE_GLOB "
+                          "for configuration fragments", path, lineno)
+    pattern = expand(words[1], variables, path, lineno)
+    # This is a compatibility spelling, not a shell interpreter. Reject
+    # shell syntax that would otherwise become part of a literal filename.
+    if any(char in pattern for char in "|;&`$()<>'\\\""):
+        raise ConfigError("unsupported SHELL directive; use ?INCLUDE_GLOB "
+                          "for configuration fragments", path, lineno)
+    return pattern
+
+
 def read_file(path, variables, max_format=2):
     """Yield logical Line objects from one config file. max_format is the
     highest ?FORMAT the file supports. Most files stop at 2; conntrack goes
@@ -173,6 +227,14 @@ def read_file(path, variables, max_format=2):
                     raise ConfigError(f"?INCLUDE file not found: {inc}",
                                       path, buf_start)
                 yield from read_file(inc_path, variables, max_format)
+            elif directive == "?INCLUDE_GLOB":
+                if not rest:
+                    raise ConfigError("?INCLUDE_GLOB needs a file pattern",
+                                      path, buf_start)
+                pattern = expand(rest, variables, path, buf_start)
+                yield from _read_include_glob(pattern, path, buf_start,
+                                               variables, max_format,
+                                               "?INCLUDE_GLOB")
             elif directive == "?FORMAT":
                 try:
                     fmt = int(rest)
@@ -202,6 +264,16 @@ def read_file(path, variables, max_format=2):
                 raise ConfigError(f"INCLUDE file not found: {inc}",
                                   path, buf_start)
             yield from read_file(inc_path, variables, max_format)
+            continue
+        if parts[0] == "SHELL":
+            if len(parts) < 2:
+                raise ConfigError("unsupported SHELL directive; use "
+                                  "?INCLUDE_GLOB for configuration fragments",
+                                  path, buf_start)
+            pattern = _legacy_shell_glob(parts[1], variables, path, buf_start)
+            yield from _read_include_glob(pattern, path, buf_start,
+                                           variables, max_format,
+                                           "SHELL cat")
             continue
         text = expand(text, variables, path, buf_start)
         yield Line(path, buf_start, text, section=section, fmt=fmt)
