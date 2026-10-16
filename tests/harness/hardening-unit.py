@@ -314,6 +314,27 @@ def parses(fn, text, suffix):
  else bad)("reader: INCLUDE with no file is a config error")
 (ok if raises_config_error(lambda: reads("INCLUDE no-such-file\n", ".conf"))
  else bad)("reader: INCLUDE of a missing file is a config error")
+(ok if raises_config_error(lambda: reads("?INCLUDE_GLOB\n", ".conf"))
+ else bad)("reader: INCLUDE_GLOB with no pattern is a config error")
+(ok if raises_config_error(
+    lambda: reads("?INCLUDE_GLOB /no/such/shorewall-fragment-*\n", ".conf"))
+ else bad)("reader: INCLUDE_GLOB with no matches is a config error")
+_glob_dir = tempfile.mkdtemp(prefix="shorewall-nft-glob-")
+try:
+    os.mkdir(os.path.join(_glob_dir, "fragments"))
+    _glob_conf = os.path.join(_glob_dir, "config")
+    with open(_glob_conf, "w") as f:
+        f.write("?INCLUDE_GLOB fragments/*\n")
+    (ok if raises_config_error(lambda: list(read_file(_glob_conf, {})))
+     else bad)("reader: INCLUDE_GLOB matching a directory is a config error")
+finally:
+    shutil.rmtree(_glob_dir)
+(ok if raises_config_error(
+    lambda: reads("SHELL printf 'net ipv4'\n", ".conf"))
+ else bad)("reader: arbitrary SHELL command is a config error")
+(ok if raises_config_error(
+    lambda: reads("SHELL cat /tmp/*.zone | command\n", ".conf"))
+ else bad)("reader: SHELL cat pipeline is a config error")
 (ok if raises_config_error(lambda: reads("?IF &&\n?ENDIF\n", ".conf"))
  else bad)("reader: a malformed ?IF expression is a config error")
 (ok if raises_config_error(lambda: reads("?IF $A($A)\n?ENDIF\n", ".conf"))
