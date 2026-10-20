@@ -1,3 +1,18 @@
+shorewall-nft (0.3.9) unstable; urgency=medium
+
+  * ?INCLUDE_GLOB reads a directory of configuration fragments in sorted order
+    without a shell, and the legacy SHELL cat <glob> form is accepted as a
+    narrow migration bridge to it. Any other SHELL command is refused (#37).
+  * Copying a compiled firewall script no longer carries its SELinux context,
+    so saving or reverting a ruleset does not hit a relabel denial on an
+    enforcing system such as Rocky Linux 9 (#36).
+  * The capability probe makes a plain network namespace when it runs as root,
+    instead of a user namespace, so it no longer trips an SELinux cap_userns
+    denial on an enforcing system. It falls back to a user namespace only for
+    an unprivileged or restricted root (#38).
+
+ -- Dave Kempe <dave@sol1.com.au>  Tue, 20 Oct 2026 14:37:18 +1000
+
 shorewall-nft (0.3.8) unstable; urgency=medium
 
   * A params file is always sourced through bash, the way upstream sources it,

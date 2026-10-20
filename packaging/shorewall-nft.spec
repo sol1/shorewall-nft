@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.3.8
+Version:        0.3.9
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -177,6 +177,17 @@ exit 0
 %systemd_postun shorewall6-lite.service
 
 %changelog
+* Tue Oct 20 2026 Dave Kempe <dave@sol1.com.au> - 0.3.9-1
+- ?INCLUDE_GLOB reads a directory of configuration fragments in sorted order
+  without a shell, and the legacy SHELL cat <glob> form is accepted as a narrow
+  migration bridge to it. Any other SHELL command is refused (#37).
+- Copying a compiled firewall script no longer carries its SELinux context, so
+  saving or reverting a ruleset does not hit a relabel denial on an enforcing
+  system such as Rocky Linux 9 (#36).
+- The capability probe makes a plain network namespace when it runs as root,
+  instead of a user namespace, so it no longer trips an SELinux cap_userns
+  denial on an enforcing system. It falls back to a user namespace only for an
+  unprivileged or restricted root (#38).
 * Sat Oct 03 2026 Dave Kempe <dave@sol1.com.au> - 0.3.8-1
 - A params file is always sourced through bash, the way upstream sources it, so
   shell logic works: an export, a conditional assignment, a loop, command
