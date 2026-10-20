@@ -115,6 +115,9 @@ SYNTAX_PROBES = {
 _probe_enabled = False
 _probe_cache = {}
 _sandbox_ok = None
+# The unshare argv prefix that makes a working throwaway namespace here, found
+# and cached by _sandbox. None until then, or if none works.
+_sandbox_cmd = None
 
 
 def enable_probe(enabled=True):
@@ -130,15 +133,23 @@ def _nft_bin():
     return "/usr/sbin/nft" if os.path.exists("/usr/sbin/nft") else "nft"
 
 
+def _probe_prefixes():
+    """The unshare forms to try, best first. Real root makes a bare network
+    namespace with CAP_SYS_ADMIN, which needs no user namespace and so does not
+    trip an SELinux cap_userns denial (github #38). An unprivileged or
+    restricted root maps root in a new user namespace instead, which is how it
+    gains the capability to make the netns."""
+    if os.geteuid() == 0:
+        return (["unshare", "-n"], ["unshare", "-r", "-n"])
+    return (["unshare", "-r", "-n"],)
+
+
 def _load(ruleset):
-    """Load a ruleset in a throwaway network namespace. True on success,
-    False if nft rejects it, None if the sandbox cannot run at all."""
-    # Map to root in a new user namespace (-r) as well as a new network
-    # namespace (-n). Real root does not strictly need -r, but a restricted
-    # root (a container without CAP_SYS_ADMIN) does to create the netns, and
-    # -r is harmless for real root. Without it the probe silently could not run
-    # in such environments and fell back to the compile-time default.
-    cmd = ["unshare", "-r", "-n", _nft_bin(), "-f", "-"]
+    """Load a ruleset in the throwaway namespace _sandbox found. True on
+    success, False if nft rejects it, None if no sandbox can run."""
+    if _sandbox_cmd is None:
+        return None
+    cmd = _sandbox_cmd + [_nft_bin(), "-f", "-"]
     try:
         r = subprocess.run(cmd, input=ruleset, capture_output=True, text=True)
     except OSError:
@@ -147,12 +158,25 @@ def _load(ruleset):
 
 
 def _sandbox():
-    """Whether the throwaway-namespace probe works here at all. A box
-    without user namespaces (unprivileged) cannot run it; then we cannot
-    tell and fall back to the compile-time answer."""
-    global _sandbox_ok
+    """Whether a throwaway-namespace probe works here, caching the unshare form
+    that works. A box that cannot make the namespace (unprivileged with user
+    namespaces off, or a confined SELinux domain) has no working form, so we
+    cannot probe and fall back to the compile-time answer."""
+    global _sandbox_ok, _sandbox_cmd
     if _sandbox_ok is None:
-        _sandbox_ok = _load("table ip shorewall_capcheck {\n}\n") is True
+        _sandbox_ok = False
+        for prefix in _probe_prefixes():
+            cmd = prefix + [_nft_bin(), "-f", "-"]
+            try:
+                r = subprocess.run(
+                    cmd, input="table ip shorewall_capcheck {\n}\n",
+                    capture_output=True, text=True)
+            except OSError:
+                continue
+            if r.returncode == 0:
+                _sandbox_cmd = prefix
+                _sandbox_ok = True
+                break
     return _sandbox_ok
 
 
