@@ -1216,6 +1216,7 @@ class Emitter:
         if self.cfg.family == 6:
             self.out("meta l4proto ipv6-icmp jump AllowICMPs", 2)
         self.out("ct state established,related accept", 2)
+        self._emit_invalid_disposition()
         self._emit_disposition(name, policy)
         self.out("}", 1)
         self.out("")
@@ -1646,6 +1647,23 @@ class Emitter:
             self.out(f"{with_state(match)} {extra}{log}{helper}{verdict}"
                      f"{comment}".strip(), 2)
 
+    def _emit_invalid_disposition(self):
+        """Emit the implicit terminal rule at the end of INVALID rules.
+
+        CONTINUE deliberately emits nothing: INVALID packets then retain
+        Shorewall's legacy fall-through into the UNTRACKED and NEW sections.
+        """
+        disposition = self.cfg.variables["INVALID_DISPOSITION"]
+        statements = {
+            "DROP": "ct state invalid drop",
+            "REJECT": "ct state invalid jump reject_action",
+            "A_DROP": "ct state invalid log level audit drop",
+            "A_REJECT": "ct state invalid log level audit jump reject_action",
+        }
+        statement = statements.get(disposition)
+        if statement:
+            self.out(statement, 2)
+
     def _pair_chain(self, z1, z2):
         chain = f"{z1}2{z2}"
         self.out(f"chain {chain} {{", 1)
@@ -1672,6 +1690,7 @@ class Emitter:
         self.out("ct state established,related accept", 2)
         for rule in rules_in("INVALID"):
             self._rule_line(chain, rule, state="invalid")
+        self._emit_invalid_disposition()
         for rule in rules_in("UNTRACKED"):
             self._rule_line(chain, rule, state="untracked")
         for rule in rules_in("NEW"):

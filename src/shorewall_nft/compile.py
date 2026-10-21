@@ -24,7 +24,6 @@ VARIABLE_FILES = {"shorewall.conf", "shorewall6.conf", "params"}
 # else in shorewall.conf is either acted on elsewhere or a safe no-op
 # (paths, logging format, optimization, tooling). See docs/settings.md.
 BEHAVIORAL_DEFAULTS = {
-    "INVALID_DISPOSITION": "continue",
     "RELATED_DISPOSITION": "accept",
     "UNTRACKED_DISPOSITION": "continue",
     "SMURF_DISPOSITION": "drop",
@@ -47,6 +46,20 @@ def _check_behavioral_settings(variables):
     """Reject a behavioral setting set to a value we do not implement.
     Silently ignoring it would change the firewall. The default is
     always accepted."""
+    invalid = variables.get("INVALID_DISPOSITION", "CONTINUE")
+    invalid = " ".join(invalid.strip().strip('"').strip("'").split()).upper()
+    if invalid not in {"A_DROP", "A_REJECT", "DROP", "REJECT", "CONTINUE"}:
+        raise ConfigError(
+            f"Invalid value ({variables.get('INVALID_DISPOSITION', '').strip()}) "
+            "for INVALID_DISPOSITION")
+    variables["INVALID_DISPOSITION"] = invalid
+
+    invalid_log = variables.get("INVALID_LOG_LEVEL", "")
+    if invalid_log.strip().strip('"').strip("'").strip():
+        raise ConfigError(
+            "INVALID_LOG_LEVEL is not supported yet; only an empty value "
+            "is honored")
+
     for name, default in BEHAVIORAL_DEFAULTS.items():
         if name not in variables:
             continue

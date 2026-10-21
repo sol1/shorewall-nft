@@ -20,6 +20,7 @@ These are read and acted on.
 | REJECT_DEFAULT | Default action before a REJECT policy. none disables it. |
 | ACCEPT_DEFAULT | Default action before an ACCEPT policy. |
 | BLACKLIST_DISPOSITION | Disposition for a BLACKLIST rule. |
+| INVALID_DISPOSITION | Disposition of an INVALID packet that did not match an INVALID-section rule. |
 | MACLIST_DISPOSITION | Disposition for an unmatched MAC on a maclist interface. |
 | TC_ENABLED | Internal or Simple selects the shaping model; No disables it. |
 | DOCKER, DOCKER_BRIDGE | Docker coexistence. |
@@ -36,7 +37,7 @@ behavior yet. The default matches what we do, so a config at the
 default compiles. A non-default value is an error, naming the setting,
 not a silent divergence. Listed with the default we accept.
 
-INVALID_DISPOSITION (continue), RELATED_DISPOSITION (accept),
+INVALID_LOG_LEVEL (empty), RELATED_DISPOSITION (accept),
 UNTRACKED_DISPOSITION (continue), SMURF_DISPOSITION (drop),
 TCP_FLAGS_DISPOSITION (drop), SFILTER_DISPOSITION (drop),
 RPFILTER_DISPOSITION (drop), MACLIST_TABLE (filter),
@@ -68,7 +69,7 @@ PROVIDER_OFFSET, TC_BITS, ZONE_BITS, MASK_BITS, DONT_LOAD.
 Logging format and verbosity: LOG_LEVEL, LOGFORMAT, LOGLIMIT, LOG_ZONE,
 LOGTAGONLY, LOGALLNEW, LOG_BACKEND, LOG_VERBOSITY, USE_NFLOG_SIZE,
 VERBOSE_MESSAGES, and the per-feature *_LOG_LEVEL settings
-(BLACKLIST_LOG_LEVEL, INVALID_LOG_LEVEL, RELATED_LOG_LEVEL,
+(BLACKLIST_LOG_LEVEL, RELATED_LOG_LEVEL,
 UNTRACKED_LOG_LEVEL, MACLIST_LOG_LEVEL, RPFILTER_LOG_LEVEL,
 SFILTER_LOG_LEVEL, SMURF_LOG_LEVEL, TCP_FLAGS_LOG_LEVEL as a level).
 

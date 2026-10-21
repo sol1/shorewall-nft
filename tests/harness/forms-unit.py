@@ -22,6 +22,7 @@ from shorewall_nft.reader import resolve_include  # noqa: E402
 
 REPO = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..")
 BASE = os.path.join(REPO, "tests/corpus/0002-one-interface/config")
+BASE6 = os.path.join(REPO, "tests/corpus/0010-v6-two-interfaces/config")
 fails = 0
 
 
@@ -35,9 +36,9 @@ def bad(name, msg=""):
     fails += 1
 
 
-def build(overrides):
+def build(overrides, base=BASE):
     d = tempfile.mkdtemp(prefix="shorewall-nft-forms-")
-    shutil.copytree(BASE, d, dirs_exist_ok=True)
+    shutil.copytree(base, d, dirs_exist_ok=True)
     for name, text in overrides.items():
         pathname = os.path.join(d, name)
         os.makedirs(os.path.dirname(pathname), exist_ok=True)
@@ -59,10 +60,10 @@ def nft_loads(text):
         os.unlink(f.name)
 
 
-def form_rejected(name, overrides, family=4):
+def form_rejected(name, overrides, family=4, base=BASE):
     """A documented form we do not implement yet must fail with a located
     ConfigError, never a traceback and never a silently wrong ruleset."""
-    d = build(overrides)
+    d = build(overrides, base)
     try:
         render(load(d, family))
     except ConfigError:
@@ -76,10 +77,11 @@ def form_rejected(name, overrides, family=4):
     bad(name, "compiled, but is not supported (should be a located error)")
 
 
-def form_ok(name, overrides, family=4, expect=None):
+def form_ok(name, overrides, family=4, expect=None, absent=None, order=None,
+            base=BASE):
     """A documented form must compile and its ruleset must load. expect is a
     substring that must appear in the emitted ruleset when given."""
-    d = build(overrides)
+    d = build(overrides, base)
     try:
         text = render(load(d, family))
     except ConfigError as e:
@@ -97,6 +99,15 @@ def form_ok(name, overrides, family=4, expect=None):
     if expect and expect not in text:
         bad(name, f"expected {expect!r} in output")
         return
+    for unwanted in absent or ():
+        if unwanted in text:
+            bad(name, f"did not expect {unwanted!r} in output")
+            return
+    if order:
+        positions = [text.find(item) for item in order]
+        if -1 in positions or positions != sorted(positions):
+            bad(name, f"expected ordered output {order!r}")
+            return
     ok(name)
 
 
@@ -439,6 +450,49 @@ form_ok("rules: an A_ disposition on a state action audits then accepts",
         expect="ct state new log level audit accept")
 form_rejected("rules: a bad state-wrapper parameter is a located error",
               {"rules": "?SECTION NEW\ndropInvalid(bogus) net $FW\n"})
+
+# --- shorewall.conf: an unmatched INVALID packet takes this disposition only
+# after the INVALID section. CONTINUE deliberately falls through to NEW. ---
+INVALID_RULES = {
+    "zones": "fw firewall\nnet ipv4\n",
+    "interfaces": "?FORMAT 2\nnet eth0\n",
+    "policy": "net $FW ACCEPT\n$FW net ACCEPT\n",
+    "rules": ("?SECTION INVALID\nACCEPT net $FW tcp 25\n"
+              "?SECTION NEW\nACCEPT net $FW tcp 80\n"),
+}
+INVALID_ORDER = ("ct state invalid tcp dport 25 accept",
+                 "ct state invalid drop",
+                 "tcp dport 80 accept")
+for disposition, statement in (
+        ("DROP", "ct state invalid drop"),
+        ("REJECT", "ct state invalid jump reject_action"),
+        ("A_DROP", "ct state invalid log level audit drop"),
+        ("A_REJECT", "ct state invalid log level audit jump reject_action")):
+    form_ok(f"shorewall.conf: INVALID_DISPOSITION={disposition} loads",
+            {**INVALID_RULES, "params": f"INVALID_DISPOSITION={disposition}\n"},
+            expect=statement)
+form_ok("shorewall.conf: INVALID_DISPOSITION follows INVALID rules before NEW",
+        {**INVALID_RULES, "params": "INVALID_DISPOSITION=DROP\n"},
+        order=INVALID_ORDER)
+form_ok("shorewall.conf: INVALID_DISPOSITION=CONTINUE falls through to NEW",
+        {**INVALID_RULES, "params": "INVALID_DISPOSITION=CONTINUE\n"},
+        expect="tcp dport 80 accept",
+        absent=("ct state invalid drop", "ct state invalid jump reject_action",
+                "ct state invalid log level audit"))
+form_ok("shorewall.conf: shared policy chains apply INVALID_DISPOSITION",
+        {"zones": "fw firewall\nnet ipv4\n",
+         "interfaces": "?FORMAT 2\nnet eth0\n",
+         "policy": "all $FW ACCEPT\n$FW all ACCEPT\n",
+         "rules": "",
+         "params": "INVALID_DISPOSITION=DROP\n"},
+        expect="chain all2fw {\n        ct state established,related accept\n        ct state invalid drop")
+form_ok("shorewall6.conf: INVALID_DISPOSITION=DROP loads",
+        {"params": "INVALID_DISPOSITION=DROP\n"}, family=6,
+        expect="ct state invalid drop", base=BASE6)
+form_rejected("shorewall.conf: invalid INVALID_DISPOSITION is rejected",
+              {"params": "INVALID_DISPOSITION=ACCEPT\n"})
+form_rejected("shorewall.conf: non-empty INVALID_LOG_LEVEL is rejected",
+              {"params": "INVALID_LOG_LEVEL=info\n"})
 # --- rules: the Broadcast and Multicast actions. They match the destination
 # address type (fib daddr type) and apply the disposition, defaulting to
 # drop. Broadcast covers broadcast and anycast, Multicast covers multicast,
