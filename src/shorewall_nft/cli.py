@@ -2182,8 +2182,141 @@ def cmd_monitor(args, family):
     return 0
 
 
+# Command help for `shorewall help`, `-h`/`--help`, a bare `shorewall`, and
+# `shorewall <command> --help`. Grouped the way shorewall(8) groups the
+# commands and kept in step with that page. Each entry is (names, arguments,
+# one-line summary).
+_HELP_OPTIONS = [
+    (["-v", "-q"], "", "Raise or lower the progress verbosity. Repeatable."),
+    (["-vN"], "", "Set verbosity to N, from -1 to 2 (0 quiet, 1 default, 2 full)."),
+    (["trace", "debug"], "", "Accepted for compatibility with Shorewall and ignored."),
+]
+
+_HELP_GROUPS = [
+    ("Firewall lifecycle", [
+        (["start"], "[directory]",
+         "Compile the configuration and load the ruleset."),
+        (["reload", "restart"], "[directory]",
+         "Recompile and reload the ruleset."),
+        (["stop"], "",
+         "Load the stopped ruleset, permitting only the stoppedrules hosts."),
+        (["clear"], "",
+         "Remove the shorewall table entirely, leaving the firewall open."),
+        (["try"], "directory [timeout]",
+         "Load a configuration and revert it unless confirmed within timeout."),
+        (["safe-start", "safe-restart"], "[directory]",
+         "Like start and restart, but revert automatically unless confirmed."),
+    ]),
+    ("Status and inspection", [
+        (["status"], "",
+         "Report the running state and the filter and nat rule counts."),
+        (["show", "list", "ls"], "[object]",
+         "Show the ruleset, or capabilities, zones, routing or connections."),
+        (["monitor"], "[fancy]",
+         "A live view of the firewall; fancy is the full-screen variant."),
+        (["version"], "",
+         "Print the shorewall-nft version and the nft version."),
+    ]),
+    ("Configuration", [
+        (["check"], "[directory]",
+         "Compile and validate a configuration without loading it."),
+        (["compile"], "[directory] -o file",
+         "Write the generated nftables ruleset to a file."),
+        (["init"], "[topology] [--net dev] [--loc dev] [--dmz dev] "
+                   "[--ssh-from zones] [--force]",
+         "Bootstrap a clean configuration; with no arguments it runs a wizard."),
+        (["migrate"], "[--undo] [--yes]",
+         "Hand a Shorewall system over to shorewall-nft, or reverse it."),
+        (["save", "restore", "forget"], "[name]",
+         "Manage a saved ruleset."),
+        (["savesets"], "",
+         "Snapshot externally-filled ipsets so they survive a reload or reboot."),
+        (["automate"], "command",
+         "The JSON machine interface for configuration-management tools."),
+    ]),
+    ("Multi-ISP providers", [
+        (["enable"], "provider",
+         "Return a provider to service and recompute routing."),
+        (["disable"], "provider",
+         "Take a provider out of service and recompute routing."),
+        (["reenable"], "provider", "Reset a provider to enabled."),
+        (["lsm"], "[--once]",
+         "Run the link status monitor; --once runs a single check cycle."),
+    ]),
+    ("Remote Shorewall Lite", [
+        (["remote-start", "remote-reload", "remote-restart"],
+         "[-r user] [-s] [-D dir] [--capture | --caps file] system",
+         "Compile here and start, reload or restart Shorewall Lite on the "
+         "target over ssh."),
+        (["remote-check"], "[-r user] [-D dir] [--capture | --caps file] system",
+         "Validate the configuration against the target's kernel, loading "
+         "nothing."),
+        (["remote-getcaps"], "[-R] [-r user] [-D dir] system",
+         "Fetch the target's capability profile; -R fetches its shorewallrc too."),
+        (["remote-getrc"], "[-c] [-r user] [-D dir] system",
+         "Fetch the target's shorewallrc; -c fetches its capabilities too."),
+        (["load"], "", "Deprecated alias for remote-start."),
+    ]),
+    ("Utilities", [
+        (["ipcalc"], "address mask | address/vlsm",
+         "Print the network, broadcast and host range for an address."),
+        (["iprange"], "low-high",
+         "Express an address range as the smallest set of CIDR blocks."),
+        (["geoip-update"], "[--from dir] [cc ...]",
+         "Fill the geoip country sets from downloaded or local CIDR data."),
+        (["help"], "[command]",
+         "Show this help, or the usage for one command."),
+    ]),
+]
+
+
+def _help_entry(names, args, summary, out):
+    sig = ", ".join(names) + (" " + args if args else "")
+    print(f"  {sig}", file=out)
+    print(f"      {summary}", file=out)
+
+
+def _print_help(command=None, out=None):
+    """Print the full grouped help, or one command's line. Returns an exit
+    code: 0 for help shown, 1 for an unknown command."""
+    out = out or sys.stdout
+    if command is not None:
+        for _group, entries in _HELP_GROUPS:
+            for names, args, summary in entries:
+                if command in names:
+                    _help_entry(names, args, summary, out)
+                    print("\n  See shorewall(8) for the full description.",
+                          file=out)
+                    return 0
+        if command in NOT_IMPLEMENTED:
+            print(f"  {command} is not implemented yet "
+                  f"({NOT_IMPLEMENTED[command]}).", file=out)
+            return 0
+        print(f"shorewall-nft: no such command {command!r}; run "
+              "'shorewall help' for the list.", file=sys.stderr)
+        return 1
+    print(f"shorewall-nft {__version__} - Shorewall firewall for nftables",
+          file=out)
+    print("\nUsage: shorewall [options] <command> [arguments]", file=out)
+    print("\nOptions, before the command:", file=out)
+    for names, args, summary in _HELP_OPTIONS:
+        _help_entry(names, args, summary, out)
+    for group, entries in _HELP_GROUPS:
+        print(f"\n{group}:", file=out)
+        for names, args, summary in entries:
+            _help_entry(names, args, summary, out)
+    print("\nRun 'shorewall help <command>' for one command, or see "
+          "shorewall(8).", file=out)
+    return 0
+
+
+def cmd_help(args, family):
+    return _print_help(args[0] if args else None)
+
+
 VERBS = {
     "version": cmd_version,
+    "help": cmd_help,
     "automate": cmd_automate,
     "monitor": cmd_monitor,
     "enable": cmd_enable,
@@ -2229,17 +2362,23 @@ def main(argv=None):
     # Global options before the command, as upstream takes them: trace and
     # debug are accepted and ignored; -v/-q/-vN set the progress verbosity.
     vflags = []
-    while argv and (argv[0] in ("trace", "debug")
+    help_flag = False
+    while argv and (argv[0] in ("trace", "debug", "-h", "--help")
                     or re.fullmatch(r"-[qv]\d*", argv[0])):
         a = argv.pop(0)
-        if a not in ("trace", "debug"):
+        if a in ("-h", "--help"):
+            help_flag = True
+        elif a not in ("trace", "debug"):
             vflags.append(a)
     _parse_verbosity_flags(vflags)
+    if help_flag:
+        return _print_help()
     if not argv:
-        print("usage: shorewall-nft COMMAND [ARGS]", file=sys.stderr)
-        print("commands: " + " ".join(sorted(VERBS)), file=sys.stderr)
-        return 2
+        _print_help(out=sys.stderr)
+        return 1
     verb, args = argv[0], argv[1:]
+    if verb in VERBS and ("-h" in args or "--help" in args):
+        return _print_help(verb)
     # Real commands probe the kernel for the conntrack helpers, so a helper
     # this system lacks is gated out rather than emitted into a ruleset that
     # would not load. Compiling the corpus sets SHOREWALL_NFT_STATIC_CAPS,

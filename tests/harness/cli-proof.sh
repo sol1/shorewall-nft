@@ -33,6 +33,19 @@ bad() { echo "FAIL $1"; fail=1; }
 
 sw version >/dev/null && ok version || bad version
 
+# help lists every command grouped, with options, and answers for one command.
+h=$(sw help)
+if echo "$h" | grep -q "Firewall lifecycle" \
+   && echo "$h" | grep -q "remote-start" \
+   && echo "$h" | grep -q -- "-vN"; then
+    ok "help lists grouped commands and options"
+else
+    bad "help listing"
+fi
+sw help start | grep -q "Compile the configuration" \
+    && ok "help for one command" || bad "help for one command"
+sw -h | grep -q "Usage: shorewall" && ok "-h prints the help" || bad "-h help"
+
 sw check >/dev/null && ok check || bad check
 
 sw status >/dev/null && bad "status before start should be nonzero" \
