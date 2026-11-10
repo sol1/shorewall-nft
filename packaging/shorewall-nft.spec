@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.3.9
+Version:        0.3.10
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -177,6 +177,18 @@ exit 0
 %systemd_postun shorewall6-lite.service
 
 %changelog
+* Wed Nov 11 2026 Dave Kempe <dave@sol1.com.au> - 0.3.10-1
+- INVALID_DISPOSITION is honored: an INVALID packet that matches no INVALID
+  rule takes A_DROP, A_REJECT, DROP, REJECT or CONTINUE, applied after the
+  INVALID section (#39).
+- shorewall help lists every command with its options, grouped the way the man
+  page groups them. -h, --help and <command> --help print it too.
+- show routing <dest> [from SRC] [iif IFACE] [mark N] resolves one flow through
+  the policy rules, the way ip route get does, and names the provider the
+  result selects, for troubleshooting a multi-ISP box.
+- A ruleset that nft cannot load for want of a kernel feature now says so and
+  points at show capabilities, which lists the base kernel requirements
+  (nf_tables, nf_conntrack) as well as the nftables features.
 * Tue Oct 20 2026 Dave Kempe <dave@sol1.com.au> - 0.3.9-1
 - ?INCLUDE_GLOB reads a directory of configuration fragments in sorted order
   without a shell, and the legacy SHELL cat <glob> form is accepted as a narrow
