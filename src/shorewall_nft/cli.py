@@ -159,6 +159,8 @@ def _apply(confdir, family, vardir, keep_previous=True, action="Starting"):
         _state(vardir, "Started")
         _say(1, "done.")
         _say(1, f"Run 'nft list table {table_for(family)}' to see the ruleset.")
+    else:
+        _kernel_hint()
     return rc
 
 
@@ -284,6 +286,32 @@ def _check_ruleset(path, family):
             capture_output=True, text=True)
 
 
+def _kernel_requirements():
+    """The base kernel features shorewall-nft needs, and whether each looks
+    present. Read from the filesystem, so no privilege is needed: a loadable
+    module shows under /sys/module, and conntrack exposes /proc/sys/net/
+    netfilter. A feature built into the kernel has no /sys/module entry, so
+    'not detected' is a hint, not a certainty. Returns [(name, note, present)]."""
+    def present(*paths):
+        return any(os.path.exists(p) for p in paths)
+    return [
+        ("nf_tables", "nftables core", present("/sys/module/nf_tables")),
+        ("nf_conntrack", "connection tracking, for ct state",
+         present("/sys/module/nf_conntrack", "/proc/sys/net/netfilter")),
+    ]
+
+
+def _kernel_hint(out=None):
+    """Explain a failed load. nft rejecting a well-formed ruleset is usually a
+    kernel missing a feature or module it needs, which otherwise reads as a bare
+    nft error. BillK on shorewall-users could not connect the two."""
+    print("The ruleset did not load. This usually means the kernel is missing "
+          "a feature or module the configuration needs, not a configuration "
+          "error. Run 'shorewall show capabilities' to see what this kernel "
+          "supports, and check that nf_tables and nf_conntrack are available.",
+          file=out or sys.stderr)
+
+
 def cmd_check(args, family):
     directory, _, fam_flag, _, caps = _parse_compile_args(args)
     confdir = directory or _confdir(family)
@@ -300,6 +328,7 @@ def cmd_check(args, family):
             print(nft.stderr, file=sys.stderr)
             print("   ERROR: nft rejected the generated ruleset",
                   file=sys.stderr)
+            _kernel_hint()
             return 1
         print(f"Shorewall configuration verified in {confdir}")
         return 0
@@ -812,6 +841,12 @@ def cmd_show(args, family):
         # Probe the kernel so the helpers reflect this system, not the
         # compile-time defaults.
         capabilities.enable_probe()
+        print("Kernel requirements:")
+        for name, note, ok in _kernel_requirements():
+            print(f"   {name} ({note}): {'present' if ok else 'not detected'}")
+        print("      Not detected may mean it is built into the kernel; a "
+              "failing 'shorewall check' confirms a gap.")
+        print("\nnftables and conntrack capabilities:")
         for name in sorted(capabilities.CAPABILITIES):
             value = capabilities.lookup(name)
             print(f"   {name}: {'Yes' if value else 'Not available'}")

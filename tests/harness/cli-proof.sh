@@ -85,8 +85,16 @@ echo "$vout" | grep -q "Setting up proxy ARP" \
     && ok "-v restart adds the detail steps" || bad "-v restart detail steps"
 
 sw show | grep -q "chain net2fw" && ok show || bad show
-sw show capabilities | grep -q NAT_ENABLED && ok "show capabilities" \
-    || bad "show capabilities"
+# show capabilities lists the nftables/conntrack features and, for BillK's
+# point, the base kernel requirements so a missing module is not opaque.
+caps=$(sw show capabilities)
+if echo "$caps" | grep -q NAT_ENABLED \
+   && echo "$caps" | grep -q "Kernel requirements" \
+   && echo "$caps" | grep -q "nf_tables"; then
+    ok "show capabilities lists features and kernel requirements"
+else
+    bad "show capabilities"
+fi
 sw show zones | grep -q "fw (firewall)" && ok "show zones" \
     || bad "show zones"
 
