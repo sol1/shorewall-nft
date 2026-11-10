@@ -134,6 +134,13 @@ depend on.
 .B show\fR, \fBlist\fR, \fBls
 Show parts of the running configuration in nft syntax.
 .TP
+.B show routing \fR[\fIdestination\fR [\fBfrom \fIsource\fR] [\fBiif \fIinterface\fR] [\fBmark \fImark\fR]]
+With no destination, dump the routing rules and every provider table. With a
+destination, resolve the route through the policy rules, the way
+.B ip route get
+does, and name the provider the result selects. Use it to see which provider a
+given source or flow takes on a multi-ISP box.
+.TP
 .B save\fR, \fBrestore\fR, \fBforget\fR, \fBsavesets
 Manage a saved ruleset.
 .B savesets

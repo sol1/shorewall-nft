@@ -12,6 +12,7 @@ if [ -z "$SWNFT_IN_SANDBOX" ]; then
 fi
 
 mount -t tmpfs tmpfs /run
+ip link set lo up
 ip link add eth0 type dummy
 ip link add eth1 type dummy
 ip link set eth0 up
@@ -100,6 +101,11 @@ elif echo "$conn" | grep -qi "not implemented yet"; then
 else
     ok "show connections"
 fi
+
+# show routing <dest> resolves one flow through the policy rules (ip route get)
+# and annotates it with the provider. Loopback is always routable.
+sw show routing 127.0.0.1 2>/dev/null | grep -q "=>" \
+    && ok "show routing queries one flow" || bad "show routing query"
 
 sw save >/dev/null && ok save || bad save
 

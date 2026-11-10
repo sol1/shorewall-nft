@@ -749,6 +749,57 @@ def _show_routing(family):
             print(routes.stderr.rstrip())
         if not routes.stdout and not routes.stderr:
             print("(empty)")
+    print("\nQuery one flow: shorewall show routing <dest> "
+          "[from SRC] [iif IFACE] [mark N]")
+    return 0
+
+
+def _provider_for_route(route_output, providers):
+    """Name the provider a route result selects, from its table or its device.
+    Returns a short label for the query output. Pure, so it is testable without
+    a live kernel."""
+    by_number = {str(p.number): p for p in providers}
+    by_name = {p.name: p for p in providers}
+    by_iface = {p.interface: p for p in providers}
+    m = re.search(r"\btable (\S+)", route_output)
+    if m:
+        sel = m.group(1)
+        provider = by_name.get(sel) or by_number.get(sel)
+        if provider:
+            return (f"provider {provider.name} (table {provider.name}, "
+                    f"dev {provider.interface})")
+        if sel in ("balance", "250"):
+            return "balanced default (table balance)"
+        if sel not in ("main", "local", "default"):
+            return f"table {sel}"
+    m = re.search(r"\bdev (\S+)", route_output)
+    if m and m.group(1) in by_iface:
+        provider = by_iface[m.group(1)]
+        return f"provider {provider.name} (dev {provider.interface})"
+    return "no provider table (a main or local route)"
+
+
+def _query_routing(family, query):
+    """Query the route for one target through the policy rules, the way
+    'ip route get' does, and name the provider the result lands on. query is
+    passed to 'ip route get' verbatim: DEST [from SRC] [iif IFACE] [mark N]
+    [oif DEV]. Answers 'which provider would this flow take' on a multi-ISP
+    box."""
+    flag = "-6" if family == 6 else "-4"
+    r = subprocess.run([_ip(), flag, "route", "get", *query],
+                       capture_output=True, text=True)
+    if r.stdout:
+        print(r.stdout.rstrip())
+    if r.returncode:
+        if r.stderr:
+            print(r.stderr.rstrip(), file=sys.stderr)
+        return r.returncode
+    try:
+        from .compile import load
+        providers = load(_confdir(family), family).providers
+    except (ConfigError, OSError):
+        providers = []
+    print(f"\n=> {_provider_for_route(r.stdout, providers)}")
     return 0
 
 
@@ -786,6 +837,8 @@ def cmd_show(args, family):
     if what == "accounting":
         return _show_accounting(family)
     if what == "routing":
+        if len(args) > 1:
+            return _query_routing(family, args[1:])
         return _show_routing(family)
     if what in ("connections", "connection"):
         return _show_connections(family)
