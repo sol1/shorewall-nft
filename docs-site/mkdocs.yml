@@ -61,3 +61,13 @@ nav:
   - Home: index.md
   - Getting started:
       - Two-interface firewall: getting-started/two-interface.md
+  - Reference:
+      - Configuration files: reference/configuration-files.md
+      - 'shorewall (command)': reference/shorewall.md
+      - shorewall.conf: reference/shorewall-conf.md
+      - zones: reference/zones.md
+      - interfaces: reference/interfaces.md
+      - policy: reference/policy.md
+      - rules: reference/rules.md
+      - snat: reference/snat.md
+      - params: reference/params.md

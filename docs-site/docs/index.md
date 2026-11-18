@@ -30,6 +30,10 @@ More scenarios and how-to guides follow the same shape. Each guide shows a
 complete configuration, explains every file, and ends with the commands that
 check and start the firewall.
 
+The [reference](reference/configuration-files.md) describes each configuration
+file and each command on its own page, in the style of the Shorewall manual
+pages. It states what shorewall-nft accepts, file by file.
+
 ## A note on the examples
 
 Every configuration shown in these guides is compiled by shorewall-nft and
