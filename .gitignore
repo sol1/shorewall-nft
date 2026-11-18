@@ -16,3 +16,6 @@ debian/*.debhelper
 debian/*.debhelper.log
 debian/*.substvars
 build/
+
+# MkDocs build output
+docs-site/site/

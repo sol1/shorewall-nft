@@ -1,0 +1,5 @@
+# Build dependencies for the documentation site.
+#   pip install -r requirements.txt
+#   mkdocs serve        # preview at http://127.0.0.1:8000
+#   mkdocs build        # render to ./site
+mkdocs-material>=9.5,<10
