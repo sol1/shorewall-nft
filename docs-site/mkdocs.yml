@@ -66,6 +66,10 @@ nav:
   - How-to guides:
       - Port forwarding: how-to/port-forwarding.md
       - Masquerading and SNAT: how-to/masquerading.md
+      - Redirecting a port: how-to/redirects.md
+      - Rate limiting: how-to/rate-limiting.md
+      - Logging: how-to/logging.md
+      - Blacklisting: how-to/blacklisting.md
   - Reference:
       - Configuration files: reference/configuration-files.md
       - 'shorewall (command)': reference/shorewall.md
