@@ -21,14 +21,20 @@ or moving an existing Shorewall configuration from iptables to nftables.
 The getting-started guides each take one common network and build a working
 firewall for it, file by file.
 
+- [Standalone firewall](getting-started/standalone.md). A single machine with
+  one interface. It protects that machine and forwards nothing.
 - [Two-interface firewall](getting-started/two-interface.md). A gateway with
   one interface to the Internet and one to a local network. The local network
   shares the gateway's public address. This is the most common setup and the
   best place to start.
+- [Three-interface firewall](getting-started/three-interface.md). The same, with
+  a DMZ for servers you expose to the Internet.
 
-More scenarios and how-to guides follow the same shape. Each guide shows a
-complete configuration, explains every file, and ends with the commands that
-check and start the firewall.
+The how-to guides cover one task each, such as
+[port forwarding](how-to/port-forwarding.md) and
+[masquerading](how-to/masquerading.md). Each guide shows a complete
+configuration, explains every file, and ends with the commands that check and
+start the firewall.
 
 The [reference](reference/configuration-files.md) describes each configuration
 file and each command on its own page, in the style of the Shorewall manual

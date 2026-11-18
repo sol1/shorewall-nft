@@ -60,7 +60,12 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Getting started:
+      - Standalone firewall: getting-started/standalone.md
       - Two-interface firewall: getting-started/two-interface.md
+      - Three-interface firewall: getting-started/three-interface.md
+  - How-to guides:
+      - Port forwarding: how-to/port-forwarding.md
+      - Masquerading and SNAT: how-to/masquerading.md
   - Reference:
       - Configuration files: reference/configuration-files.md
       - 'shorewall (command)': reference/shorewall.md
