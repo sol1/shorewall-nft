@@ -39,5 +39,7 @@ the firewall accepts.
 
 ## Credit
 
+shorewall-nft is developed and maintained by [Sol1](https://sol1.com.au).
+
 Shorewall is the work of Thomas M. Eastep and the Shorewall team. This project
 and its documentation build on that work and follow its conventions.

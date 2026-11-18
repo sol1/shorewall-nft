@@ -7,8 +7,9 @@ repo_url: https://github.com/sol1/shorewall-nft
 repo_name: sol1/shorewall-nft
 edit_uri: edit/main/docs-site/docs/
 copyright: >-
+  shorewall-nft is developed by <a href="https://sol1.com.au">Sol1</a>.
   Shorewall is the work of Thomas M. Eastep and the Shorewall team.
-  shorewall-nft and this documentation are distributed under the GPL.
+  Distributed under the GPL.
 
 strict: true
 
