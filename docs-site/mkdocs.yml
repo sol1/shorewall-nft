@@ -75,15 +75,23 @@ nav:
       - Traffic shaping: how-to/traffic-shaping.md
       - IPsec and VPN tunnels: how-to/vpn.md
       - Running alongside Docker: how-to/docker.md
+      - Static NAT: how-to/static-nat.md
+      - MAC address filtering: how-to/mac-filtering.md
+      - Multiple zones on one interface: how-to/multiple-zones.md
+      - Custom actions and macros: how-to/actions.md
   - Reference:
       - Configuration files: reference/configuration-files.md
       - 'shorewall (command)': reference/shorewall.md
       - shorewall.conf: reference/shorewall-conf.md
       - zones: reference/zones.md
       - interfaces: reference/interfaces.md
+      - hosts: reference/hosts.md
       - policy: reference/policy.md
       - rules: reference/rules.md
+      - actions: reference/actions.md
       - snat: reference/snat.md
+      - nat and netmap: reference/nat.md
+      - maclist: reference/maclist.md
       - providers: reference/providers.md
       - tunnels: reference/tunnels.md
       - traffic shaping: reference/tc.md
