@@ -140,6 +140,20 @@ def nft_check(out):
     return r.returncode == 0, r.stderr.strip()
 
 
+def lsm_check(cfgdir, family):
+    """Parse an lsm file the way the link monitor does, so a documented lsm
+    example the monitor would reject fails here too. The compiler ignores the
+    lsm file, so without this a bad lsm block in the docs would go unnoticed.
+    build_monitors loads the providers and reads the lsm file; it does not send
+    any packets."""
+    code = ("import sys; from shorewall_nft import lsm; "
+            "lsm.build_monitors(sys.argv[1], int(sys.argv[2]))")
+    env = dict(os.environ, PYTHONPATH=SRC, SHOREWALL_NFT_STATIC_CAPS="1")
+    r = subprocess.run([sys.executable, "-c", code, cfgdir, str(family)],
+                       capture_output=True, text=True, env=env)
+    return r.returncode == 0, (r.stderr or r.stdout).strip()
+
+
 def pages():
     for root, _, names in os.walk(DOCS):
         for n in sorted(names):
@@ -203,6 +217,13 @@ def main():
             print(f"FAIL {rel}: nft rejected the ruleset\n{err}")
             failed += 1
             continue
+        if "lsm" in files:
+            ok, err = lsm_check(cfgdir, family)
+            if not ok:
+                print(f"FAIL {rel}: the link monitor rejected the lsm file\n"
+                      f"{err}")
+                failed += 1
+                continue
         print(f"PASS {rel} (family {family})")
         compiled += 1
 

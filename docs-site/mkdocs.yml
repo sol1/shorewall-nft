@@ -70,6 +70,7 @@ nav:
       - Rate limiting: how-to/rate-limiting.md
       - Logging: how-to/logging.md
       - Blacklisting: how-to/blacklisting.md
+      - Multiple ISPs and failover: how-to/multi-isp.md
   - Reference:
       - Configuration files: reference/configuration-files.md
       - 'shorewall (command)': reference/shorewall.md
@@ -79,4 +80,5 @@ nav:
       - policy: reference/policy.md
       - rules: reference/rules.md
       - snat: reference/snat.md
+      - providers: reference/providers.md
       - params: reference/params.md
