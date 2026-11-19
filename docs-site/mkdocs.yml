@@ -71,6 +71,10 @@ nav:
       - Logging: how-to/logging.md
       - Blacklisting: how-to/blacklisting.md
       - Multiple ISPs and failover: how-to/multi-isp.md
+      - Port knocking: how-to/port-knocking.md
+      - Traffic shaping: how-to/traffic-shaping.md
+      - IPsec and VPN tunnels: how-to/vpn.md
+      - Running alongside Docker: how-to/docker.md
   - Reference:
       - Configuration files: reference/configuration-files.md
       - 'shorewall (command)': reference/shorewall.md
@@ -81,4 +85,6 @@ nav:
       - rules: reference/rules.md
       - snat: reference/snat.md
       - providers: reference/providers.md
+      - tunnels: reference/tunnels.md
+      - traffic shaping: reference/tc.md
       - params: reference/params.md
