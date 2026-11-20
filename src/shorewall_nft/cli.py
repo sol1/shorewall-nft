@@ -1923,7 +1923,11 @@ NOT_IMPLEMENTED = {
 def _state_dir():
     # The wrapper's runtime state, where provider .state files live. This
     # is the wrapper's $STATE, distinct from the compiled-artifact vardir.
-    return os.environ.get("SWNFT_STATE", "/var/run/shorewall-nft")
+    # Per family, so shorewall and shorewall6 do not share one directory and
+    # clobber each other's provider and saved-route state.
+    default = ("/var/run/shorewall6-nft" if _family() == 6
+               else "/var/run/shorewall-nft")
+    return os.environ.get("SWNFT_STATE", default)
 
 
 def _provider_disabled(name):

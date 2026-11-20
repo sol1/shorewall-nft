@@ -487,7 +487,7 @@ TEMPLATE = """#!/bin/sh
 
 PATH=/usr/sbin:/sbin:/usr/bin:/bin
 export PATH
-STATE=${{SWNFT_STATE:-/var/run/shorewall-nft}}
+STATE=${{SWNFT_STATE:-{state_default}}}
 # The persistent state directory. Runtime state (provider up/down, saved
 # default route, lsm status) lives under $STATE, which is a tmpfs cleared
 # at boot. Data that must survive a reboot, geoip country sets and the
@@ -827,6 +827,8 @@ def render_script(cfg, ruleset, stop_ruleset):
     ipf = "-6" if cfg.family == 6 else "-4"
     vardir_default = ("/var/lib/shorewall6-nft" if cfg.family == 6
                       else "/var/lib/shorewall-nft")
+    state_default = ("/var/run/shorewall6-nft" if cfg.family == 6
+                     else "/var/run/shorewall-nft")
     dynsets = " ".join(external_sets(cfg))
     ifaddr_sets = " ".join(f"{s}:{p}" for s, p in iface_addr_sets(cfg))
     sysctls = "\n".join(f"    sysctl -qw {s}" for s in _sysctls(cfg)) or "    :"
@@ -838,7 +840,8 @@ def render_script(cfg, ruleset, stop_ruleset):
     skeleton, chunks = chunk.split(ruleset, table)
     return TEMPLATE.format(confdir=cfg.confdir, sysctls=sysctls,
                            table=table, ipf=ipf,
-                           vardir_default=vardir_default, dynsets=dynsets,
+                           vardir_default=vardir_default,
+                           state_default=state_default, dynsets=dynsets,
                            ifaddr_sets=ifaddr_sets,
                            extensions=_extensions(cfg),
                            routing_build=routing_build,
