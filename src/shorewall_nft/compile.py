@@ -75,7 +75,7 @@ def _check_behavioral_settings(variables):
 # behavior. Anything else in the directory is a site file and upstream
 # ignores it too.
 UNSUPPORTED = {"tcrules",
-               "secmarks", "arprules", "tcfilters",
+               "secmarks", "arprules",
                "routestopped", "vardir", "initdone"}
 
 # Files upstream itself removed. Warn and ignore, as upstream does,
@@ -118,6 +118,7 @@ class Config:
         self.zone_hosts = []
         self.tcdevices = []
         self.tcclasses = []
+        self.tcfilters = []
         self.mangle = []
         self.netmap = []
         self.blrules = []
@@ -312,6 +313,9 @@ def load(confdir, family=4):
         if os.path.exists(_path(confdir, "tcclasses")):
             cfg.tcclasses = parsers.parse_tcclasses(
                 _path(confdir, "tcclasses"), variables, cfg.interfaces)
+        if os.path.exists(_path(confdir, "tcfilters")):
+            cfg.tcfilters = parsers.parse_tcfilters(
+                _path(confdir, "tcfilters"), variables, cfg.interfaces)
         # Simple traffic shaping, an alternative to the classful pair.
         if os.path.exists(_path(confdir, "tcinterfaces")):
             cfg.tcinterfaces = parsers.parse_tcinterfaces(

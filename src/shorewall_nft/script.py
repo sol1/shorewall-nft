@@ -6,6 +6,8 @@ ruleset atomically with nft -f. This mirrors upstream's
 compile-to-script model, so shorewall-lite style deployment works: the
 target host needs nft and sh, not the compiler.
 """
+import socket
+
 from . import capabilities
 from .errors import ConfigError
 
@@ -366,6 +368,93 @@ def _rate_kbit(spec, line_hint=""):
                       f"unit such as kbit or mbit ({line_hint})")
 
 
+def _proto_number(proto, path, lineno):
+    try:
+        return int(proto)
+    except ValueError:
+        pass
+    try:
+        return socket.getprotobyname(proto)
+    except OSError:
+        raise ConfigError(f"tcfilters unknown PROTO {proto}", path, lineno)
+
+
+def _tc_filters(cfg, dev, classes):
+    """tc u32 filters for the tcfilters entries that target this device. They
+    classify traffic into a leaf class directly, without a mark, replicating
+    upstream's u32 emission so the tc state matches. A ported rule reaches the
+    transport header through a u32 hash table, as upstream does."""
+    i = dev.interface
+    n = dev.number
+    v6 = cfg.family == 6
+    ipp = "ipv6" if v6 else "ip"       # tc 'protocol' keyword
+    ipm = "ip6" if v6 else "ip"        # u32 match keyword
+    hostbits = "/128" if v6 else "/32"
+    mine = [f for f in cfg.tcfilters if f.device in (i, str(n))]
+    if not mine:
+        return []
+    leaf_minors = {10 + c.num for c in classes}
+    lines = []
+    prio = 0
+    table = 0
+
+    def net(spec):
+        return spec if "/" in spec else spec + hostbits
+
+    for f in mine:
+        path, _, lineno = f.origin.rpartition(":")
+        lineno = int(lineno)
+        if f.minor not in leaf_minors:
+            raise ConfigError(
+                f"tcfilters CLASS {f.device}:{f.minor} is not a defined class "
+                f"on {i}", path, lineno)
+        if f.length:
+            raise ConfigError("tcfilters LENGTH is not supported yet",
+                              path, lineno)
+        p = f.priority or prio + 1
+        prio = max(prio, p)
+        matches = []
+        if f.source:
+            matches.append(f"match {ipm} src {net(f.source)}")
+        if f.dest:
+            matches.append(f"match {ipm} dst {net(f.dest)}")
+        if f.tos:
+            val, _, mask = f.tos.partition("/")
+            matches.append(f"match {ipm} tos {val} {mask or '0xff'}")
+        if f.proto:
+            protonum = _proto_number(f.proto, path, lineno)
+            matches.append(f"match {ipm} protocol {protonum} 0xff")
+        if not (f.dport or f.sport):
+            if not matches:
+                continue       # a degenerate filter matches nothing; skip it
+            lines.append(
+                f"    tc filter add dev {i} protocol {ipp} parent {n}:0 "
+                f"prio {p} u32 {' '.join(matches)} flowid {n}:{f.minor}")
+            continue
+        if f.proto not in ("tcp", "udp", "6", "17"):
+            raise ConfigError("tcfilters ports need PROTO tcp or udp",
+                              path, lineno)
+        l4 = "tcp" if f.proto in ("tcp", "6") else "udp"
+        table += 1
+        th = f"{table:03x}"
+        link = (f"link {th}:0 offset plus 40 eat" if v6
+                else f"link {th}:0 offset at 0 mask 0x0F00 shift 6 plus 0 eat")
+        lines.append(
+            f"    tc filter add dev {i} parent {n}:0 protocol {ipp} "
+            f"prio {p} handle {th}: u32 divisor 1")
+        lines.append(
+            f"    tc filter add dev {i} protocol {ipp} parent {n}:0 "
+            f"prio {p} u32 {' '.join(matches)} {link}")
+        # tc u32 names the destination port 'dst' and the source port 'src'.
+        for col, plist in (("dst", f.dport), ("src", f.sport)):
+            for port in (plist.split(",") if plist else []):
+                lines.append(
+                    f"    tc filter add dev {i} protocol {ipp} parent {n}:0 "
+                    f"prio {p} u32 ht {th}:0 match {l4} {col} {port} 0xffff "
+                    f"flowid {n}:{f.minor}")
+    return lines
+
+
 def _tc(cfg):
     """Shell for setup_tc and clear_tc, replicating upstream's
     generated HTB tree: root qdisc, parent class at the device
@@ -374,7 +463,20 @@ def _tc(cfg):
     bandwidth is given. Quantum follows upstream: rate bytes over
     r2q, floored at the device MTU."""
     if not cfg.tcdevices:
+        if cfg.tcfilters:
+            f = cfg.tcfilters[0]
+            path, _, lineno = f.origin.rpartition(":")
+            raise ConfigError("tcfilters needs a shaped interface in "
+                              "tcdevices", path, int(lineno))
         return ("    :", "    :")
+    dev_ids = ({d.interface for d in cfg.tcdevices}
+               | {str(d.number) for d in cfg.tcdevices})
+    for f in cfg.tcfilters:
+        if f.device not in dev_ids:
+            path, _, lineno = f.origin.rpartition(":")
+            raise ConfigError(
+                f"tcfilters CLASS device {f.device} is not shaped in "
+                f"tcdevices", path, int(lineno))
     up = []
     down = []
     for dev in cfg.tcdevices:
@@ -422,6 +524,7 @@ def _tc(cfg):
                           f"{n}:0 prio {c.prio * 256 + 20} handle {c.mark} "
                           f"fw classid {n}:{minor}")
             handle += 1
+        up += _tc_filters(cfg, dev, classes)
         if dev.in_bw:
             up.append(f"    tc qdisc add dev {i} handle ffff: ingress")
             up.append(f"    tc filter add dev {i} parent ffff: protocol "
