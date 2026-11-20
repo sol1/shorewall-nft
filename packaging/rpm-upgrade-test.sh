@@ -13,7 +13,7 @@ bad()  { echo "FAIL $*"; FAIL=1; }
 
 say "install build tools"
 dnf -y install rpm-build rpmdevtools systemd-rpm-macros python3 nftables \
-    tar findutils >/dev/null
+    selinux-policy-devel tar findutils >/dev/null
 
 rpmdev-setuptree
 V=$(awk '/^Version:/{print $2}' packaging/shorewall-nft.spec)
