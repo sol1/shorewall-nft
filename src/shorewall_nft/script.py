@@ -6,6 +6,7 @@ ruleset atomically with nft -f. This mirrors upstream's
 compile-to-script model, so shorewall-lite style deployment works: the
 target host needs nft and sh, not the compiler.
 """
+from . import capabilities
 from .errors import ConfigError
 
 TRUTHY = ("yes", "1", "on")
@@ -472,9 +473,18 @@ def _simple_tc(cfg):
         if tci.in_bw:
             rate = _rate_kbit(tci.in_bw, tci.origin)
             up.append(f"    tc qdisc add dev {i} handle ffff: ingress")
-            up.append(f"    tc filter add dev {i} parent ffff: protocol all "
-                      f"prio 10 basic police mpu 64 rate {rate}kbit burst "
-                      "10kb drop")
+            if capabilities.lookup("BASIC_FILTER"):
+                up.append(f"    tc filter add dev {i} parent ffff: protocol "
+                          f"all prio 10 basic police mpu 64 rate {rate}kbit "
+                          "burst 10kb drop")
+            else:
+                # RHEL, Rocky and AlmaLinux 9 ship kernels without cls_basic,
+                # so a basic filter fails with "TC classifier not found" (#32).
+                # Fall back to a u32 match-all, as upstream does. u32 is
+                # universal and is what the classful path uses for ingress.
+                up.append(f"    tc filter add dev {i} parent ffff: protocol "
+                          f"all prio 10 u32 match u32 0 0 police mpu 64 rate "
+                          f"{rate}kbit burst 10kb drop")
         down.append(f"    tc qdisc del dev {i} root 2>/dev/null || :")
         down.append(f"    tc qdisc del dev {i} ingress 2>/dev/null || :")
     return ("\n".join(up), "\n".join(down))
