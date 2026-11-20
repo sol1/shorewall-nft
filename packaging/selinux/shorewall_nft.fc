@@ -1,0 +1,4 @@
+# /run is substituted to /var/run for context lookup (file_contexts.subs_dist),
+# so the canonical form here is /var/run.
+/var/run/shorewall-nft(/.*)?	gen_context(system_u:object_r:shorewall_runtime_t,s0)
+/var/run/shorewall6-nft(/.*)?	gen_context(system_u:object_r:shorewall_runtime_t,s0)

@@ -1,0 +1,35 @@
+policy_module(shorewall_nft, 1.0.0)
+
+########################################
+#
+# shorewall-nft runtime state directory.
+#
+# The stock "shorewall" policy lets shorewall_t write /var/lib but has no
+# rule for a runtime state directory under /run. shorewall-nft keeps provider
+# and failover state in /run/shorewall-nft (and /run/shorewall6-nft for IPv6),
+# created at start by the generated firewall script. Under enforcing the
+# mkdir is denied and the denial is dontaudit-suppressed, so the state is lost
+# without an AVC: the filter still loads from /var/lib, start reports success,
+# but default.save and the providers/ state are never written, so failover and
+# "shorewall restore" lose the saved routing. This module adds the missing
+# rules.
+#
+
+require {
+	type shorewall_t;
+}
+
+type shorewall_runtime_t;
+files_pid_file(shorewall_runtime_t)
+
+# shorewall_t creates and manages its runtime state directory and contents.
+manage_dirs_pattern(shorewall_t, shorewall_runtime_t, shorewall_runtime_t)
+manage_files_pattern(shorewall_t, shorewall_runtime_t, shorewall_runtime_t)
+manage_lnk_files_pattern(shorewall_t, shorewall_runtime_t, shorewall_runtime_t)
+
+# Label the directory when shorewall_t creates it under /run.
+files_pid_filetrans(shorewall_t, shorewall_runtime_t, dir, "shorewall-nft")
+files_pid_filetrans(shorewall_t, shorewall_runtime_t, dir, "shorewall6-nft")
+
+# Anything created inside it (providers/, default.save, *.state) inherits the type.
+filetrans_pattern(shorewall_t, shorewall_runtime_t, shorewall_runtime_t, { dir file lnk_file })

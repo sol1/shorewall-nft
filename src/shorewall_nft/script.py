@@ -6,6 +6,7 @@ ruleset atomically with nft -f. This mirrors upstream's
 compile-to-script model, so shorewall-lite style deployment works: the
 target host needs nft and sh, not the compiler.
 """
+from . import capabilities
 from .errors import ConfigError
 
 TRUTHY = ("yes", "1", "on")
@@ -472,9 +473,18 @@ def _simple_tc(cfg):
         if tci.in_bw:
             rate = _rate_kbit(tci.in_bw, tci.origin)
             up.append(f"    tc qdisc add dev {i} handle ffff: ingress")
-            up.append(f"    tc filter add dev {i} parent ffff: protocol all "
-                      f"prio 10 basic police mpu 64 rate {rate}kbit burst "
-                      "10kb drop")
+            if capabilities.lookup("BASIC_FILTER"):
+                up.append(f"    tc filter add dev {i} parent ffff: protocol "
+                          f"all prio 10 basic police mpu 64 rate {rate}kbit "
+                          "burst 10kb drop")
+            else:
+                # RHEL, Rocky and AlmaLinux 9 ship kernels without cls_basic,
+                # so a basic filter fails with "TC classifier not found" (#32).
+                # Fall back to a u32 match-all, as upstream does. u32 is
+                # universal and is what the classful path uses for ingress.
+                up.append(f"    tc filter add dev {i} parent ffff: protocol "
+                          f"all prio 10 u32 match u32 0 0 police mpu 64 rate "
+                          f"{rate}kbit burst 10kb drop")
         down.append(f"    tc qdisc del dev {i} root 2>/dev/null || :")
         down.append(f"    tc qdisc del dev {i} ingress 2>/dev/null || :")
     return ("\n".join(up), "\n".join(down))
@@ -487,7 +497,7 @@ TEMPLATE = """#!/bin/sh
 
 PATH=/usr/sbin:/sbin:/usr/bin:/bin
 export PATH
-STATE=${{SWNFT_STATE:-/var/run/shorewall-nft}}
+STATE=${{SWNFT_STATE:-{state_default}}}
 # The persistent state directory. Runtime state (provider up/down, saved
 # default route, lsm status) lives under $STATE, which is a tmpfs cleared
 # at boot. Data that must survive a reboot, geoip country sets and the
@@ -827,6 +837,8 @@ def render_script(cfg, ruleset, stop_ruleset):
     ipf = "-6" if cfg.family == 6 else "-4"
     vardir_default = ("/var/lib/shorewall6-nft" if cfg.family == 6
                       else "/var/lib/shorewall-nft")
+    state_default = ("/var/run/shorewall6-nft" if cfg.family == 6
+                     else "/var/run/shorewall-nft")
     dynsets = " ".join(external_sets(cfg))
     ifaddr_sets = " ".join(f"{s}:{p}" for s, p in iface_addr_sets(cfg))
     sysctls = "\n".join(f"    sysctl -qw {s}" for s in _sysctls(cfg)) or "    :"
@@ -838,7 +850,8 @@ def render_script(cfg, ruleset, stop_ruleset):
     skeleton, chunks = chunk.split(ruleset, table)
     return TEMPLATE.format(confdir=cfg.confdir, sysctls=sysctls,
                            table=table, ipf=ipf,
-                           vardir_default=vardir_default, dynsets=dynsets,
+                           vardir_default=vardir_default,
+                           state_default=state_default, dynsets=dynsets,
                            ifaddr_sets=ifaddr_sets,
                            extensions=_extensions(cfg),
                            routing_build=routing_build,

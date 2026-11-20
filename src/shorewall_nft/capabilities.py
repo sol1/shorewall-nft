@@ -44,6 +44,12 @@ CAPABILITIES = {
     "NFT_CONCAT_MAPS": True,
     "NFT_IPSEC": True,
     "NFT_AUTOBL": True,
+    # The tc 'basic' classifier (cls_basic), used by simple traffic shaping for
+    # the ingress policer. RHEL, Rocky and AlmaLinux 9 ship kernels without it;
+    # the simple-tc path falls back to a u32 match-all there. Probed with tc in
+    # a throwaway namespace. Default yes so the corpus stays byte-identical with
+    # probing off, like upstream, which also gates this on BASIC_FILTER.
+    "BASIC_FILTER": True,
 }
 
 # A conntrack-helper capability maps to the nft ct helper type and a
@@ -206,6 +212,38 @@ def probe_syntax(name):
     return result
 
 
+def _tc_bin():
+    for p in ("/usr/sbin/tc", "/sbin/tc"):
+        if os.path.exists(p):
+            return p
+    return "tc"
+
+
+def probe_basic_filter():
+    """True if the kernel has the tc 'basic' classifier, False if not, None if
+    we cannot tell. Adds an ingress qdisc and a basic filter on lo in the
+    throwaway namespace; the kernel rejects the filter with "TC classifier not
+    found" when cls_basic is absent, as on RHEL and Rocky 9."""
+    key = "tc:BASIC_FILTER"
+    if key in _probe_cache:
+        return _probe_cache[key]
+    if _sandbox_cmd is None and not _sandbox():
+        result = None
+    else:
+        tc = _tc_bin()
+        script = (f"{tc} qdisc add dev lo handle ffff: ingress && "
+                  f"{tc} filter add dev lo parent ffff: protocol all prio 10 "
+                  "basic police rate 1000kbit burst 10k drop")
+        try:
+            r = subprocess.run(_sandbox_cmd + ["sh", "-c", script],
+                               capture_output=True, text=True)
+            result = r.returncode == 0
+        except OSError:
+            result = None
+    _probe_cache[key] = result
+    return result
+
+
 def load_profile(path):
     """Load a capability profile: NAME=Yes/No lines, as shorecap writes them
     on a target. Used verbatim, with probing off, so a remote deploy compiles
@@ -229,6 +267,10 @@ def lookup(name):
             return real
     if _probe_enabled and name in SYNTAX_PROBES:
         real = probe_syntax(name)
+        if real is not None:
+            return real
+    if _probe_enabled and name == "BASIC_FILTER":
+        real = probe_basic_filter()
         if real is not None:
             return real
     return CAPABILITIES.get(name, False)
