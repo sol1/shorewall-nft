@@ -550,9 +550,66 @@ def cmd_status(args, family):
             except OSError:
                 pass
             print(f"  {name}: {state}{mon}")
+    # Traffic shaping, if this box shapes.
+    _tc_status(family)
     # Started but the table is gone is a real problem: return non-zero so a
     # monitor keyed on the exit code alerts on an unprotected box.
     return 0 if loaded else 1
+
+
+def _tc_cmd():
+    for p in ("/usr/sbin/tc", "/sbin/tc"):
+        if os.path.exists(p):
+            return p
+    return "tc"
+
+
+def _tc_status(family):
+    """A traffic-shaping summary for status: per shaped device, each HTB class
+    with its rate, ceiling and live byte and packet counters, and the root
+    qdisc for simple shaping. Silent when nothing is shaped or the config does
+    not parse."""
+    try:
+        from .compile import load
+        cfg = load(_confdir(family), family)
+    except (ConfigError, OSError):
+        return
+    classful = [d.interface for d in cfg.tcdevices]
+    simple = [t.interface for t in getattr(cfg, "tcinterfaces", [])]
+    if not classful and not simple:
+        return
+    tc = _tc_cmd()
+
+    def run(obj, dev):
+        r = subprocess.run([tc, "-s", obj, "show", "dev", dev],
+                           capture_output=True, text=True)
+        return r.stdout if r.returncode == 0 else ""
+
+    print("\nTraffic shaping:")
+    for dev in classful:
+        print(f"  {dev}:")
+        lines = run("class", dev).splitlines()
+        shown = False
+        for i, line in enumerate(lines):
+            m = re.match(r"\s*class htb (\S+).*?rate (\S+)", line)
+            if not m:
+                continue
+            classid, rate = m.group(1), m.group(2)
+            cm = re.search(r"ceil (\S+)", line)
+            ceil = cm.group(1) if cm else rate
+            sent = ""
+            if i + 1 < len(lines):
+                s = re.search(r"Sent (\d+) bytes (\d+) pkt", lines[i + 1])
+                if s:
+                    sent = f"  {int(s.group(1)):,} bytes {s.group(2)} pkts"
+            print(f"    class {classid} rate {rate} ceil {ceil}{sent}")
+            shown = True
+        if not shown:
+            print("    (qdisc not loaded)")
+    for dev in simple:
+        head = next((l.strip() for l in run("qdisc", dev).splitlines()
+                     if l.strip().startswith("qdisc")), "")
+        print(f"  {dev} (simple): {head}")
 
 
 def _accounting_listing(text):
