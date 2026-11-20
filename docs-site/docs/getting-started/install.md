@@ -34,11 +34,32 @@ serves every release.
 
 Packages are the intended path. The full package Provides, Conflicts with and
 Replaces the distro `shorewall` package, so installing takes over the command
-and keeps your `/etc/shorewall`. Download the package for your distribution from
-the [releases page](https://github.com/sol1/shorewall-nft/releases), or build it
+and keeps your `/etc/shorewall`. On Debian and Ubuntu you can install from the
+Sol1 apt repository, below, which also keeps the package updated. Otherwise
+download the package for your distribution from the
+[releases page](https://github.com/sol1/shorewall-nft/releases), or build it
 from source as below.
 
 ### Debian and Ubuntu
+
+Sol1 hosts an apt repository at
+[packages.sol1.net](https://packages.sol1.net). Adding it lets apt install
+shorewall-nft and update it with the rest of the system. This is optional. The
+package also installs as a plain file, below. Use the codename for your release
+in place of `trixie` (Debian 13); the repository page lists the suites it
+carries.
+
+```text
+sudo install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://packages.sol1.net/packages.key \
+    | sudo gpg --dearmor -o /etc/apt/keyrings/sol1.gpg
+echo "deb [signed-by=/etc/apt/keyrings/sol1.gpg] https://packages.sol1.net trixie main" \
+    | sudo tee /etc/apt/sources.list.d/sol1.list
+sudo apt update
+sudo apt install shorewall-nft
+```
+
+Or install a package you have downloaded:
 
 ```text
 apt install ./shorewall-nft_<version>_all.deb
