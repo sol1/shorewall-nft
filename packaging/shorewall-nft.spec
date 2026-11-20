@@ -8,6 +8,10 @@ URL:            https://github.com/sol1/shorewall-nft
 Source0:        %{name}-%{version}.tar.gz
 BuildArch:      noarch
 
+# SELinux policy module (Red Hat family, targeted policy).
+%global selinuxtype     targeted
+%global selinux_module  shorewall_nft
+
 Requires:       python3 >= 3.7
 Requires:       nftables
 # Optional: 'shorewall monitor fancy' is an interactive textual app (textual
@@ -26,6 +30,9 @@ Conflicts:      shorewall-core
 
 %{?systemd_requires}
 BuildRequires:  systemd-rpm-macros
+# SELinux policy module: built here, loaded from %post.
+BuildRequires:  selinux-policy-devel
+%{?selinux_requires}
 
 %description
 A drop-in replacement for Shorewall that generates nftables rulesets
@@ -54,7 +61,9 @@ does not depend on Python.
 %autosetup
 
 %build
-# Pure Python; nothing to build.
+# The compiler is pure Python; nothing to compile there. Build the SELinux
+# policy module from its .te/.fc sources.
+make -f %{_datadir}/selinux/devel/Makefile -C packaging/selinux %{selinux_module}.pp
 
 %install
 # SBINDIR tracks %{_sbindir}, which is /usr/bin on Fedora 42+ (bin and sbin
@@ -62,6 +71,9 @@ does not depend on Python.
 # %files list looks for them.
 SBINDIR=%{_sbindir} DESTDIR=%{buildroot} packaging/install.sh packaging/shorewallrc.redhat
 SBINDIR=%{_sbindir} DESTDIR=%{buildroot} packaging/install-lite.sh packaging/shorewallrc.redhat
+# SELinux policy module.
+install -D -m 0644 packaging/selinux/%{selinux_module}.pp \
+    %{buildroot}%{_datadir}/selinux/packages/%{name}/%{selinux_module}.pp
 
 %files
 %license LICENSE
@@ -76,6 +88,8 @@ SBINDIR=%{_sbindir} DESTDIR=%{buildroot} packaging/install-lite.sh packaging/sho
 %{_unitdir}/shorewall-geoip-update.timer
 %{_mandir}/man8/shorewall*.8*
 %{_mandir}/man5/shorewall*.5*
+%dir %{_datadir}/selinux/packages/%{name}
+%{_datadir}/selinux/packages/%{name}/%{selinux_module}.pp
 # 0750 like shorewall's own state dir: it holds saved rulesets and resolved
 # addresses, which a less-privileged user should not read.
 %attr(0750,root,root) %dir %{_localstatedir}/lib/shorewall-nft
@@ -118,6 +132,13 @@ fi
 %systemd_post shorewall6.service
 %systemd_post shorewall-lsm.service
 %systemd_post shorewall-geoip-update.timer
+# Load the SELinux policy module. It adds the runtime state directory rules the
+# stock shorewall policy lacks (/run/shorewall-nft, /run/shorewall6-nft). A
+# no-op where SELinux is disabled.
+%selinux_modules_install -s %{selinuxtype} %{_datadir}/selinux/packages/%{name}/%{selinux_module}.pp
+if selinuxenabled 2>/dev/null; then
+    restorecon -RF %{_localstatedir}/run/shorewall-nft %{_localstatedir}/run/shorewall6-nft 2>/dev/null || :
+fi
 
 %preun
 %systemd_preun shorewall.service
@@ -130,6 +151,10 @@ fi
 %systemd_postun shorewall6.service
 %systemd_postun shorewall-lsm.service
 %systemd_postun shorewall-geoip-update.timer
+# Remove the SELinux policy module only on final erase, not on upgrade.
+if [ $1 -eq 0 ]; then
+    %selinux_modules_uninstall -s %{selinuxtype} %{selinux_module}
+fi
 
 %pretrans
 # The old shorewall/shorewall6 packages own /etc/shorewall{,6} as %config.
