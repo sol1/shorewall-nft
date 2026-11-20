@@ -1,3 +1,10 @@
+# The persistent state directory holds the compiled firewall script and saved
+# rulesets. The distribution policy labels /var/lib/shorewall for the iptables
+# Shorewall but not /var/lib/shorewall-nft, which otherwise lands on the default
+# var_lib_t that shorewall_t may not manage. Give it the shorewall_var_lib_t the
+# base policy already grants shorewall_t, which also spares a relabel on EL10,
+# where the stock rules are stricter.
+/var/lib/shorewall-nft(/.*)?	gen_context(system_u:object_r:shorewall_var_lib_t,s0)
 # /run is substituted to /var/run for context lookup (file_contexts.subs_dist),
 # so the canonical form here is /var/run.
 /var/run/shorewall-nft(/.*)?	gen_context(system_u:object_r:shorewall_runtime_t,s0)
