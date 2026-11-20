@@ -1,0 +1,3 @@
+#CLASS		SOURCE		DEST	PROTO	DPORT	SPORT	TOS	LENGTH
+eth0:12		10.0.1.0/24	-	tcp	80	-	-	-
+eth0:11		-		-	icmp	-	-	-	-

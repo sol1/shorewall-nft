@@ -25,6 +25,7 @@ parsers, and by test.
 | rtrules | All source forms, comma lists, mark column, persistent. |
 | tcdevices | HTB root and device ceiling. |
 | tcclasses | HTB classes with rates, ceilings, priorities, marks. |
+| tcfilters | Classify into a leaf class with a u32 filter, by source, dest, protocol and tcp/udp port. The basic-classifier variant and the LENGTH column are not implemented. |
 | tunnels | All 14 types: ipsec, openvpn variants, gre, l2tp, pptp, tinc and the rest. |
 | netmap | Traditional 8-column IPv4/IPv6 NETMAP format, including exclusions, NET3, protocol/ports, logical/wildcard interfaces and normal chain designators, emitted as stateful nft prefix NAT. Cross-hook `SNAT:P` and `DNAT:T` fail explicitly. See [netmap.md](netmap.md). |
 | lsm | Link monitor config (shorewall-nft extension): per-provider probe method, targets, interval, up/down thresholds, latency limit. Drives failover via enable/disable. |
@@ -51,7 +52,7 @@ Raw nft passthrough (the inline `;` and `;;` syntax and the INLINE
 action) lets a rule carry raw nft for anything without a column. See
 docs/passthrough.md.
 
-## Not yet supported (fail loud, no silent drops): 6
+## Not yet supported (fail loud, no silent drops): 5
 
 These raise a clear compile error naming the file. None is silently
 dropped, so a config that uses one is never quietly weakened.
@@ -61,7 +62,6 @@ dropped, so a config that uses one is never quietly weakened.
 | tcrules | The pre-4.6 syntax, superseded by mangle, which we do support. |
 | secmarks | SELinux packet context. Parked pending community demand. |
 | arprules | Arptables rules. Parked pending community demand. |
-| tcfilters | Classifies into classful-tc classes. Needs the explicit class-number model. |
 | routestopped | Pre-4.6.8 stopped-state hosts. stoppedrules, its replacement, is supported. |
 | initdone | Perl compiler-hook script. |
 
@@ -84,11 +84,10 @@ and compile-time script rewriting we do not yet expose.
 
 ## Summary
 
-31 of 39 files fully supported, plus the lifecycle extension scripts,
+32 of 39 files fully supported, plus the lifecycle extension scripts,
 lib.private, findgw and raw nft passthrough. That covers everything the
-sample configs and the 45-host production fleet use. The 6 unsupported
+sample configs and the 45-host production fleet use. The 5 unsupported
 files fail loud; none is silently dropped. The tos file is deprecated
 upstream and we warn and ignore it like upstream, its capability living
-in the mangle TOS action. The remaining files are tcfilters (needs the
-classful class-number model), the two parked files secmarks and
-arprules, and the niche tcrules, routestopped and initdone.
+in the mangle TOS action. The remaining files are the two parked files
+secmarks and arprules, and the niche tcrules, routestopped and initdone.

@@ -10,8 +10,8 @@ from . import capabilities, macros, valid
 from .errors import ConfigError
 from .model import (AcctRule, DnatRule, HelperRule, Interface, MangleRule,
                     NatRule, NetmapRule, Policy, Provider, RtRule, Rule, SnatRule,
-                    StopRule, TcClass, TcDevice, TcInterface, TcPri, Zone,
-                    ZoneHost)
+                    StopRule, TcClass, TcDevice, TcFilter, TcInterface, TcPri,
+                    Zone, ZoneHost)
 from .reader import read_file, split_columns, split_inline
 
 
@@ -1564,6 +1564,43 @@ def parse_tcclasses(path, variables, interfaces):
                            prio=valid.integer(cols[4], line, "tcclasses prio")
                            if cols[4] != "-" else 1,
                            default=default, origin=origin))
+    return out
+
+
+def parse_tcfilters(path, variables, interfaces):
+    """The tcfilters file: classify traffic into an HTB class with a u32
+    filter. Columns CLASS SOURCE DEST PROTO DPORT SPORT TOS LENGTH PRIORITY.
+    CLASS is device:minor, the classid minor of a leaf class."""
+    logical = {i.logical: i.physical for i in interfaces}
+    out = []
+    for line in read_file(path, variables):
+        cols = split_columns(line.text, line.path, line.lineno)
+        if not cols or cols[0] in ("", "-"):
+            raise line.error("tcfilters CLASS must be specified")
+        dev, sep, minor = cols[0].partition(":")
+        if not sep or not minor:
+            raise line.error(
+                f"tcfilters CLASS must be device:minor, not {cols[0]}")
+        minor = valid.integer(minor, line, "tcfilters class")
+        dev = logical.get(dev, dev)
+
+        def col(n):
+            return cols[n] if len(cols) > n and cols[n] != "-" else ""
+        source, dest, proto = col(1), col(2), col(3)
+        dport, sport, tos, length = col(4), col(5), col(6), col(7)
+        priority = valid.integer(col(8), line, "tcfilters priority") \
+            if col(8) else 0
+        if (dport or sport) and not proto:
+            raise line.error("tcfilters ports need a PROTO")
+        if source:
+            valid.network(source, line, "tcfilters source")
+        if dest:
+            valid.network(dest, line, "tcfilters dest")
+        out.append(TcFilter(
+            device=dev, minor=minor, source=source, dest=dest, proto=proto,
+            dport=dport, sport=sport, tos=tos, length=length,
+            priority=priority,
+            origin=f"{os.path.basename(line.path)}:{line.lineno}"))
     return out
 
 

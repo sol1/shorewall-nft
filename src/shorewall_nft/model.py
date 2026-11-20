@@ -160,6 +160,26 @@ class TcInterface:
 
 
 @dataclass
+class TcFilter:
+    """A tcfilters entry: classify traffic into an HTB class with a u32 filter.
+
+    device/minor name the target class as `device:minor`, the classid minor of
+    a leaf class (10 + the tcclasses class number). The match columns are empty
+    (not '-') when unset."""
+    device: str               # interface name or number, as written
+    minor: int                # classid minor of the target class
+    source: str = ""
+    dest: str = ""
+    proto: str = ""
+    dport: str = ""
+    sport: str = ""
+    tos: str = ""
+    length: str = ""
+    priority: int = 0         # 0 means auto-number per device
+    origin: str = ""
+
+
+@dataclass
 class TcPri:
     """A tcpri entry: assign matching traffic to a priority band."""
     band: int                 # 1, 2 or 3
