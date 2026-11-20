@@ -32,7 +32,16 @@ Conflicts:      shorewall-core
 BuildRequires:  systemd-rpm-macros
 # SELinux policy module: built here, loaded from %post.
 BuildRequires:  selinux-policy-devel
-%{?selinux_requires}
+# Scriptlet tools for %post and %postun, unversioned on purpose. We do not use
+# %{?selinux_requires} because it pins selinux-policy to the build host's
+# version. This is one noarch rpm, built on Fedora and installed on Fedora and
+# EL9 alike, whose policy versions differ, so a build-host pin makes it
+# uninstallable on EL9. The module declares its own type and references only
+# long-stable base types, so any targeted policy loads it. The scriptlets need
+# only semodule and selinuxenabled.
+Requires(post):   policycoreutils
+Requires(post):   libselinux-utils
+Requires(postun): policycoreutils
 
 %description
 A drop-in replacement for Shorewall that generates nftables rulesets
