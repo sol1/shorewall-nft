@@ -2,7 +2,7 @@ site_name: shorewall-nft
 site_description: >-
   Documentation for shorewall-nft, a Shorewall firewall compiler and runtime
   for nftables.
-site_url: https://sol1.github.io/shorewall-nft/
+site_url: https://shorewall-nft.org/
 repo_url: https://github.com/sol1/shorewall-nft
 repo_name: sol1/shorewall-nft
 edit_uri: edit/main/docs-site/docs/
@@ -60,6 +60,7 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Getting started:
+      - Installing shorewall-nft: getting-started/install.md
       - Standalone firewall: getting-started/standalone.md
       - Two-interface firewall: getting-started/two-interface.md
       - Three-interface firewall: getting-started/three-interface.md

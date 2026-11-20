@@ -10,6 +10,9 @@ nftables rulesets instead of iptables-restore input. It reads your existing
 /etc/shorewall configuration. The goal is that no configuration changes are required
 to transition.
 
+The documentation site is at https://shorewall-nft.org. It has how-to guides
+and a reference page for every configuration file.
+
 ## Background
 
 Shorewall is dormant. The last release, 5.2.8, was September 2020, and the last
@@ -99,7 +102,8 @@ exposed.
     upstream/        Clones of shorewall and nftables sources. Not committed.
     tests/           Test corpus and harness.
 
-Documentation: [docs/](docs/README.md) is the full index. Quick links:
+In the repository, [docs/](docs/README.md) is the full index of design and
+operations notes. Quick links:
 [migrating](docs/migration.md), [running lite on an embedded
 target](docs/lite.md), [automating with Ansible](docs/automation.md),
 [distro support and layout](docs/distros.md), [config coverage](docs/coverage.md),
