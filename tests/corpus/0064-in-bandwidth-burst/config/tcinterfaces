@@ -1,0 +1,2 @@
+#INTERFACE	TYPE	IN_BANDWIDTH	OUT_BANDWIDTH
+eth0	external	1gbit:256kb	10mbit

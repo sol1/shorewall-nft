@@ -38,6 +38,21 @@ eth0         external   20mbit         10mbit
 little below your real upload speed and `IN_BANDWIDTH` a little below your real
 download speed, so the queue forms on the firewall where it can be managed.
 
+### Fast links
+
+On a fast link, give `IN_BANDWIDTH` a burst. Incoming traffic is policed with a
+10kb burst by default. A fast network card merges packets into chunks of up to
+64KB before the policer sees them, and the policer drops any chunk bigger than
+its burst, so a gigabit download can fall to a few megabytes a second. Add the
+burst after a colon. 256kb holds a gigabit link.
+
+```text title="/etc/shorewall/tcinterfaces"
+#INTERFACE   TYPE       IN_BANDWIDTH    OUT_BANDWIDTH
+eth0         external   900mbit:256kb   45mbit
+```
+
+The [IN_BANDWIDTH reference](../reference/tc.md#in_bandwidth) lists every form.
+
 ## Sort traffic into bands
 
 Simple shaping has three priority bands. Band 1 goes first, then band 2, then

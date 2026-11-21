@@ -514,7 +514,12 @@ def main():
                    capture_output=True, text=True).stdout
             f = ns("fw", "tc", "filter", "show", "dev", dev,
                    capture_output=True, text=True).stdout
-            tc_state[dev] = q + c + f
+            # Ingress filters (the IN-BANDWIDTH policer) live under the
+            # ingress qdisc and are not in the plain filter listing (#46).
+            ing = ns("fw", "tc", "filter", "show", "dev", dev,
+                     "parent", "ffff:", capture_output=True, text=True,
+                     check=False).stdout
+            tc_state[dev] = q + c + f + ing
     finally:
         teardown(nodes, procs)
     json.dump({"load": args.load, "verdicts": verdicts, "tc": tc_state,

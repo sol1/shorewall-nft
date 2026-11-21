@@ -39,18 +39,31 @@ def sh(args, **kw):
     return subprocess.run(args, capture_output=True, text=True, **kw)
 
 
-def compile_upstream(case_dir, out, family):
-    r = sh([os.path.join(HARNESS, "compile-upstream.sh"),
-            os.path.join(case_dir, "config"), out, str(family)])
+def case_caps(case):
+    """The capabilities file a case names with 'capabilities', for a case
+    that models a different kernel. Both compilers get it. None means each
+    compiler's default."""
+    name = case.get("capabilities")
+    return os.path.join(REPO, "tests", "capabilities", name) if name else None
+
+
+def compile_upstream(case_dir, out, family, caps=None):
+    args = [os.path.join(HARNESS, "compile-upstream.sh"),
+            os.path.join(case_dir, "config"), out, str(family)]
+    if caps:
+        args.append(caps)
+    r = sh(args)
     return r.returncode == 0, (r.stderr or r.stdout).strip()[-500:]
 
 
-def compile_ours(case_dir, out, family, script=None):
+def compile_ours(case_dir, out, family, script=None, caps=None):
     args = [sys.executable, "-m", "shorewall_nft", "compile",
             os.path.join(case_dir, "config"), "-o", out,
             "--family", str(family)]
     if script:
         args += ["--script", script]
+    if caps:
+        args += ["--caps", caps]
     # Keep capability answers fixed so the corpus compiles byte-identically
     # regardless of which conntrack helpers the test kernel has. This variable
     # is ours only; it must not leak into the upstream compiler, which reserves
@@ -174,12 +187,14 @@ def run_case(name):
     if no_upstream:
         layers["upstream-compile"] = "skip"
     else:
-        ok, msg = compile_upstream(case_dir, out, family)
+        ok, msg = compile_upstream(case_dir, out, family,
+                                   caps=case_caps(case))
         layers["upstream-compile"] = "pass" if ok else "FAIL"
         if not ok:
             detail["upstream-compile"] = msg
 
-    ok, msg = compile_ours(case_dir, ours_nft, family, script=ours_script)
+    ok, msg = compile_ours(case_dir, ours_nft, family, script=ours_script,
+                           caps=case_caps(case))
     layers["ours-compile"] = "pass" if ok else "FAIL"
     if not ok:
         detail["ours-compile"] = msg
