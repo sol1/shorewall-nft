@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.3.10
+Version:        0.4.0
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -222,6 +222,24 @@ exit 0
 %systemd_postun shorewall6-lite.service
 
 %changelog
+* Sat Nov 21 2026 Dave Kempe <dave@sol1.com.au> - 0.4.0-1
+- Classful traffic shaping is complete. The tcfilters file classifies traffic
+  into an HTB class with a tc u32 filter, by source, destination, protocol and
+  port, the same filters upstream emits.
+- shorewall status shows traffic shaping: each HTB class with its rate, ceiling
+  and live counters, and the root qdisc for simple shaping.
+- Simple traffic shaping works on RHEL, Rocky and AlmaLinux 9, whose kernels
+  lack cls_basic. The ingress policer falls back to a u32 match-all filter
+  (#32).
+- On an enforcing Red Hat family host the package ships an SELinux module that
+  lets shorewall keep its runtime state under /run, labels
+  /var/lib/shorewall-nft, and ships precompiled bytecode, so start no longer
+  loses saved state or logs denials (#40).
+- shorewall and shorewall6 keep separate runtime state, so running both no
+  longer overwrites each other's saved routes and provider state (#42).
+- New documentation site at shorewall-nft.org, with an install guide, a
+  reference section and how-tos.
+
 * Wed Nov 11 2026 Dave Kempe <dave@sol1.com.au> - 0.3.10-1
 - INVALID_DISPOSITION is honored: an INVALID packet that matches no INVALID
   rule takes A_DROP, A_REJECT, DROP, REJECT or CONTINUE, applied after the
