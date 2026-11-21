@@ -32,6 +32,8 @@ Conflicts:      shorewall-core
 BuildRequires:  systemd-rpm-macros
 # SELinux policy module: built here, loaded from %post.
 BuildRequires:  selinux-policy-devel
+# Provides the py_byte_compile macro, used to ship precompiled bytecode.
+BuildRequires:  python3-devel
 # Scriptlet tools, unversioned on purpose. We avoid the selinux_requires macro
 # because it pins selinux-policy to the build host's version. This is one noarch
 # rpm, built on Fedora and installed on Fedora and EL9 alike, whose policy
@@ -83,6 +85,12 @@ SBINDIR=%{_sbindir} DESTDIR=%{buildroot} packaging/install-lite.sh packaging/sho
 # SELinux policy module.
 install -D -m 0644 packaging/selinux/%{selinux_module}.pp \
     %{buildroot}%{_datadir}/selinux/packages/%{name}/%{selinux_module}.pp
+# Ship the compiled bytecode. The compiler lives under /usr/share, not the
+# Python site directory, so the automatic byte-compilation pass skips it and
+# the .pyc files would otherwise be written on first run. On an enforcing host
+# shorewall_t cannot write under /usr/share, so that first run logs an AVC and
+# recompiles every time. Precompiling here ships the __pycache__ in the package.
+%py_byte_compile %{python3} %{buildroot}%{_datadir}/shorewall-nft
 
 %files
 %license LICENSE
@@ -141,12 +149,15 @@ fi
 %systemd_post shorewall6.service
 %systemd_post shorewall-lsm.service
 %systemd_post shorewall-geoip-update.timer
-# Load the SELinux policy module. It adds the runtime state directory rules the
-# stock shorewall policy lacks (/run/shorewall-nft, /run/shorewall6-nft). A
-# no-op where SELinux is disabled.
+# Load the SELinux policy module. It labels the state directory
+# /var/lib/shorewall-nft and adds the runtime directory rules the stock shorewall
+# policy lacks (/run/shorewall-nft, /run/shorewall6-nft). A no-op where SELinux
+# is disabled.
 %selinux_modules_install -s %{selinuxtype} %{_datadir}/selinux/packages/%{name}/%{selinux_module}.pp
 if selinuxenabled 2>/dev/null; then
-    restorecon -RF %{_localstatedir}/run/shorewall-nft %{_localstatedir}/run/shorewall6-nft 2>/dev/null || :
+    # The files were laid down before the module loaded, so relabel the state
+    # directory to the type the .fc now gives it.
+    restorecon -RF %{_localstatedir}/lib/shorewall-nft %{_localstatedir}/run/shorewall-nft %{_localstatedir}/run/shorewall6-nft 2>/dev/null || :
 fi
 
 %preun

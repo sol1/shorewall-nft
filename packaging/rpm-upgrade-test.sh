@@ -12,7 +12,7 @@ pass() { echo "PASS $*"; }
 bad()  { echo "FAIL $*"; FAIL=1; }
 
 say "install build tools"
-dnf -y install rpm-build rpmdevtools systemd-rpm-macros python3 nftables \
+dnf -y install rpm-build rpmdevtools systemd-rpm-macros python3 python3-devel nftables \
     selinux-policy-devel tar findutils >/dev/null
 
 rpmdev-setuptree
