@@ -525,14 +525,36 @@ def _tc(cfg):
                           f"fw classid {n}:{minor}")
             handle += 1
         up += _tc_filters(cfg, dev, classes)
-        if dev.in_bw:
-            up.append(f"    tc qdisc add dev {i} handle ffff: ingress")
-            up.append(f"    tc filter add dev {i} parent ffff: protocol "
-                      f"all prio 10 u32 match u32 0 0 police rate "
-                      f"{dev.in_bw} burst 10k drop flowid :1")
+        up += _ingress_police(i, dev.ingress)
         down.append(f"    tc qdisc del dev {i} root 2>/dev/null || :")
         down.append(f"    tc qdisc del dev {i} ingress 2>/dev/null || :")
     return ("\n".join(up), "\n".join(down))
+
+
+def _ingress_police(i, ingress):
+    """The ingress policing filter for an IN-BANDWIDTH, shared by tcdevices
+    and tcinterfaces, as upstream's handle_in_bandwidth emits it. With the tc
+    basic classifier: a rate/burst policer, or an estimated avrate policer
+    for the ~ form. Without it (RHEL, Rocky and AlmaLinux 9 kernels lack
+    cls_basic, #32): a pair of u32 match-all policers, one keyed on an IPv4
+    source and one on IPv6. The parser refuses the ~ form there."""
+    if ingress is None:
+        return []
+    up = [f"    tc qdisc add dev {i} handle ffff: ingress"]
+    head = f"    tc filter add dev {i} parent ffff: protocol all prio 10"
+    if capabilities.lookup("BASIC_FILTER"):
+        if ingress.rate:
+            up.append(f"{head} basic police mpu 64 rate {ingress.rate}kbit "
+                      f"burst {ingress.burst} drop")
+        else:
+            up.append(f"{head} estimator {ingress.interval} {ingress.decay} "
+                      f"basic police avrate {ingress.avrate}kbit drop")
+    else:
+        for match in ("ip src 0.0.0.0/0", "ip6 src ::/0"):
+            up.append(f"{head} u32 match {match} police rate "
+                      f"{ingress.rate}kbit burst {ingress.burst} drop "
+                      "flowid :1")
+    return up
 
 
 def _simple_tc(cfg):
@@ -573,21 +595,7 @@ def _simple_tc(cfg):
             up.append(f"    tc filter add dev {i} parent 101:0 protocol all "
                       "prio 1 u32 match ip6 protocol 6 0xff match u8 0x10 "
                       "0xff at 53 flowid 101:1")
-        if tci.in_bw:
-            rate = _rate_kbit(tci.in_bw, tci.origin)
-            up.append(f"    tc qdisc add dev {i} handle ffff: ingress")
-            if capabilities.lookup("BASIC_FILTER"):
-                up.append(f"    tc filter add dev {i} parent ffff: protocol "
-                          f"all prio 10 basic police mpu 64 rate {rate}kbit "
-                          "burst 10kb drop")
-            else:
-                # RHEL, Rocky and AlmaLinux 9 ship kernels without cls_basic,
-                # so a basic filter fails with "TC classifier not found" (#32).
-                # Fall back to a u32 match-all, as upstream does. u32 is
-                # universal and is what the classful path uses for ingress.
-                up.append(f"    tc filter add dev {i} parent ffff: protocol "
-                          f"all prio 10 u32 match u32 0 0 police mpu 64 rate "
-                          f"{rate}kbit burst 10kb drop")
+        up += _ingress_police(i, tci.ingress)
         down.append(f"    tc qdisc del dev {i} root 2>/dev/null || :")
         down.append(f"    tc qdisc del dev {i} ingress 2>/dev/null || :")
     return ("\n".join(up), "\n".join(down))

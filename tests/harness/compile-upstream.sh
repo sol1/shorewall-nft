@@ -4,7 +4,9 @@
 # strips versions and timestamps. Emits the firewall script and the
 # extracted iptables-restore payloads.
 #
-# Usage: compile-upstream.sh CONFIG_DIR OUT_DIR [FAMILY]
+# Usage: compile-upstream.sh CONFIG_DIR OUT_DIR [FAMILY [CAPS_FILE]]
+# CAPS_FILE overrides the default capabilities, for a case that models a
+# different kernel (one without cls_basic, say).
 set -e
 
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
@@ -14,6 +16,7 @@ OUT=$2
 FAMILY=${3:-4}
 CAPS=$REPO/tests/capabilities/debian13-stock
 [ "${3:-4}" = 6 ] && CAPS=$REPO/tests/capabilities/debian13-stock6
+[ -n "${4:-}" ] && CAPS=$4
 
 [ -n "$CONFIG" ] && [ -n "$OUT" ] || { echo "usage: $0 CONFIG_DIR OUT_DIR [FAMILY]"; exit 2; }
 [ -x "$STAGE/bin/getparams" ] || "$REPO/tests/harness/stage-upstream.sh"

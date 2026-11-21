@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import Optional
 
 
 @dataclass
@@ -128,11 +129,24 @@ class RtRule:
 
 
 @dataclass
+class InBandwidth:
+    """A parsed IN-BANDWIDTH column: an ingress policing filter. Either a
+    rate/burst policer (rate set) or, for the ~ form, an estimated policer
+    (avrate set, with the estimator interval and decay). Rates are kbit,
+    formatted the way upstream prints them."""
+    rate: str = ""            # kbit, rate/burst form
+    burst: str = "10kb"
+    avrate: str = ""          # kbit, ~ form
+    interval: str = "250ms"
+    decay: str = "4sec"
+
+
+@dataclass
 class TcDevice:
     """A tcdevices entry: one shaped interface."""
     interface: str
     number: int               # qdisc handle major
-    in_bw: str = ""           # ingress police rate, empty disables
+    ingress: Optional[InBandwidth] = None   # IN-BANDWIDTH, None disables
     out_bw: str = ""          # htb root ceiling
     origin: str = ""
 
@@ -154,7 +168,7 @@ class TcClass:
 class TcInterface:
     """A tcinterfaces entry: simple traffic shaping on one interface."""
     interface: str
-    in_bw: str = ""           # ingress police rate, empty disables
+    ingress: Optional[InBandwidth] = None   # IN-BANDWIDTH, None disables
     out_bw: str = ""          # egress tbf rate, empty disables
     origin: str = ""
 

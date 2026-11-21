@@ -26,7 +26,7 @@ policing.
 |---|---|
 | INTERFACE | The interface to shape. |
 | TYPE | `external` for an Internet-facing interface, `internal` for a local one. |
-| IN_BANDWIDTH | The download rate to hold to, for ingress policing. |
+| IN_BANDWIDTH | The download rate to hold to, for ingress policing. See [IN_BANDWIDTH](#in_bandwidth). |
 | OUT_BANDWIDTH | The upload rate to hold to, for the egress queue. |
 
 ```text
@@ -68,7 +68,7 @@ order.
 | Column | Meaning |
 |---|---|
 | INTERFACE | The interface, optionally `number:interface`. |
-| IN_BANDWIDTH | The ingress bandwidth, or `-`. |
+| IN_BANDWIDTH | The ingress bandwidth, or `-`. See [IN_BANDWIDTH](#in_bandwidth). |
 | OUT_BANDWIDTH | The egress bandwidth, or `-`. |
 
 ```text
@@ -97,6 +97,36 @@ up to, and a priority.
 eth0:1       1      5mbit    10mbit   1
 eth0:2       2      2mbit    10mbit   2      default
 ```
+
+## IN_BANDWIDTH
+
+The IN_BANDWIDTH column of tcinterfaces and tcdevices polices incoming
+traffic. It takes one of three forms.
+
+| Form | Meaning |
+|---|---|
+| `-` or `0` | No ingress policing. |
+| `rate[:burst]` | Drop traffic above *rate*. *burst* is how much may arrive at once, 10kb by default. |
+| `~rate[:interval:decay]` | Drop traffic once its estimated average rate passes *rate*. The estimator samples every *interval* (250ms, 500ms, 1sec, 2sec, 4sec or 8sec) and averages over *decay* (500ms, or 1sec to 64sec in powers of two), which must be longer than the interval. The default is 250ms:4sec. |
+
+A rate takes kbit, mbit, gbit, kbps, mbps or gbps. A bare number is bytes per
+second.
+
+```text
+#INTERFACE   TYPE       IN_BANDWIDTH        OUT_BANDWIDTH
+eth0         external   900mbit:256kb       45mbit
+eth1         external   ~20mbit:500ms:8sec  10mbit
+```
+
+The 10kb default burst is too small for a fast link. A network card merges
+incoming packets into chunks of up to 64KB before the policer sees them, and the
+policer drops any chunk bigger than the burst. At gigabit speeds that can cut a
+download from 100MB/s to a few MB/s. Give a fast link a larger burst. 256kb
+holds a gigabit link.
+
+The `~` form needs the tc basic classifier. RHEL, Rocky and AlmaLinux 9 kernels
+do not have it, so there the `~` form is an error and the `rate[:burst]` form
+polices with u32 filters instead.
 
 ## See also
 

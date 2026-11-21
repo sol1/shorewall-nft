@@ -8,7 +8,8 @@ import sys
 
 from . import capabilities, macros, valid
 from .errors import ConfigError
-from .model import (AcctRule, DnatRule, HelperRule, Interface, MangleRule,
+from .model import (AcctRule, DnatRule, HelperRule, InBandwidth, Interface,
+                    MangleRule,
                     NatRule, NetmapRule, Policy, Provider, RtRule, Rule, SnatRule,
                     StopRule, TcClass, TcDevice, TcFilter, TcInterface, TcPri,
                     Zone, ZoneHost)
@@ -1437,6 +1438,75 @@ def parse_netmap(path, variables, interfaces, family=4):
     return out
 
 
+# upstream Tc.pm rate_to_kbit: the units it accepts and the kbit factor for
+# each. A bare number, or one ending bps, is bytes per second.
+_IN_RATE_UNITS = (("kbit", 1), ("mbit", 1000), ("gbit", 1000000),
+                  ("gbps", 8000000), ("mbps", 8000), ("kbps", 8))
+_IN_RATE_NUM = re.compile(r"^(\d+(?:\.\d+)?)(.*)$")
+_IN_BURST = re.compile(r"^\d+(k|kb|m|mb|g|gb|gbit|mbit|kbit|b)?$")
+_IN_INTERVAL = re.compile(r"^(?:(?:250|500)ms|(?:1|2|4|8)sec)$")
+_IN_DECAY = re.compile(r"^(?:500ms|(?:1|2|4|8|16|32|64)sec)$")
+
+
+def _in_rate_kbit(spec, line, column):
+    """An IN-BANDWIDTH rate in kbit, as upstream's rate_to_kbit reads it,
+    printed the way Perl prints the number (1gbit is 1000000, 1.5kbps is
+    12)."""
+    m = _IN_RATE_NUM.match(spec)
+    if m:
+        num, unit = float(m.group(1)), m.group(2)
+        for suffix, mult in _IN_RATE_UNITS:
+            if unit.lower() == suffix:
+                return f"{num * mult:.15g}"
+        if unit in ("", "bps"):
+            return f"{num / 125:.15g}"
+    raise line.error(f"invalid rate {spec!r} in IN-BANDWIDTH ({column})")
+
+
+def parse_in_bandwidth(spec, line):
+    """An IN-BANDWIDTH column of tcinterfaces or tcdevices, read the way
+    upstream's process_in_bandwidth reads it. '-' or 0 means no ingress
+    policing. rate[:burst] is a rate/burst policer, burst defaulting to
+    10kb. ~rate[:interval:decay] is an estimated policer, which needs the tc
+    basic classifier. The burst matters at high rates: a gigabit NIC hands
+    the policer GRO aggregates of up to 64KB, and any packet bigger than the
+    burst is dropped (#46)."""
+    if spec in ("", "-", "0"):
+        return None
+    if spec.startswith("~"):
+        if not capabilities.lookup("BASIC_FILTER"):
+            raise line.error(
+                f"IN-BANDWIDTH {spec!r}: an estimated policing filter needs "
+                "the tc basic classifier (BASIC_FILTER), which this kernel "
+                "does not have")
+        rate, interval, decay = spec[1:], "250ms", "4sec"
+        if ":" in rate:
+            parts = rate.split(":", 2)
+            if len(parts) < 3 or not parts[1] or not parts[2]:
+                raise line.error(f"invalid IN-BANDWIDTH {spec!r}")
+            rate, interval, decay = parts
+            if not _IN_INTERVAL.match(interval):
+                raise line.error(f"invalid IN-BANDWIDTH interval {interval!r}")
+            if not _IN_DECAY.match(decay):
+                raise line.error(f"invalid IN-BANDWIDTH decay {decay!r}")
+            if "ms" in decay:
+                if interval != "250ms":
+                    raise line.error("IN-BANDWIDTH decay must be at least "
+                                     "twice the interval")
+            elif "ms" not in interval:
+                if int(decay[:-3]) <= int(interval[:-3]):
+                    raise line.error("IN-BANDWIDTH decay must be at least "
+                                     "twice the interval")
+        return InBandwidth(avrate=_in_rate_kbit(rate, line, spec),
+                           interval=interval, decay=decay)
+    rate, burst = spec, "10kb"
+    if ":" in spec:
+        rate, burst = spec.split(":", 1)
+        if not _IN_BURST.match(burst):
+            raise line.error(f"invalid IN-BANDWIDTH burst {burst!r}")
+    return InBandwidth(rate=_in_rate_kbit(rate, line, spec), burst=burst)
+
+
 def parse_tcinterfaces(path, variables, interfaces):
     """The tcinterfaces file for simple traffic shaping. Columns
     INTERFACE TYPE IN_BANDWIDTH OUT_BANDWIDTH."""
@@ -1446,16 +1516,16 @@ def parse_tcinterfaces(path, variables, interfaces):
         cols = split_columns(line.text, line.path, line.lineno)
         iface = cols[0].split(":")[0]
         iface = logical.get(iface, iface)
-        in_bw = cols[2] if len(cols) > 2 and cols[2] != "-" else ""
+        in_bw = cols[2] if len(cols) > 2 else "-"
         out_bw = cols[3] if len(cols) > 3 and cols[3] != "-" else ""
         # interface and bandwidths are interpolated into tc commands in the
         # root script, so validate them like parse_tcdevices does.
         valid.interface(iface, line, "tcinterfaces interface")
-        if in_bw:
-            valid.rate(in_bw, line, "bandwidth")
+        ingress = parse_in_bandwidth(in_bw, line)
         if out_bw:
             valid.rate(out_bw, line, "bandwidth")
-        out.append(TcInterface(interface=iface, in_bw=in_bw, out_bw=out_bw,
+        out.append(TcInterface(interface=iface, ingress=ingress,
+                               out_bw=out_bw,
                                origin=f"{os.path.basename(line.path)}:"
                                f"{line.lineno}"))
     return out
@@ -1502,7 +1572,7 @@ def parse_tcdevices(path, variables, interfaces):
             number = valid.integer(num, line, "tcdevices number")
         else:
             number += 1
-        in_bw = cols[1] if len(cols) > 1 and cols[1] != "-" else ""
+        in_bw = cols[1] if len(cols) > 1 else "-"
         out_bw = cols[2] if len(cols) > 2 and cols[2] != "-" else ""
         if len(cols) > 3 and cols[3] != "-":
             raise line.error("tcdevices OPTIONS not supported yet")
@@ -1510,12 +1580,11 @@ def parse_tcdevices(path, variables, interfaces):
         iface = logical.get(iface, iface)
         # interface and bandwidths are interpolated into tc commands.
         valid.interface(iface, line, "tcdevices interface")
-        if in_bw:
-            valid.rate(in_bw, line, "bandwidth")
+        ingress = parse_in_bandwidth(in_bw, line)
         if out_bw:
             valid.rate(out_bw, line, "bandwidth")
         out.append(TcDevice(interface=iface,
-                            number=number, in_bw=in_bw, out_bw=out_bw,
+                            number=number, ingress=ingress, out_bw=out_bw,
                             origin=origin))
     return out
 
