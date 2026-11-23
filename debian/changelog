@@ -1,3 +1,18 @@
+shorewall-nft (0.4.1) unstable; urgency=medium
+
+  * IN-BANDWIDTH in tcinterfaces and tcdevices accepts upstream's forms: '-'
+    or 0 for no policing, rate[:burst], and the estimated
+    ~rate[:interval:decay]. The policer had a fixed 10kb burst, which dropped
+    GRO aggregates on a fast link and cut a 1gbit download to about 2MB/s.
+    Declare a burst, such as 1gbit:256kb, on a fast link (#46).
+  * The ingress policer matches upstream. tcdevices uses the basic classifier
+    where the kernel has it, and the no-basic fallback on Red Hat family 9
+    emits two u32 policers, keyed on an IPv4 and an IPv6 source.
+  * The tc parity check compares the ingress filters against upstream, and a
+    case can name a capabilities file for both compilers.
+
+ -- Dave Kempe <dave@sol1.com.au>  Mon, 23 Nov 2026 12:03:58 +1100
+
 shorewall-nft (0.4.0) unstable; urgency=medium
 
   * Classful traffic shaping is complete. The tcfilters file classifies

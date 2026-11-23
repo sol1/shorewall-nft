@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.4.0
+Version:        0.4.1
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -222,6 +222,18 @@ exit 0
 %systemd_postun shorewall6-lite.service
 
 %changelog
+* Mon Nov 23 2026 Dave Kempe <dave@sol1.com.au> - 0.4.1-1
+- IN-BANDWIDTH in tcinterfaces and tcdevices accepts upstream's forms: '-' or 0
+  for no policing, rate[:burst], and the estimated ~rate[:interval:decay]. The
+  policer had a fixed 10kb burst, which dropped GRO aggregates on a fast link
+  and cut a 1gbit download to about 2MB/s. Declare a burst, such as
+  1gbit:256kb, on a fast link (#46).
+- The ingress policer matches upstream. tcdevices uses the basic classifier
+  where the kernel has it, and the no-basic fallback on Red Hat family 9 emits
+  two u32 policers, keyed on an IPv4 and an IPv6 source.
+- The tc parity check compares the ingress filters against upstream, and a
+  case can name a capabilities file for both compilers.
+
 * Sat Nov 21 2026 Dave Kempe <dave@sol1.com.au> - 0.4.0-1
 - Classful traffic shaping is complete. The tcfilters file classifies traffic
   into an HTB class with a tc u32 filter, by source, destination, protocol and
