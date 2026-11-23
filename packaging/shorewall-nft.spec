@@ -1,5 +1,5 @@
 Name:           shorewall-nft
-Version:        0.4.1
+Version:        0.4.2
 Release:        1%{?dist}
 Summary:        Shorewall firewall compiler for nftables
 
@@ -222,6 +222,18 @@ exit 0
 %systemd_postun shorewall6-lite.service
 
 %changelog
+* Mon Nov 23 2026 Dave Kempe <dave@sol1.com.au> - 0.4.2-1
+- Simple traffic shaping's egress side follows upstream (#48). Each
+  tcinterfaces line gets its own qdisc handles. With OUT-BANDWIDTH '-' the
+  priority queue is still built. TYPE picks the flow-hash key: external hashes
+  on the source, internal on the destination, and '-' adds no flow filter.
+  OUT-BANDWIDTH takes rate[:burst[:latency[:peak[:minburst]]]].
+- TC_PRIOMAP is honored, with upstream's checks.
+- A shaped device that is down at start is skipped with a warning, as upstream
+  does, for simple and classful shaping alike.
+- tcinterfaces rejects a missing or duplicate INTERFACE and an unknown TYPE, as
+  upstream does.
+
 * Mon Nov 23 2026 Dave Kempe <dave@sol1.com.au> - 0.4.1-1
 - IN-BANDWIDTH in tcinterfaces and tcdevices accepts upstream's forms: '-' or 0
   for no policing, rate[:burst], and the estimated ~rate[:interval:decay]. The

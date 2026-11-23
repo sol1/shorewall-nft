@@ -1,3 +1,18 @@
+shorewall-nft (0.4.2) unstable; urgency=medium
+
+  * Simple traffic shaping's egress side follows upstream (#48). Each
+    tcinterfaces line gets its own qdisc handles. With OUT-BANDWIDTH '-' the
+    priority queue is still built. TYPE picks the flow-hash key: external
+    hashes on the source, internal on the destination, and '-' adds no flow
+    filter. OUT-BANDWIDTH takes rate[:burst[:latency[:peak[:minburst]]]].
+  * TC_PRIOMAP is honored, with upstream's checks.
+  * A shaped device that is down at start is skipped with a warning, as
+    upstream does, for simple and classful shaping alike.
+  * tcinterfaces rejects a missing or duplicate INTERFACE and an unknown
+    TYPE, as upstream does.
+
+ -- Dave Kempe <dave@sol1.com.au>  Mon, 23 Nov 2026 15:15:55 +1100
+
 shorewall-nft (0.4.1) unstable; urgency=medium
 
   * IN-BANDWIDTH in tcinterfaces and tcdevices accepts upstream's forms: '-'
