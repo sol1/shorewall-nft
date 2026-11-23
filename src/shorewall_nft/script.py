@@ -461,7 +461,8 @@ def _tc(cfg):
     ceiling, one class per tcclasses entry with an sfq leaf and an
     fw filter binding its mark, and ingress policing when an input
     bandwidth is given. Quantum follows upstream: rate bytes over
-    r2q, floored at the device MTU."""
+    r2q, floored at the device MTU. A device that is down is skipped
+    with a warning, as upstream does."""
     if not cfg.tcdevices:
         if cfg.tcfilters:
             f = cfg.tcfilters[0]
@@ -487,20 +488,21 @@ def _tc(cfg):
         default = next((c for c in classes if c.default),
                        classes[-1] if classes else None)
         up.append(f"    # tcdevice {i} ({dev.origin})")
-        up.append(f"    tc qdisc del dev {i} root 2>/dev/null || :")
-        up.append(f"    tc qdisc del dev {i} ingress 2>/dev/null || :")
-        up.append(f"    MTU=$(cat /sys/class/net/{i}/mtu 2>/dev/null "
+        dev_up = []
+        dev_up.append(f"    tc qdisc del dev {i} root 2>/dev/null || :")
+        dev_up.append(f"    tc qdisc del dev {i} ingress 2>/dev/null || :")
+        dev_up.append(f"    MTU=$(cat /sys/class/net/{i}/mtu 2>/dev/null "
                   "|| echo 1500)")
-        up.append('    MTUARG=""')
-        up.append('    [ "$MTU" -ne 1500 ] && MTUARG="mtu $((MTU + 100))"')
+        dev_up.append('    MTUARG=""')
+        dev_up.append('    [ "$MTU" -ne 1500 ] && MTUARG="mtu $((MTU + 100))"')
         if classes:
-            up.append(f"    tc qdisc add dev {i} root handle {n}: htb "
+            dev_up.append(f"    tc qdisc add dev {i} root handle {n}: htb "
                       f"default {10 + default.num} r2q 250")
         else:
-            up.append(f"    tc qdisc add dev {i} root handle {n}: htb "
+            dev_up.append(f"    tc qdisc add dev {i} root handle {n}: htb "
                       f"r2q 250")
         out_bw = dev.out_bw or "1000mbit"
-        up.append(f"    tc class add dev {i} parent {n}: classid {n}:1 "
+        dev_up.append(f"    tc class add dev {i} parent {n}: classid {n}:1 "
                   f"htb rate {out_bw} $MTUARG")
         handle = 2
         for c in classes:
@@ -511,21 +513,22 @@ def _tc(cfg):
             ceil = out_bw if c.ceil.lower() in ("full", "-", "") else c.ceil
             qbase = max(_rate_kbit(rate, c.origin) * 1000 // 8 // 250, 1)
             minor = 10 + c.num
-            up.append(f"    QUANTUM={qbase}")
-            up.append(f'    [ "$MTU" -gt {qbase} ] && QUANTUM=$MTU')
-            up.append(f"    tc class add dev {i} parent {n}:1 classid "
+            dev_up.append(f"    QUANTUM={qbase}")
+            dev_up.append(f'    [ "$MTU" -gt {qbase} ] && QUANTUM=$MTU')
+            dev_up.append(f"    tc class add dev {i} parent {n}:1 classid "
                       f"{n}:{minor} htb rate {rate} ceil {ceil} "
                       f"prio {c.prio} $MTUARG quantum $QUANTUM")
-            up.append(f"    tc qdisc add dev {i} parent {n}:{minor} "
+            dev_up.append(f"    tc qdisc add dev {i} parent {n}:{minor} "
                       f"handle {handle}: sfq quantum $QUANTUM limit 127 "
                       f"perturb 10")
             if c.mark:
-                up.append(f"    tc filter add dev {i} protocol all parent "
+                dev_up.append(f"    tc filter add dev {i} protocol all parent "
                           f"{n}:0 prio {c.prio * 256 + 20} handle {c.mark} "
                           f"fw classid {n}:{minor}")
             handle += 1
-        up += _tc_filters(cfg, dev, classes)
-        up += _ingress_police(i, dev.ingress)
+        dev_up += _tc_filters(cfg, dev, classes)
+        dev_up += _ingress_police(i, dev.ingress)
+        up += _if_up(i, dev_up)
         down.append(f"    tc qdisc del dev {i} root 2>/dev/null || :")
         down.append(f"    tc qdisc del dev {i} ingress 2>/dev/null || :")
     return ("\n".join(up), "\n".join(down))
@@ -557,8 +560,16 @@ def _ingress_police(i, ingress):
     return up
 
 
-# Upstream's TC_PRIOMAP default, zero-based: TOS to prio band.
-_PRIOMAP = "1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1"
+def _if_up(i, lines):
+    """Wrap one device's tc commands in upstream's up-state guard. A shaped
+    device that is down at start is skipped with upstream's warning and the
+    start goes on."""
+    return ([f"    if interface_is_up {i}; then"]
+            + ["    " + line for line in lines]
+            + ["    else",
+               f'        echo "WARNING: Device {i} is not in the UP state -- '
+               'traffic-shaping configuration skipped" >&2',
+               "    fi"])
 
 
 def _simple_tc(cfg):
@@ -572,7 +583,8 @@ def _simple_tc(cfg):
     bandwidth. Without an OUT-BANDWIDTH the prio qdisc is the root. Each
     interface's handles come from its number in the file, as upstream's
     devnum does: tbf n:, prio 10n: (or n: when it is the root) and sfq
-    leaves 10n1: to 10n3:, in hex."""
+    leaves 10n1: to 10n3:, in hex. The prio bands follow TC_PRIOMAP. A
+    device that is down is skipped with a warning."""
     flow_filter = capabilities.lookup("FLOW_FILTER")
     up = []
     down = []
@@ -580,9 +592,10 @@ def _simple_tc(cfg):
         i = tci.interface
         n = format(tci.number, "x")
         up.append(f"    # tcinterface {i} ({tci.origin})")
-        up.append(f"    tc qdisc del dev {i} root 2>/dev/null || :")
-        up.append(f"    tc qdisc del dev {i} ingress 2>/dev/null || :")
-        prio = f"prio bands 3 priomap {_PRIOMAP}"
+        dev_up = []
+        dev_up.append(f"    tc qdisc del dev {i} root 2>/dev/null || :")
+        dev_up.append(f"    tc qdisc del dev {i} ingress 2>/dev/null || :")
+        prio = f"prio bands 3 priomap {cfg.tc_priomap}"
         if tci.egress:
             e = tci.egress
             tbf = (f"    tc qdisc add dev {i} root handle {n}: tbf rate "
@@ -591,32 +604,33 @@ def _simple_tc(cfg):
                 tbf += f" peakrate {e.peak}"
             if e.minburst:
                 tbf += f" minburst {e.minburst}"
-            up.append(tbf)
+            dev_up.append(tbf)
             root, n = n, format(tci.number | 0x100, "x")
-            up.append(f"    tc qdisc add dev {i} parent {root}: handle {n}: "
+            dev_up.append(f"    tc qdisc add dev {i} parent {root}: handle {n}: "
                       f"{prio}")
         else:
-            up.append(f"    tc qdisc add dev {i} root handle {n}: {prio}")
+            dev_up.append(f"    tc qdisc add dev {i} root handle {n}: {prio}")
         for band in (1, 2, 3):
-            up.append(f"    tc qdisc add dev {i} parent {n}:{band} handle "
+            dev_up.append(f"    tc qdisc add dev {i} parent {n}:{band} handle "
                       f"{n}{band}: sfq quantum 1875 limit 127 perturb 10")
-            up.append(f"    tc filter add dev {i} protocol all prio "
+            dev_up.append(f"    tc filter add dev {i} protocol all prio "
                       f"{16 + band} parent {n}: handle {band} fw classid "
                       f"{n}:{band}")
             if tci.flow and flow_filter:
-                up.append(f"    tc filter add dev {i} protocol all prio 1 "
+                dev_up.append(f"    tc filter add dev {i} protocol all prio 1 "
                           f"parent {n}{band}: handle {3 + band} flow hash "
                           f"keys {tci.flow} divisor 1024")
         # Steer interactive traffic (tcp acks and minimize-delay) to the
         # top band, as upstream does.
-        up.append(f"    tc filter add dev {i} parent {n}:0 protocol all "
+        dev_up.append(f"    tc filter add dev {i} parent {n}:0 protocol all "
                   "prio 1 u32 match ip protocol 6 0xff match u8 0x05 0x0f "
                   "at 0 match u16 0x0000 0xffc0 at 2 match u8 0x10 0xff "
                   f"at 33 flowid {n}:1")
-        up.append(f"    tc filter add dev {i} parent {n}:0 protocol all "
+        dev_up.append(f"    tc filter add dev {i} parent {n}:0 protocol all "
                   "prio 1 u32 match ip6 protocol 6 0xff match u8 0x10 "
                   f"0xff at 53 flowid {n}:1")
-        up += _ingress_police(i, tci.ingress)
+        dev_up += _ingress_police(i, tci.ingress)
+        up += _if_up(i, dev_up)
         down.append(f"    tc qdisc del dev {i} root 2>/dev/null || :")
         down.append(f"    tc qdisc del dev {i} ingress 2>/dev/null || :")
     return ("\n".join(up), "\n".join(down))
@@ -724,6 +738,12 @@ clear_routing() {{
 {routing_clear}
 {routing_restore}
     :
+}}
+
+# True when the interface has the UP flag, as upstream's interface_is_up
+# checks it. A shaped device that is down is skipped with a warning.
+interface_is_up() {{
+    [ -n "$(ip link show dev "$1" 2>/dev/null | grep -e '[<,]UP[,>]')" ]
 }}
 
 setup_tc() {{

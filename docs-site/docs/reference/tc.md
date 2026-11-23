@@ -20,7 +20,8 @@ For a worked setup see the [traffic shaping](../how-to/traffic-shaping.md) guide
 
 One line per shaped interface. Simple shaping builds an egress token-bucket
 limiter, a three-band priority queue with fair-queued leaves, and ingress
-policing. Each interface gets its own queues.
+policing. Each interface gets its own queues. An interface that is down when
+the firewall starts is skipped with a warning.
 
 | Column | Meaning |
 |---|---|

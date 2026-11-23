@@ -23,6 +23,7 @@ These are read and acted on.
 | INVALID_DISPOSITION | Disposition of an INVALID packet that did not match an INVALID-section rule. |
 | MACLIST_DISPOSITION | Disposition for an unmatched MAC on a maclist interface. |
 | TC_ENABLED | Internal or Simple selects the shaping model; No disables it. |
+| TC_PRIOMAP | The TOS to band map of simple shaping's prio qdisc: 16 entries, each a band 1 to 3. Empty is upstream's default. |
 | DOCKER, DOCKER_BRIDGE | Docker coexistence. |
 | TCP_FLAGS_LOG_LEVEL | Log level for the tcp-flags check. |
 | ADMINISABSENTMINDED | Affects the stopped-state policy. |
@@ -43,16 +44,14 @@ TCP_FLAGS_DISPOSITION (drop), SFILTER_DISPOSITION (drop),
 RPFILTER_DISPOSITION (drop), MACLIST_TABLE (filter),
 ACCOUNTING_TABLE (filter), MANGLE_ENABLED (yes),
 IMPLICIT_CONTINUE (no), MULTICAST (no),
-MARK_IN_FORWARD_CHAIN (no), BASIC_FILTERS (no), REJECT_ACTION (empty),
-TC_PRIOMAP (the default priomap).
+MARK_IN_FORWARD_CHAIN (no), BASIC_FILTERS (no), REJECT_ACTION (empty).
 
 FASTACCEPT is accepted at any value and ignored. It only moves where
 established and related traffic is accepted, for speed; the verdict is
 the same, so it changes nothing we need to reject.
 
-Several of these are candidates to honor properly later, TC_PRIOMAP and
-the disposition settings especially. For now they are gated, not
-guessed.
+Several of these are candidates to honor properly later, the
+disposition settings especially. For now they are gated, not guessed.
 
 ## Safe no-ops
 
