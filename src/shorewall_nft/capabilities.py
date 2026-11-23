@@ -50,6 +50,10 @@ CAPABILITIES = {
     # a throwaway namespace. Default yes so the corpus stays byte-identical with
     # probing off, like upstream, which also gates this on BASIC_FILTER.
     "BASIC_FILTER": True,
+    # The tc 'flow' classifier (cls_flow), used by simple traffic shaping for
+    # per-host fairness within a band. Upstream gates the flow filters on
+    # FLOW_FILTER. Probed the same way as BASIC_FILTER.
+    "FLOW_FILTER": True,
 }
 
 # A conntrack-helper capability maps to the nft ct helper type and a
@@ -219,21 +223,36 @@ def _tc_bin():
     return "tc"
 
 
+# The tc classifier capabilities, each probed by adding a filter of that kind
+# on lo in the throwaway namespace. The kernel rejects the filter with "TC
+# classifier not found" when the module is absent. Upstream only asks the tc
+# binary whether it knows the classifier, which is why RHEL, Rocky and
+# AlmaLinux 9 (a tc that knows basic, a kernel without cls_basic) fail at
+# start with upstream's answer.
+TC_FILTER_PROBES = {
+    "BASIC_FILTER": ("{tc} qdisc add dev lo handle ffff: ingress && "
+                     "{tc} filter add dev lo parent ffff: protocol all prio "
+                     "10 basic police rate 1000kbit burst 10k drop"),
+    "FLOW_FILTER": ("{tc} qdisc add dev lo root handle 1: prio && "
+                    "{tc} filter add dev lo protocol all prio 1 parent 1: "
+                    "handle 4 flow hash keys nfct-src divisor 1024"),
+}
+
+
 def probe_basic_filter():
-    """True if the kernel has the tc 'basic' classifier, False if not, None if
-    we cannot tell. Adds an ingress qdisc and a basic filter on lo in the
-    throwaway namespace; the kernel rejects the filter with "TC classifier not
-    found" when cls_basic is absent, as on RHEL and Rocky 9."""
-    key = "tc:BASIC_FILTER"
+    return probe_tc_filter("BASIC_FILTER")
+
+
+def probe_tc_filter(name):
+    """True if the kernel has the tc classifier behind capability name (one
+    of TC_FILTER_PROBES), False if not, None if we cannot tell."""
+    key = "tc:" + name
     if key in _probe_cache:
         return _probe_cache[key]
     if _sandbox_cmd is None and not _sandbox():
         result = None
     else:
-        tc = _tc_bin()
-        script = (f"{tc} qdisc add dev lo handle ffff: ingress && "
-                  f"{tc} filter add dev lo parent ffff: protocol all prio 10 "
-                  "basic police rate 1000kbit burst 10k drop")
+        script = TC_FILTER_PROBES[name].format(tc=_tc_bin())
         try:
             r = subprocess.run(_sandbox_cmd + ["sh", "-c", script],
                                capture_output=True, text=True)
@@ -269,8 +288,8 @@ def lookup(name):
         real = probe_syntax(name)
         if real is not None:
             return real
-    if _probe_enabled and name == "BASIC_FILTER":
-        real = probe_basic_filter()
+    if _probe_enabled and name in TC_FILTER_PROBES:
+        real = probe_tc_filter(name)
         if real is not None:
             return real
     return CAPABILITIES.get(name, False)

@@ -9,6 +9,7 @@ import sys
 from . import capabilities, macros, valid
 from .errors import ConfigError
 from .model import (AcctRule, DnatRule, HelperRule, InBandwidth, Interface,
+                    OutBandwidth,
                     MangleRule,
                     NatRule, NetmapRule, Policy, Provider, RtRule, Rule, SnatRule,
                     StopRule, TcClass, TcDevice, TcFilter, TcInterface, TcPri,
@@ -1446,12 +1447,17 @@ _IN_RATE_NUM = re.compile(r"^(\d+(?:\.\d+)?)(.*)$")
 _IN_BURST = re.compile(r"^\d+(k|kb|m|mb|g|gb|gbit|mbit|kbit|b)?$")
 _IN_INTERVAL = re.compile(r"^(?:(?:250|500)ms|(?:1|2|4|8)sec)$")
 _IN_DECAY = re.compile(r"^(?:500ms|(?:1|2|4|8|16|32|64)sec)$")
+# OUT-BANDWIDTH sizes (burst, peak, minburst) and latency, as upstream's
+# process_simple_device checks them.
+_OUT_SIZE = re.compile(r"^\d+(?:\.\d+)?(k|kb|m|mb|g|gb|gbit|mbit|kbit|b)?$")
+_OUT_LATENCY = re.compile(
+    r"^\d+(?:\.\d+)?(s|sec|secs|ms|msec|msecs|us|usec|usecs)?$")
 
 
-def _in_rate_kbit(spec, line, column):
-    """An IN-BANDWIDTH rate in kbit, as upstream's rate_to_kbit reads it,
-    printed the way Perl prints the number (1gbit is 1000000, 1.5kbps is
-    12)."""
+def _in_rate_kbit(spec, line, column, name="IN-BANDWIDTH"):
+    """A tcinterfaces bandwidth in kbit, as upstream's rate_to_kbit reads
+    it, printed the way Perl prints the number (1gbit is 1000000, 1.5kbps
+    is 12). A bare number, or bps, is bytes per second."""
     m = _IN_RATE_NUM.match(spec)
     if m:
         num, unit = float(m.group(1)), m.group(2)
@@ -1460,7 +1466,7 @@ def _in_rate_kbit(spec, line, column):
                 return f"{num * mult:.15g}"
         if unit in ("", "bps"):
             return f"{num / 125:.15g}"
-    raise line.error(f"invalid rate {spec!r} in IN-BANDWIDTH ({column})")
+    raise line.error(f"invalid rate {spec!r} in {name} ({column})")
 
 
 def parse_in_bandwidth(spec, line):
@@ -1507,25 +1513,74 @@ def parse_in_bandwidth(spec, line):
     return InBandwidth(rate=_in_rate_kbit(rate, line, spec), burst=burst)
 
 
+def parse_out_bandwidth(spec, line):
+    """An OUT-BANDWIDTH column of tcinterfaces, read the way upstream's
+    process_simple_device reads it. '-' means no egress limit. Otherwise
+    rate[:burst[:latency[:peak[:minburst]]]] sets up the tbf qdisc: burst
+    defaults to 10kb and latency to 200ms, and peak and minburst are passed
+    through when given. A field left empty between colons takes its
+    default."""
+    if spec in ("", "-"):
+        return None
+    parts = spec.split(":")
+    if len(parts) > 5 or not parts[0]:
+        raise line.error(f"invalid OUT-BANDWIDTH {spec!r}")
+    parts += [""] * (5 - len(parts))
+    rate, burst, latency, peak, minburst = parts
+    out = OutBandwidth(rate=_in_rate_kbit(rate, line, spec, "OUT-BANDWIDTH"))
+    for name, value in (("burst", burst), ("peak", peak),
+                        ("minburst", minburst)):
+        if value and not _OUT_SIZE.match(value):
+            raise line.error(f"invalid OUT-BANDWIDTH {name} {value!r}")
+    if latency and not _OUT_LATENCY.match(latency):
+        raise line.error(f"invalid OUT-BANDWIDTH latency {latency!r}")
+    if burst:
+        out.burst = burst
+    if latency:
+        out.latency = latency
+    out.peak = peak
+    out.minburst = minburst
+    return out
+
+
+_TC_FLOW_KEYS = {"external": "nfct-src", "internal": "dst", "-": ""}
+
+
 def parse_tcinterfaces(path, variables, interfaces):
     """The tcinterfaces file for simple traffic shaping. Columns
-    INTERFACE TYPE IN_BANDWIDTH OUT_BANDWIDTH."""
+    INTERFACE TYPE IN_BANDWIDTH OUT_BANDWIDTH, read the way upstream's
+    process_simple_device reads them. Interfaces are numbered from 1 in
+    file order, and the number names the interface's qdisc handles. TYPE
+    picks the flow-hash key for per-host fairness within a band: external
+    hashes on the conntrack source, internal on the destination, and '-'
+    adds no flow filter."""
     logical = {i.logical: i.physical for i in interfaces}
     out = []
+    seen = set()
     for line in read_file(path, variables):
         cols = split_columns(line.text, line.path, line.lineno)
-        iface = cols[0].split(":")[0]
+        iface = cols[0]
+        if iface in ("", "-"):
+            raise line.error("tcinterfaces INTERFACE must be specified")
+        if ":" in iface or "+" in iface:
+            raise line.error(f"invalid tcinterfaces INTERFACE {iface!r}")
         iface = logical.get(iface, iface)
+        if iface in seen:
+            raise line.error(f"duplicate tcinterfaces INTERFACE {iface}")
+        seen.add(iface)
+        tc_type = cols[1] if len(cols) > 1 else "-"
+        flow = _TC_FLOW_KEYS.get(tc_type.lower())
+        if flow is None:
+            raise line.error(f"invalid tcinterfaces TYPE {tc_type!r}")
         in_bw = cols[2] if len(cols) > 2 else "-"
-        out_bw = cols[3] if len(cols) > 3 and cols[3] != "-" else ""
+        out_bw = cols[3] if len(cols) > 3 else "-"
         # interface and bandwidths are interpolated into tc commands in the
         # root script, so validate them like parse_tcdevices does.
         valid.interface(iface, line, "tcinterfaces interface")
-        ingress = parse_in_bandwidth(in_bw, line)
-        if out_bw:
-            valid.rate(out_bw, line, "bandwidth")
-        out.append(TcInterface(interface=iface, ingress=ingress,
-                               out_bw=out_bw,
+        out.append(TcInterface(interface=iface, number=len(out) + 1,
+                               flow=flow,
+                               ingress=parse_in_bandwidth(in_bw, line),
+                               egress=parse_out_bandwidth(out_bw, line),
                                origin=f"{os.path.basename(line.path)}:"
                                f"{line.lineno}"))
     return out

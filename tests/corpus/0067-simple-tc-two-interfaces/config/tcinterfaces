@@ -1,0 +1,3 @@
+#INTERFACE	TYPE	IN_BANDWIDTH	OUT_BANDWIDTH
+eth0	external	20mbit	10mbit
+eth1	-	-	-

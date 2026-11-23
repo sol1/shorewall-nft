@@ -20,14 +20,14 @@ For a worked setup see the [traffic shaping](../how-to/traffic-shaping.md) guide
 
 One line per shaped interface. Simple shaping builds an egress token-bucket
 limiter, a three-band priority queue with fair-queued leaves, and ingress
-policing.
+policing. Each interface gets its own queues.
 
 | Column | Meaning |
 |---|---|
-| INTERFACE | The interface to shape. |
-| TYPE | `external` for an Internet-facing interface, `internal` for a local one. |
+| INTERFACE | The interface to shape. Each interface may be listed once. |
+| TYPE | `external` for an Internet-facing interface, `internal` for a local one, or `-`. This sets how the hosts behind the interface share a band: `external` gives each source host a fair share, `internal` each destination host, and `-` shares nothing out. |
 | IN_BANDWIDTH | The download rate to hold to, for ingress policing. See [IN_BANDWIDTH](#in_bandwidth). |
-| OUT_BANDWIDTH | The upload rate to hold to, for the egress queue. |
+| OUT_BANDWIDTH | The upload rate to hold to, for the egress queue, or `-` for no limit. See [OUT_BANDWIDTH](#out_bandwidth). |
 
 ```text
 #INTERFACE   TYPE       IN_BANDWIDTH   OUT_BANDWIDTH
@@ -127,6 +127,31 @@ holds a gigabit link.
 The `~` form needs the tc basic classifier. RHEL, Rocky and AlmaLinux 9 kernels
 do not have it, so there the `~` form is an error and the `rate[:burst]` form
 polices with u32 filters instead.
+
+## OUT_BANDWIDTH
+
+The OUT_BANDWIDTH column of tcinterfaces limits outgoing traffic with a token
+bucket. It takes `-` for no limit, or `rate[:burst[:latency[:peak[:minburst]]]]`.
+
+| Field | Meaning |
+|---|---|
+| rate | The rate to hold to. Set it a little below the true upload speed. |
+| burst | How much may be sent at once, 10kb by default. |
+| latency | How long a packet may wait for its turn before it is dropped, 200ms by default. |
+| peak | A higher rate the bucket may send at briefly after it has been idle. |
+| minburst | The packet size the peak rate is measured over, usually the interface MTU. Give it whenever you give a peak. |
+
+A rate takes the units IN_BANDWIDTH takes. Leave a field empty to keep its
+default.
+
+```text
+#INTERFACE   TYPE       IN_BANDWIDTH   OUT_BANDWIDTH
+eth0         external   20mbit         10mbit
+eth1         internal   -              10mbit::100ms:12mbit:1500
+```
+
+An interface with no OUT_BANDWIDTH still gets the three-band priority queue, so
+tcpri sorts its traffic, but nothing holds its rate down.
 
 ## See also
 
