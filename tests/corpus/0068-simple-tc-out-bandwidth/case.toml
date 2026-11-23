@@ -1,4 +1,4 @@
-description = "OUT-BANDWIDTH with every field (#48): eth0 gets a 10mbit tbf with a 20kb burst, 100ms latency, a 12mbit peak rate and a 1500 byte minburst, under the usual external flow filters. The tc state is compared against upstream."
+description = "OUT-BANDWIDTH with every field (#48): eth0 gets a 10mbit tbf with a 20kb burst, 100ms latency, a 12mbit peak rate and a 1500 byte minburst, under the usual external flow filters. TC_PRIOMAP is set to a non-default map, so the priomap is compared too. The tc state is compared against upstream."
 family = 4
 mode = "script"
 tc_devices = ["eth0"]

@@ -38,8 +38,27 @@ BEHAVIORAL_DEFAULTS = {
     "MARK_IN_FORWARD_CHAIN": "no",
     "BASIC_FILTERS": "no",
     "REJECT_ACTION": "",
-    "TC_PRIOMAP": "2 3 3 3 2 3 1 1 2 2 2 2 2 2 2 2",
 }
+
+# Upstream's TC_PRIOMAP default, already converted to the zero-based bands
+# tc takes: TOS value to prio band for simple traffic shaping.
+TC_PRIOMAP_DEFAULT = "1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1"
+
+
+def tc_priomap(variables):
+    """TC_PRIOMAP as the prio qdisc takes it, read the way upstream does:
+    16 entries, each a band 1 to 3, converted to tc's zero-based bands.
+    Empty or unset is upstream's default."""
+    value = variables.get("TC_PRIOMAP", "").strip().strip('"').strip("'")
+    entries = value.split()
+    if not entries:
+        return TC_PRIOMAP_DEFAULT
+    if len(entries) != 16:
+        raise ConfigError(f"Invalid TC_PRIOMAP ({value})")
+    for entry in entries:
+        if entry not in ("1", "2", "3"):
+            raise ConfigError(f"Invalid TC_PRIOMAP entry ({entry})")
+    return " ".join(str(int(entry) - 1) for entry in entries)
 
 
 def _check_behavioral_settings(variables):
@@ -131,6 +150,7 @@ class Config:
         self.tcpri = []
         self.fw_zone = None
         self.variables = {}
+        self.tc_priomap = TC_PRIOMAP_DEFAULT  # prio bands for simple shaping
         self.docker = False       # DOCKER=Yes coexistence enabled
         self.docker_bridge = "docker0"
         self.clampmss = ""        # "pmtu", a fixed MSS value, or ""
@@ -226,6 +246,7 @@ def load(confdir, family=4):
     cfg.fw_zone = fw[0]
     variables.setdefault("FW", cfg.fw_zone)
     cfg.variables = variables
+    cfg.tc_priomap = tc_priomap(variables)
 
     docker = variables.get("DOCKER", "").lower()
     if docker in ("yes", "1", "on"):

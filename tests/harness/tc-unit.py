@@ -22,6 +22,7 @@ from contextlib import contextmanager
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                 "..", "..", "src"))
 from shorewall_nft import capabilities                    # noqa: E402
+from shorewall_nft.compile import TC_PRIOMAP_DEFAULT, tc_priomap  # noqa: E402
 from shorewall_nft.errors import ConfigError              # noqa: E402
 from shorewall_nft.model import TcInterface               # noqa: E402
 from shorewall_nft.parsers import (parse_in_bandwidth, parse_out_bandwidth,  # noqa: E402
@@ -31,7 +32,8 @@ from shorewall_nft.script import _ingress_police, _simple_tc  # noqa: E402
 
 fails = 0
 
-Cfg = namedtuple("Cfg", "tcinterfaces")
+Cfg = namedtuple("Cfg", "tcinterfaces tc_priomap")
+Cfg.__new__.__defaults__ = (TC_PRIOMAP_DEFAULT,)
 LINE = Line("tcinterfaces", 1, "")
 
 
@@ -245,6 +247,37 @@ check("TYPE is case-insensitive",
       tcinterfaces("eth0 External - 10mbit\n")[0].flow == "nfct-src")
 check("a missing TYPE column is -",
       tcinterfaces("eth0\n")[0].flow == "")
+
+# Each device is wrapped in upstream's up-state guard: a device that is
+# down at start is skipped with upstream's warning.
+check("a down device is skipped with upstream's warning",
+      "if interface_is_up eth0; then" in one
+      and 'echo "WARNING: Device eth0 is not in the UP state -- '
+          'traffic-shaping configuration skipped" >&2' in one
+      and one.index("if interface_is_up eth0; then")
+          < one.index("tc qdisc del dev eth0 root 2>/dev/null || :"))
+check("the second device has its own guard",
+      "if interface_is_up eth1; then" in two)
+
+# TC_PRIOMAP is read as upstream reads it: 16 bands, 1 to 3, made
+# zero-based for tc. Empty is upstream's default.
+DEFAULT_MAP = "1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1"
+check("TC_PRIOMAP unset is upstream's default", tc_priomap({}) == DEFAULT_MAP)
+check("TC_PRIOMAP at upstream's shipped value gives the same map",
+      tc_priomap({"TC_PRIOMAP": '"2 3 3 3 2 3 1 1 2 2 2 2 2 2 2 2"'})
+      == DEFAULT_MAP)
+check("TC_PRIOMAP bands are one-based",
+      tc_priomap({"TC_PRIOMAP": "1 2 3 1 2 3 1 2 3 1 2 3 1 2 3 1"})
+      == "0 1 2 0 1 2 0 1 2 0 1 2 0 1 2 0")
+for value in ("1 2 3", "1 2 3 1 2 3 1 2 3 1 2 3 1 2 3 1 2", "4 " * 16,
+              "0 " * 16, "x " * 16):
+    check(f"TC_PRIOMAP {value.strip()!r} is an error",
+          raises(lambda: tc_priomap({"TC_PRIOMAP": value})))
+with basic_filter(True):
+    up, _ = _simple_tc(Cfg(tcinterfaces("eth0 external - 10mbit\n"),
+                           tc_priomap({"TC_PRIOMAP": "3 " * 16})))
+check("the prio qdisc takes TC_PRIOMAP",
+      "prio bands 3 priomap 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2" in up)
 
 
 # tcfilters: u32 filters that classify into a leaf class (#32 follow-on).
