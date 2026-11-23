@@ -165,11 +165,30 @@ class TcClass:
 
 
 @dataclass
+class OutBandwidth:
+    """A parsed OUT-BANDWIDTH column of tcinterfaces: the egress tbf qdisc.
+    The rate is kbit, formatted the way upstream prints it. burst and
+    latency carry upstream's defaults. peak and minburst are empty unless
+    given."""
+    rate: str
+    burst: str = "10kb"
+    latency: str = "200ms"
+    peak: str = ""
+    minburst: str = ""
+
+
+@dataclass
 class TcInterface:
-    """A tcinterfaces entry: simple traffic shaping on one interface."""
+    """A tcinterfaces entry: simple traffic shaping on one interface. number
+    is the position in the file, from 1, and names the interface's qdisc
+    handles the way upstream's devnum does. flow is the flow-hash key the
+    TYPE column picks: nfct-src for external, dst for internal, and empty
+    for '-', which adds no flow filter."""
     interface: str
+    number: int = 1
+    flow: str = "nfct-src"
     ingress: Optional[InBandwidth] = None   # IN-BANDWIDTH, None disables
-    out_bw: str = ""          # egress tbf rate, empty disables
+    egress: Optional[OutBandwidth] = None   # OUT-BANDWIDTH, None disables
     origin: str = ""
 
 

@@ -430,10 +430,10 @@ finally:
 # tcinterfaces validates its INTERFACE and bandwidth like its sibling tc
 # parsers, so a shell payload never reaches the root script.
 (ok if raises_config_error(
-    lambda: parses(parse_tcinterfaces, "eth0;reboot simple\n", ".tcinterfaces"))
+    lambda: parses(parse_tcinterfaces, "eth0;reboot external\n", ".tcinterfaces"))
  else bad)("tcinterfaces: a shell-metachar interface is a config error")
 (ok if raises_config_error(
-    lambda: parses(parse_tcinterfaces, "eth0 simple - 10mbit;reboot\n",
+    lambda: parses(parse_tcinterfaces, "eth0 external - 10mbit;reboot\n",
                    ".tcinterfaces"))
  else bad)("tcinterfaces: a bad bandwidth is a config error")
 

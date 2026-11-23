@@ -557,44 +557,65 @@ def _ingress_police(i, ingress):
     return up
 
 
+# Upstream's TC_PRIOMAP default, zero-based: TOS to prio band.
+_PRIOMAP = "1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1"
+
+
 def _simple_tc(cfg):
     """Shell for setup_tc and clear_tc, replicating upstream's simple
-    traffic shaping: an egress tbf at the out bandwidth, a three-band
-    prio qdisc with an sfq leaf per band, fw filters binding marks 1 to
-    3 to the bands, a flow-hash filter for per-source fairness, the two
-    u32 filters that steer tcp acks and minimize-delay traffic to band
-    one, and ingress policing at the in bandwidth."""
+    traffic shaping (process_simple_device): an egress tbf at the out
+    bandwidth, a three-band prio qdisc with an sfq leaf per band, fw
+    filters binding marks 1 to 3 to the bands, a flow-hash filter per band
+    for per-host fairness where TYPE asks for one and the kernel has the
+    flow classifier, the two u32 filters that steer tcp acks and
+    minimize-delay traffic to band one, and ingress policing at the in
+    bandwidth. Without an OUT-BANDWIDTH the prio qdisc is the root. Each
+    interface's handles come from its number in the file, as upstream's
+    devnum does: tbf n:, prio 10n: (or n: when it is the root) and sfq
+    leaves 10n1: to 10n3:, in hex."""
+    flow_filter = capabilities.lookup("FLOW_FILTER")
     up = []
     down = []
     for tci in cfg.tcinterfaces:
         i = tci.interface
+        n = format(tci.number, "x")
         up.append(f"    # tcinterface {i} ({tci.origin})")
         up.append(f"    tc qdisc del dev {i} root 2>/dev/null || :")
         up.append(f"    tc qdisc del dev {i} ingress 2>/dev/null || :")
-        if tci.out_bw:
-            rate = _rate_kbit(tci.out_bw, tci.origin)
-            up.append(f"    tc qdisc add dev {i} root handle 1: tbf rate "
-                      f"{rate}kbit burst 10kb latency 200ms mpu 64")
-            up.append(f"    tc qdisc add dev {i} parent 1: handle 101: prio "
-                      "bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1")
-            for band in (1, 2, 3):
-                up.append(f"    tc qdisc add dev {i} parent 101:{band} handle "
-                          f"101{band}: sfq quantum 1875 limit 127 perturb 10")
-                up.append(f"    tc filter add dev {i} protocol all prio "
-                          f"{16 + band} parent 101: handle {band} fw classid "
-                          f"101:{band}")
+        prio = f"prio bands 3 priomap {_PRIOMAP}"
+        if tci.egress:
+            e = tci.egress
+            tbf = (f"    tc qdisc add dev {i} root handle {n}: tbf rate "
+                   f"{e.rate}kbit burst {e.burst} latency {e.latency} mpu 64")
+            if e.peak:
+                tbf += f" peakrate {e.peak}"
+            if e.minburst:
+                tbf += f" minburst {e.minburst}"
+            up.append(tbf)
+            root, n = n, format(tci.number | 0x100, "x")
+            up.append(f"    tc qdisc add dev {i} parent {root}: handle {n}: "
+                      f"{prio}")
+        else:
+            up.append(f"    tc qdisc add dev {i} root handle {n}: {prio}")
+        for band in (1, 2, 3):
+            up.append(f"    tc qdisc add dev {i} parent {n}:{band} handle "
+                      f"{n}{band}: sfq quantum 1875 limit 127 perturb 10")
+            up.append(f"    tc filter add dev {i} protocol all prio "
+                      f"{16 + band} parent {n}: handle {band} fw classid "
+                      f"{n}:{band}")
+            if tci.flow and flow_filter:
                 up.append(f"    tc filter add dev {i} protocol all prio 1 "
-                          f"parent 101{band}: handle {3 + band} flow hash "
-                          "keys nfct-src divisor 1024")
-            # Steer interactive traffic (tcp acks and minimize-delay) to
-            # the top band, as upstream does.
-            up.append(f"    tc filter add dev {i} parent 101:0 protocol all "
-                      "prio 1 u32 match ip protocol 6 0xff match u8 0x05 0x0f "
-                      "at 0 match u16 0x0000 0xffc0 at 2 match u8 0x10 0xff "
-                      "at 33 flowid 101:1")
-            up.append(f"    tc filter add dev {i} parent 101:0 protocol all "
-                      "prio 1 u32 match ip6 protocol 6 0xff match u8 0x10 "
-                      "0xff at 53 flowid 101:1")
+                          f"parent {n}{band}: handle {3 + band} flow hash "
+                          f"keys {tci.flow} divisor 1024")
+        # Steer interactive traffic (tcp acks and minimize-delay) to the
+        # top band, as upstream does.
+        up.append(f"    tc filter add dev {i} parent {n}:0 protocol all "
+                  "prio 1 u32 match ip protocol 6 0xff match u8 0x05 0x0f "
+                  "at 0 match u16 0x0000 0xffc0 at 2 match u8 0x10 0xff "
+                  f"at 33 flowid {n}:1")
+        up.append(f"    tc filter add dev {i} parent {n}:0 protocol all "
+                  "prio 1 u32 match ip6 protocol 6 0xff match u8 0x10 "
+                  f"0xff at 53 flowid {n}:1")
         up += _ingress_police(i, tci.ingress)
         down.append(f"    tc qdisc del dev {i} root 2>/dev/null || :")
         down.append(f"    tc qdisc del dev {i} ingress 2>/dev/null || :")
